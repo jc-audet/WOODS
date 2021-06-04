@@ -196,17 +196,47 @@ if __name__ == '__main__':
 
     train_loaders = []            # array of training environment dataloaders
     test_loaders = []            # array of test environment dataloaders
-    d = 0.25                # Label noise
-    envs = [0.1, 0.2, 0.9]  # Environment is a function of correlation
+    d = 0                # Label noise
+    envs = [1, 1, 1]  # Environment is a function of correlation
     test_env = 2
     for i, e in enumerate(envs):
 
         # Choose data subset
-        images = MNIST_images[i::len(envs)]
-        labels = MNIST_labels[i::len(envs)]
+        images = MNIST_images#[i::len(envs)]
+        labels = MNIST_labels#[i::len(envs)]
 
         # Color subset
         colored_images, colored_labels = color_dataset(images, labels, e, d)
+
+        show_images = torch.cat([colored_images,torch.zeros_like(colored_images[:,:,0:1,:,:])], dim=2)
+        fig, axs = plt.subplots(3,3)
+        axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
+        axs[0,0].set_ylabel('Sequence 1')
+        axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
+        axs[0,1].set_title('Label = 1')
+        axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
+        axs[0,2].set_title('Label = 0')
+        axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
+        axs[1,0].set_ylabel('Sequence 2')
+        axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
+        axs[1,1].set_title('Label = 0')
+        axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
+        axs[1,2].set_title('Label = 1')
+        axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
+        axs[2,0].set_ylabel('Sequence 3')
+        axs[2,0].set_xlabel('Time Step 1')
+        axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
+        axs[2,1].set_xlabel('Time Step 2')
+        axs[2,1].set_title('Label = 0')
+        axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
+        axs[2,2].set_xlabel('Time Step 3')
+        axs[2,2].set_title('Label = 1')
+        for row in axs:
+            for ax in row:
+                ax.set_xticks([]) 
+                ax.set_yticks([]) 
+        plt.tight_layout()
+        plt.savefig('./figure/Temporal_CMNIST.pdf')
 
         # Make Tensor dataset
         td = torch.utils.data.TensorDataset(colored_images, colored_labels)

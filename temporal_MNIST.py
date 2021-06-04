@@ -166,6 +166,36 @@ if __name__ == '__main__':
     test_ds.targets = ( test_ds.targets[:,:2] > test_ds.targets[:,1:] )
     test_ds.targets = torch.cat((torch.zeros((test_ds.targets.shape[0],1)), test_ds.targets), 1).long()
 
+    show_images = train_ds.data
+    fig, axs = plt.subplots(3,3)
+    axs[0,0].imshow(show_images[0,0,:,:], cmap='gray')
+    axs[0,0].set_ylabel('Sequence 1')
+    axs[0,1].imshow(show_images[0,1,:,:], cmap='gray')
+    axs[0,1].set_title('Label = 1')
+    axs[0,2].imshow(show_images[0,2,:,:], cmap='gray')
+    axs[0,2].set_title('Label = 0')
+    axs[1,0].imshow(show_images[1,0,:,:], cmap='gray')
+    axs[1,0].set_ylabel('Sequence 2')
+    axs[1,1].imshow(show_images[1,1,:,:], cmap='gray')
+    axs[1,1].set_title('Label = 0')
+    axs[1,2].imshow(show_images[1,2,:,:], cmap='gray')
+    axs[1,2].set_title('Label = 1')
+    axs[2,0].imshow(show_images[2,0,:,:], cmap='gray')
+    axs[2,0].set_ylabel('Sequence 3')
+    axs[2,0].set_xlabel('Time Step 1')
+    axs[2,1].imshow(show_images[2,1,:,:], cmap='gray')
+    axs[2,1].set_title('Label = 0')
+    axs[2,1].set_xlabel('Time Step 2')
+    axs[2,2].imshow(show_images[2,2,:,:], cmap='gray')
+    axs[2,2].set_xlabel('Time Step 3')
+    axs[2,2].set_title('Label = 1')
+    for row in axs:
+        for ax in row:
+            ax.set_xticks([]) 
+            ax.set_yticks([]) 
+    plt.tight_layout()
+    plt.savefig('./figure/Temporal_MNIST.pdf')
+
     # Make Tensor dataset
     train_dataset = torch.utils.data.TensorDataset(train_ds.data, train_ds.targets)
     test_dataset = torch.utils.data.TensorDataset(test_ds.data, test_ds.targets)
