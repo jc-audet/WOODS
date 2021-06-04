@@ -129,23 +129,23 @@ def XOR(a, b):
 def bernoulli(p, size):
     return ( torch.rand(size) < p ).float()
 
-def color_dataset(ds, p, d):
+def color_dataset(images, labels, p, d):
 
     # Add label noise
-    ds.targets = XOR(ds.targets, bernoulli(d, ds.targets.shape)).long()
+    labels = XOR(labels, bernoulli(d, labels.shape)).long()
 
     # Choose colors
-    colors = XOR(ds.targets, bernoulli(p, ds.targets.shape))
+    colors = XOR(labels, bernoulli(p, labels.shape))
 
     # Stack a second color channel
-    ds.data = torch.stack([ds.data,ds.data], dim=2)
+    images = torch.stack([images,images], dim=2)
 
     # Apply colors
     for sample in range(colors.shape[0]):
         for frame in range(colors.shape[1]):
-            ds.data[sample,frame,(1-colors[sample,frame]).long(),:,:] *= 0 
+            images[sample,frame,(1-colors[sample,frame]).long(),:,:] *= 0 
 
-    return ds
+    return images, labels
 
 
 if __name__ == '__main__':
@@ -178,35 +178,51 @@ if __name__ == '__main__':
 
     ## Create dataset
 
+    # Concatenate all data and labels
+    MNIST_images = torch.cat((train_ds.data,test_ds.data))
+    MNIST_labels = torch.cat((train_ds.targets,test_ds.targets))
+
     # Create sequences of 3 digits
-    train_ds.data = train_ds.data.reshape(-1,3,28,28)
-    test_ds.data = test_ds.data[:-1,:,:].reshape(-1,3,28,28)
+    MNIST_images = MNIST_images[:-1,:,:].reshape(-1,3,28,28)
 
     # With their corresponding label
-    train_ds.targets = train_ds.targets.reshape(-1,3)
-    test_ds.targets = test_ds.targets[:-1].reshape(-1,3)
+    MNIST_labels = MNIST_labels[:-1].reshape(-1,3)
 
     # Assign label to the objective : Is the last number in the sequence larger than the current
-    train_ds.targets = ( train_ds.targets[:,:2] > train_ds.targets[:,1:] )
-    train_ds.targets = torch.cat((torch.zeros((train_ds.targets.shape[0],1)), train_ds.targets), 1)
-    test_ds.targets = ( test_ds.targets[:,:2] > test_ds.targets[:,1:] )
-    test_ds.targets = torch.cat((torch.zeros((test_ds.targets.shape[0],1)), test_ds.targets), 1)
+    MNIST_labels = ( MNIST_labels[:,:2] > MNIST_labels[:,1:] )
+    MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
 
     # Make the color datasets
-    train_ds = color_dataset(train_ds, 0.8, 0.25)
-    test_ds = color_dataset(test_ds, 0.1, 0.25)
 
-    # Make Tensor dataset
-    train_dataset = torch.utils.data.TensorDataset(train_ds.data, train_ds.targets)
-    test_dataset = torch.utils.data.TensorDataset(test_ds.data, test_ds.targets)
+    train_loaders = []            # array of training environment dataloaders
+    test_loaders = []            # array of test environment dataloaders
+    d = 0.25                # Label noise
+    envs = [0.1, 0.2, 0.9]  # Environment is a function of correlation
+    test_env = 2
+    for i, e in enumerate(envs):
 
-    # Make dataloader
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=flags.batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=flags.batch_size, shuffle=True)
+        # Choose data subset
+        images = MNIST_images[i::len(envs)]
+        labels = MNIST_labels[i::len(envs)]
+
+        # Color subset
+        colored_images, colored_labels = color_dataset(images, labels, e, d)
+
+        # Make Tensor dataset
+        td = torch.utils.data.TensorDataset(colored_images, colored_labels)
+
+        # Make dataloader
+        if i==test_env:
+            test_loaders.append( torch.utils.data.DataLoader(td, batch_size=flags.batch_size, shuffle=True) )
+        else:
+            train_loaders.append( torch.utils.data.DataLoader(td, batch_size=flags.batch_size, shuffle=True) )
+
+    ################
+    ## Training model
 
     ## Initialize some RNN
-    model = RNN(train_ds.data.shape[2]*train_ds.data.shape[3]*train_ds.data.shape[4], 50, 10, 2)
+    model = RNN(2*MNIST_images.shape[2]*MNIST_images.shape[3], 50, 10, 2)
 
     ## Train it
     model.to(device)
-    train(flags, model, train_loader, test_loader, device)
+    train(flags, model, train_loaders, test_loaders, device)
