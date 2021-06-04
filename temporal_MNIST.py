@@ -13,19 +13,36 @@ import matplotlib.pyplot as plt
 
 
 class RNN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, state_size, hidden_size, output_size):
         super(RNN, self).__init__()
 
         self.hidden_size = hidden_size
 
         self.i2h = nn.Linear(input_size + hidden_size, hidden_size)
-        self.i2o = nn.Linear(input_size + hidden_size, output_size)
+
+        lin1 = nn.Linear(input_size + hidden_size, state_size)
+        lin2 = nn.Linear(state_size, state_size)
+        lin3 = nn.Linear(state_size, hidden_size)
+        for lin in [lin1, lin2, lin3]:
+            nn.init.xavier_uniform_(lin.weight)
+            nn.init.zeros_(lin.bias)
+        self.FCH = nn.Sequential(lin1, nn.ReLU(True), lin2, nn.ReLU(True), lin3, nn.LogSoftmax(dim=1))
+
+
+        lin4 = nn.Linear(input_size + hidden_size, state_size)
+        lin5 = nn.Linear(state_size, state_size)
+        lin6 = nn.Linear(state_size, 2)
+        for lin in [lin4, lin5, lin6]:
+            nn.init.xavier_uniform_(lin.weight)
+            nn.init.zeros_(lin.bias)
+        self.FCO = nn.Sequential(lin4, nn.ReLU(True), lin5, nn.ReLU(True), lin6, nn.LogSoftmax(dim=1))
+
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input, hidden):
         combined = torch.cat((input.view(input.shape[0],-1), hidden), 1)
-        hidden = self.i2h(combined)
-        output = self.i2o(combined)
+        hidden = self.FCH(combined)
+        output = self.FCO(combined)
         output = self.softmax(output)
         return output, hidden
 
@@ -64,6 +81,7 @@ def train(flags, model, train_loader, test_loader, device):
     test_accuracies = []
     test_losses = []
 
+    print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
     for epoch in range(1, flags.epochs + 1):
 
         model = train_epoch(model, train_loader, optimizer, device)
@@ -78,7 +96,7 @@ def train(flags, model, train_loader, test_loader, device):
         test_losses.append(test_loss)
         test_accuracies.append(test_accuracy)
 
-        print('Epoch: ' + str(epoch), "(Training | Test Accuracy || Training | Test loss): ({:.2f} | {:.2f} || {:.2e} | {:.2e})".format(training_accuracy,test_accuracy,training_loss,test_loss))
+        print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, training_accuracy, test_accuracy, training_loss, test_loss))
 
     return training_accuracies, training_losses, test_accuracies, test_losses
 
@@ -157,7 +175,7 @@ if __name__ == '__main__':
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=flags.batch_size, shuffle=True)
 
     ## Initialize some RNN
-    model = RNN(train_ds.data.shape[2]*train_ds.data.shape[3], 10, 2)
+    model = RNN(train_ds.data.shape[2]*train_ds.data.shape[3], 50, 10, 2)
 
     ## Train it
     model.to(device)
