@@ -194,7 +194,7 @@ if __name__ == '__main__':
             ax.set_xticks([]) 
             ax.set_yticks([]) 
     plt.tight_layout()
-    plt.savefig('./figure/Temporal_MNIST.pdf')
+    plt.savefig('./figure/Temporal_MNIST.png')
 
     # Make Tensor dataset
     train_dataset = torch.utils.data.TensorDataset(train_ds.data, train_ds.targets)

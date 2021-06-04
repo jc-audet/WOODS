@@ -236,7 +236,7 @@ if __name__ == '__main__':
                 ax.set_xticks([]) 
                 ax.set_yticks([]) 
         plt.tight_layout()
-        plt.savefig('./figure/Temporal_CMNIST.pdf')
+        plt.savefig('./figure/Temporal_CMNIST.png')
 
         # Make Tensor dataset
         td = torch.utils.data.TensorDataset(colored_images, colored_labels)
