@@ -179,17 +179,17 @@ if __name__ == '__main__':
     ## Create dataset
 
     # Concatenate all data and labels
-    MNIST_images = torch.cat((train_ds.data,test_ds.data))
-    MNIST_labels = torch.cat((train_ds.targets,test_ds.targets))
+    MNIST_images = torch.cat((train_ds.data, test_ds.data))
+    MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
     # Create sequences of 3 digits
-    MNIST_images = MNIST_images[:-1,:,:].reshape(-1,3,28,28)
+    MNIST_images = MNIST_images.reshape(-1,4,28,28)
 
     # With their corresponding label
-    MNIST_labels = MNIST_labels[:-1].reshape(-1,3)
+    MNIST_labels = MNIST_labels.reshape(-1,4)
 
     # Assign label to the objective : Is the last number in the sequence larger than the current
-    MNIST_labels = ( MNIST_labels[:,:2] > MNIST_labels[:,1:] )
+    MNIST_labels = ( MNIST_labels[:,:3] > MNIST_labels[:,1:] )
     MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
 
     # Make the color datasets
@@ -202,41 +202,48 @@ if __name__ == '__main__':
     for i, e in enumerate(envs):
 
         # Choose data subset
-        images = MNIST_images#[i::len(envs)]
-        labels = MNIST_labels#[i::len(envs)]
+        images = MNIST_images[i::len(envs)]
+        labels = MNIST_labels[i::len(envs)]
 
         # Color subset
         colored_images, colored_labels = color_dataset(images, labels, e, d)
 
-        show_images = torch.cat([colored_images,torch.zeros_like(colored_images[:,:,0:1,:,:])], dim=2)
-        fig, axs = plt.subplots(3,3)
-        axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
-        axs[0,0].set_ylabel('Sequence 1')
-        axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
-        axs[0,1].set_title('Label = 1')
-        axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
-        axs[0,2].set_title('Label = 0')
-        axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
-        axs[1,0].set_ylabel('Sequence 2')
-        axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
-        axs[1,1].set_title('Label = 0')
-        axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
-        axs[1,2].set_title('Label = 1')
-        axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
-        axs[2,0].set_ylabel('Sequence 3')
-        axs[2,0].set_xlabel('Time Step 1')
-        axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
-        axs[2,1].set_xlabel('Time Step 2')
-        axs[2,1].set_title('Label = 0')
-        axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
-        axs[2,2].set_xlabel('Time Step 3')
-        axs[2,2].set_title('Label = 1')
-        for row in axs:
-            for ax in row:
-                ax.set_xticks([]) 
-                ax.set_yticks([]) 
-        plt.tight_layout()
-        plt.savefig('./figure/Temporal_CMNIST.png')
+        # show_images = torch.cat([colored_images,torch.zeros_like(colored_images[:,:,0:1,:,:])], dim=2)
+        # fig, axs = plt.subplots(3,4)
+        # axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
+        # axs[0,0].set_ylabel('Sequence 1')
+        # axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
+        # axs[0,1].set_title('Label = 1')
+        # axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
+        # axs[0,2].set_title('Label = 0')
+        # axs[0,3].imshow(show_images[0,3,:,:,:].permute(1,2,0))
+        # axs[0,3].set_title('Label = 1')
+        # axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
+        # axs[1,0].set_ylabel('Sequence 2')
+        # axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
+        # axs[1,1].set_title('Label = 0')
+        # axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
+        # axs[1,2].set_title('Label = 1')
+        # axs[1,3].imshow(show_images[1,3,:,:,:].permute(1,2,0))
+        # axs[1,3].set_title('Label = 0')
+        # axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
+        # axs[2,0].set_ylabel('Sequence 3')
+        # axs[2,0].set_xlabel('Time Step 1')
+        # axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
+        # axs[2,1].set_xlabel('Time Step 2')
+        # axs[2,1].set_title('Label = 0')
+        # axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
+        # axs[2,2].set_xlabel('Time Step 3')
+        # axs[2,2].set_title('Label = 1')
+        # axs[2,3].imshow(show_images[2,3,:,:,:].permute(1,2,0))
+        # axs[2,3].set_xlabel('Time Step 4')
+        # axs[2,3].set_title('Label = 0')
+        # for row in axs:
+        #     for ax in row:
+        #         ax.set_xticks([]) 
+        #         ax.set_yticks([]) 
+        # plt.tight_layout()
+        # plt.savefig('./figure/Temporal_CMNIST.pdf')
 
         # Make Tensor dataset
         td = torch.utils.data.TensorDataset(colored_images, colored_labels)
