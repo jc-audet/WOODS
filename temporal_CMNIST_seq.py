@@ -37,13 +37,13 @@ class RNN(nn.Module):
             nn.init.zeros_(lin.bias)
         self.FCO = nn.Sequential(lin4, nn.ReLU(True), lin5, nn.ReLU(True), lin6, nn.LogSoftmax(dim=1))
 
-        self.softmax = nn.LogSoftmax(dim=1)
+        self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input, hidden):
         combined = torch.cat((input.view(input.shape[0],-1), hidden), 1)
         hidden = self.FCH(combined)
         output = self.FCO(combined)
-        output = self.softmax(output)
+        output = self.log_softmax(output)
         return output, hidden
 
     def initHidden(self, batch_size):
@@ -57,18 +57,33 @@ def train_epoch(model, train_loader, optimizer, device):
     :param GPU: boolean variable that initialize some variable on the GPU if accessible, otherwise on CPU
     """
     model.train()
+    train_loader_iter = zip(*train_loaders)
+    for batch_loaders in train_loader_iter:
 
-    for data, target in train_loader:
-        data, target = data.to(device), target.to(device)
+        # Send everything onto device
+        minibatches_device = [(x.to(device), y.to(device))
+            for x,y in batch_loaders]
+
+        ## Group all inputs and get prediction
+        all_x = torch.cat([x for x,y in minibatches_device])
+        all_out = []
+        hidden = model.initHidden(all_x.shape[0]).to(device)
+        for i in range(all_x.shape[1]):
+            out, hidden = model(all_x[:,i,:,:], hidden)
+            all_out.append(out)
+        
+        total_loss = 0
+        all_logits_idx = 0
+        for i, (x,y) in enumerate(minibatches_device):
+            env_loss = 0
+            for t in range(all_x.shape[1]):
+                env_out = all_out[t][all_logits_idx:all_logits_idx + x.shape[0],:]
+                env_loss += F.nll_loss(env_out, y[:,t]) if t>0 else 0.  # Only consider labels after the first frame
+            all_logits_idx += x.shape[0]
+            total_loss += env_loss
 
         optimizer.zero_grad()
-        loss = 0
-        hidden = model.initHidden(data.shape[0]).to(device)
-        for i in range(data.shape[1]):
-            out, hidden = model(data[:,i,:,:], hidden)
-            loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
-
-        loss.backward()
+        total_loss.backward()
         optimizer.step()
 
     return model
@@ -85,6 +100,7 @@ def train(flags, model, train_loader, test_loader, device):
     print("-----------------------------------------------------------------------------------------------------------------")
     for epoch in range(1, flags.epochs + 1):
 
+        ## Train a single epoch
         model = train_epoch(model, train_loader, optimizer, device)
 
         ## Get training accuracy and loss
@@ -104,24 +120,41 @@ def train(flags, model, train_loader, test_loader, device):
 def get_accuracy(model, loader, device):
 
     model.eval()
-    test = 0
-    nb_correct = 0
+    
+    sequences = 0
+    total_loss = 0
+    correct_guess = 0
+    total_guess = 0
+    test_loader_iter = zip(*loader)
+    with torch.no_grad():
+        for batch_loaders in test_loader_iter:
 
-    for data, target in loader:
-      
-        data, target = data.to(device), target.to(device)
+            # Send everything onto device
+            minibatches_device = [(x.to(device), y.to(device))
+                for x,y in batch_loaders]
 
-        loss = 0
-        pred = torch.zeros(data.shape[0], 1).to(device)
-        hidden = model.initHidden(data.shape[0]).to(device)
-        for i in range(data.shape[1]):
-            out, hidden = model(data[:,i,:,:], hidden)
-            pred = torch.cat((pred, out.max(1, keepdim=True)[1]), dim=1) if i>0 else pred
-            loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
-        
-        nb_correct += pred[:,1:].eq(target[:,1:].data.view_as(pred[:,1:])).cpu().sum()
-
-    return nb_correct.item() * 100 / (2*len(loader.dataset)), loss/len(loader.dataset)
+            ## Group all inputs and get prediction
+            all_x = torch.cat([x for x,y in minibatches_device])
+            all_out = []
+            hidden = model.initHidden(all_x.shape[0]).to(device)
+            for i in range(all_x.shape[1]):
+                out, hidden = model(all_x[:,i,:,:], hidden)
+                all_out.append(out)
+            
+            all_logits_idx = 0
+            for i, (x,y) in enumerate(minibatches_device):
+                env_loss = 0
+                for t in range(all_x.shape[1]):
+                    env_out = all_out[t][all_logits_idx:all_logits_idx + x.shape[0],:]
+                    env_loss += F.nll_loss(env_out, y[:,t]) if t>0 else 0.  # Only consider labels after the first frame
+                    guess = env_out.max(1)[1]
+                    correct_guess += guess.eq(y[:,t]).cpu().sum()
+                    total_guess += guess.shape[0]
+                    sequences += env_out.shape[0]
+                all_logits_idx += x.shape[0]
+                total_loss += env_loss
+            
+    return correct_guess * 100 / total_guess, total_loss/sequences
 
 def XOR(a, b):
     return ( a - b ).abs()
@@ -194,10 +227,10 @@ if __name__ == '__main__':
 
     # Make the color datasets
 
-    train_loaders = []            # array of training environment dataloaders
-    test_loaders = []            # array of test environment dataloaders
-    d = 0                # Label noise
-    envs = [1, 1, 1]  # Environment is a function of correlation
+    train_loaders = []          # array of training environment dataloaders
+    test_loaders = []           # array of test environment dataloaders
+    d = 0.25                    # Label noise
+    envs = [0.8, 0.9, 0.1]            # Environment is a function of correlation
     test_env = 2
     for i, e in enumerate(envs):
 
@@ -207,43 +240,6 @@ if __name__ == '__main__':
 
         # Color subset
         colored_images, colored_labels = color_dataset(images, labels, e, d)
-
-        # show_images = torch.cat([colored_images,torch.zeros_like(colored_images[:,:,0:1,:,:])], dim=2)
-        # fig, axs = plt.subplots(3,4)
-        # axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
-        # axs[0,0].set_ylabel('Sequence 1')
-        # axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
-        # axs[0,1].set_title('Label = 1')
-        # axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
-        # axs[0,2].set_title('Label = 0')
-        # axs[0,3].imshow(show_images[0,3,:,:,:].permute(1,2,0))
-        # axs[0,3].set_title('Label = 1')
-        # axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
-        # axs[1,0].set_ylabel('Sequence 2')
-        # axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
-        # axs[1,1].set_title('Label = 0')
-        # axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
-        # axs[1,2].set_title('Label = 1')
-        # axs[1,3].imshow(show_images[1,3,:,:,:].permute(1,2,0))
-        # axs[1,3].set_title('Label = 0')
-        # axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
-        # axs[2,0].set_ylabel('Sequence 3')
-        # axs[2,0].set_xlabel('Time Step 1')
-        # axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
-        # axs[2,1].set_xlabel('Time Step 2')
-        # axs[2,1].set_title('Label = 0')
-        # axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
-        # axs[2,2].set_xlabel('Time Step 3')
-        # axs[2,2].set_title('Label = 1')
-        # axs[2,3].imshow(show_images[2,3,:,:,:].permute(1,2,0))
-        # axs[2,3].set_xlabel('Time Step 4')
-        # axs[2,3].set_title('Label = 0')
-        # for row in axs:
-        #     for ax in row:
-        #         ax.set_xticks([]) 
-        #         ax.set_yticks([]) 
-        # plt.tight_layout()
-        # plt.savefig('./figure/Temporal_CMNIST.pdf')
 
         # Make Tensor dataset
         td = torch.utils.data.TensorDataset(colored_images, colored_labels)
@@ -263,3 +259,41 @@ if __name__ == '__main__':
     ## Train it
     model.to(device)
     train(flags, model, train_loaders, test_loaders, device)
+
+    ## Plot images
+    # show_images = torch.cat([colored_images,torch.zeros_like(colored_images[:,:,0:1,:,:])], dim=2)
+    # fig, axs = plt.subplots(3,4)
+    # axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
+    # axs[0,0].set_ylabel('Sequence 1')
+    # axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
+    # axs[0,1].set_title('Label = 1')
+    # axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
+    # axs[0,2].set_title('Label = 0')
+    # axs[0,3].imshow(show_images[0,3,:,:,:].permute(1,2,0))
+    # axs[0,3].set_title('Label = 1')
+    # axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
+    # axs[1,0].set_ylabel('Sequence 2')
+    # axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
+    # axs[1,1].set_title('Label = 0')
+    # axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
+    # axs[1,2].set_title('Label = 1')
+    # axs[1,3].imshow(show_images[1,3,:,:,:].permute(1,2,0))
+    # axs[1,3].set_title('Label = 0')
+    # axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
+    # axs[2,0].set_ylabel('Sequence 3')
+    # axs[2,0].set_xlabel('Time Step 1')
+    # axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
+    # axs[2,1].set_xlabel('Time Step 2')
+    # axs[2,1].set_title('Label = 0')
+    # axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
+    # axs[2,2].set_xlabel('Time Step 3')
+    # axs[2,2].set_title('Label = 1')
+    # axs[2,3].imshow(show_images[2,3,:,:,:].permute(1,2,0))
+    # axs[2,3].set_xlabel('Time Step 4')
+    # axs[2,3].set_title('Label = 0')
+    # for row in axs:
+    #     for ax in row:
+    #         ax.set_xticks([]) 
+    #         ax.set_yticks([]) 
+    # plt.tight_layout()
+    # plt.savefig('./figure/Temporal_CMNIST.pdf')

@@ -166,6 +166,24 @@ if __name__ == '__main__':
     test_ds.targets = ( test_ds.targets[:,:-1] > test_ds.targets[:,1:] )
     test_ds.targets = torch.cat((torch.zeros((test_ds.targets.shape[0],1)), test_ds.targets), 1).long()
 
+
+    # Make Tensor dataset
+    train_dataset = torch.utils.data.TensorDataset(train_ds.data, train_ds.targets)
+    test_dataset = torch.utils.data.TensorDataset(test_ds.data, test_ds.targets)
+
+    # Make dataloader
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=flags.batch_size, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=flags.batch_size, shuffle=True)
+
+    ## Initialize some RNN
+    model = RNN(train_ds.data.shape[2]*train_ds.data.shape[3], 50, 10, 2)
+
+    ## Train it
+    model.to(device)
+    train(flags, model, train_loader, test_loader, device)
+
+
+    ### Plot greyscale images
     # show_images = train_ds.data
     # fig, axs = plt.subplots(3,4)
     # axs[0,0].imshow(show_images[0,0,:,:], cmap='gray')
@@ -202,18 +220,3 @@ if __name__ == '__main__':
     #         ax.set_yticks([]) 
     # plt.tight_layout()
     # plt.savefig('./figure/Temporal_MNIST.png')
-
-    # Make Tensor dataset
-    train_dataset = torch.utils.data.TensorDataset(train_ds.data, train_ds.targets)
-    test_dataset = torch.utils.data.TensorDataset(test_ds.data, test_ds.targets)
-
-    # Make dataloader
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=flags.batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=flags.batch_size, shuffle=True)
-
-    ## Initialize some RNN
-    model = RNN(train_ds.data.shape[2]*train_ds.data.shape[3], 50, 10, 2)
-
-    ## Train it
-    model.to(device)
-    train(flags, model, train_loader, test_loader, device)
