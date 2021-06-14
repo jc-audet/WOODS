@@ -16,9 +16,9 @@ def XOR(a, b):
 def bernoulli(p, size):
     return ( torch.rand(size) < p ).float()
 
-def color_dataset(ds_setup, images, labels, p, d):
+def color_dataset(ds_setup, images, labels, env_id, p, d):
 
-    if ds_setup == 'CMNIST_seq':
+    if ds_setup == 'seq':
 
         # Add label noise
         labels = XOR(labels, bernoulli(d, labels.shape)).long()
@@ -32,11 +32,10 @@ def color_dataset(ds_setup, images, labels, p, d):
         # Apply colors
         for sample in range(colors.shape[0]):
             for frame in range(colors.shape[1]):
-                images[sample,frame,colors[sample,frame].long(),:,:] *= 0
+                if not frame == 0:      # Leave first channel both colors
+                    images[sample,frame,colors[sample,frame].long(),:,:] *= 0
 
-        return images, labels
-
-    elif ds_setup == 'CMNIST_step':
+    elif ds_setup == 'step':
 
         # Add label noise
         labels = XOR(labels, bernoulli(d, labels.shape)).long()
@@ -45,16 +44,17 @@ def color_dataset(ds_setup, images, labels, p, d):
         colors = XOR(labels, bernoulli(1-p, labels.shape))
 
         # Apply colors
-        if step == 0:  # If coloring first frame, set all color to green
-            for sample in range(colors.shape[0]):
-                images[sample,step,0,:,:] *= 0 
+        if env_id == 0:  # If coloring first frame, do not touch the color
+            pass 
+            # for sample in range(colors.shape[0]):
+            #     images[sample,env_id,0,:,:] *= 0 
         else:
             for sample in range(colors.shape[0]):
-                images[sample,step,(1-colors[sample,step]).long(),:,:] *= 0 
+                images[sample,env_id,(1-colors[sample,env_id]).long(),:,:] *= 0 
 
-        return images, labels
+    return images, labels
 
-def make_dataset(ds_setup, time_steps, train_ds, test_ds):
+def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
 
     if ds_setup == 'grey':
         
@@ -79,12 +79,14 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds):
         test_dataset = torch.utils.data.TensorDataset(test_ds.data, test_ds.targets)
 
         # Make dataloader
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=flags.batch_size, shuffle=True)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=flags.batch_size, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-        return train_loader, test_loader
+        input_size = 28 * 28
 
-    elif ds_setup == 'CMNIST_seq':
+        return input_size, train_loader, test_loader
+
+    elif ds_setup == 'seq':
 
         # Concatenate all data and labels
         MNIST_images = torch.cat((train_ds.data, test_ds.data))
@@ -104,26 +106,66 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds):
         # Make the color datasets
 
         train_loaders = []          # array of training environment dataloaders
-        test_loaders = []           # array of test environment dataloaders
         d = 0.25                    # Label noise
-        envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
-        test_env = 2                # Index of the test environment
-        for i, e in enumerate(envs):        
+        envs = [0.8, 0.9, 0.1]            # Environment is a function of correlation
+        test_env = 2
+        for i, e in enumerate(envs):
 
             # Choose data subset
             images = MNIST_images[i::len(envs)]
             labels = MNIST_labels[i::len(envs)]
 
             # Color subset
-            colored_images, colored_labels = color_dataset(images, labels, e, d)
+            colored_images, colored_labels = color_dataset(ds_setup, images, labels, i, e, d)
 
             # Make Tensor dataset
             td = torch.utils.data.TensorDataset(colored_images, colored_labels)
 
             # Make dataloader
             if i==test_env:
-                test_loaders.append( torch.utils.data.DataLoader(td, batch_size=flags.batch_size, shuffle=True) )
+                test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
             else:
-                train_loaders.append( torch.utils.data.DataLoader(td, batch_size=flags.batch_size, shuffle=True) )
+                train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True) )
 
-        return train_loaders, test_loaders
+        input_size = 2 * 28 * 28
+
+        return input_size, train_loaders, test_loader
+
+    elif ds_setup == 'step':
+
+        # Concatenate all data and labels
+        MNIST_images = torch.cat((train_ds.data, test_ds.data))
+        MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
+
+        # Create sequences of 3 digits
+        MNIST_images = MNIST_images.reshape(-1,4,28,28)
+
+        # With their corresponding label
+        MNIST_labels = MNIST_labels.reshape(-1,4)
+
+        # Assign label to the objective : Is the last number in the sequence larger than the current
+        MNIST_labels = ( MNIST_labels[:,:3] > MNIST_labels[:,1:] )
+        MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
+
+        ## Make the color datasets
+
+        d = 0                  # Label noise
+        envs = [0.8, 0.9, 0]            # Environment is a function of correlation
+        train_env = [1,2]
+        test_env = [3]
+
+        # Configure channels and first frame
+        colored_images = torch.stack([MNIST_images,MNIST_images], dim=2) # Stack a second color channel
+        
+        for i, e in enumerate(envs):
+
+            # Color i-th frame subset
+            colored_images, colored_labels = color_dataset(ds_setup, colored_images, MNIST_labels, i+1, e, d)
+
+        # Make Tensor dataset and dataloader
+        td = torch.utils.data.TensorDataset(colored_images, colored_labels)
+        loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True)
+
+        input_size = 2 * 28 * 28
+
+        return input_size, loader, []
