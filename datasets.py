@@ -125,7 +125,10 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
             if i==test_env:
                 test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
             else:
-                train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True) )
+                if batch_size < len(envs):
+                    train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
+                else:
+                    train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(envs), shuffle=True) )
 
         input_size = 2 * 28 * 28
 

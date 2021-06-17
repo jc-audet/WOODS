@@ -7,8 +7,6 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import datasets, transforms
 
-
-
 class RNN(nn.Module):
     def __init__(self, input_size, state_size, hidden_size, output_size):
         super(RNN, self).__init__()

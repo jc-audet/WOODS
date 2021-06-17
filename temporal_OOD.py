@@ -59,36 +59,40 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
         for batch_loaders in train_loader_iter:
 
             # Send everything onto device
-            minibatches_device = [(x.to(device), y.to(device))
-                for x,y in batch_loaders]
+            minibatches_device = [(x, y) for x,y in batch_loaders]
 
             ## Group all inputs and get prediction
-            all_x = torch.cat([x for x,y in minibatches_device])
+            all_x = torch.cat([x for x,y in minibatches_device]).to(device)
             all_y = torch.cat([y for x,y in minibatches_device])
             all_out = []
 
             # Get logit and make prediction
             hidden = model.initHidden(all_x.shape[0]).to(device)
-            pred = torch.zeros(all_x.shape[0], 0).to(device)
+            pred = torch.zeros(all_x.shape[0], 0)
             for i in range(all_x.shape[1]):
                 out, hidden = model(all_x[:,i,:,:], hidden)
                 all_out.append(out)
-                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
-
+                pred = torch.cat((pred, out.argmax(1, keepdim=True).cpu()), dim=1)
 
             # Compute environment-wise losses
             all_loss = 0
             all_logits_idx = 0
+            # env_losses = []
             for i, (x,y) in enumerate(minibatches_device):
                 env_loss = 0
-                for t in range(all_x.shape[1]):
-                    env_out = all_out[t][all_logits_idx:all_logits_idx + x.shape[0],:]
-                    env_loss += F.nll_loss(env_out, y[:,t]) if t>0 else 0.  # Only consider labels after the first frame
+                y = y.to(device)
+                for t in range(all_x.shape[1]):     # Number of time steps
+                    env_out_t = all_out[t][all_logits_idx:all_logits_idx + x.shape[0],:]
+                    env_loss += F.nll_loss(env_out_t, y[:,t]) if t>0 else 0.  # Only consider labels after the first frame
+                    # env_losses.append(env_loss)
                 all_logits_idx += x.shape[0]
-                all_loss += env_loss
+                all_loss += env_loss / len(train_loader) # Average across environments
+
+            # Compute penalty with env_losses
+            ## blabla
 
             # get average train accuracy and save it
-            nb_correct = pred[:,1:].eq(all_y[:,1:]).cpu().sum()
+            nb_correct = pred[:,1:].eq(all_y[:,1:]).sum()
             nb_items = pred[:,1:].numel()
             accuracies.append(nb_correct / nb_items)
 
@@ -99,6 +103,7 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
             # Back propagate
             optimizer.zero_grad()
             loss.backward()
+            # (loss+penalty).backward() # with penalty
             optimizer.step()
 
         return model, losses, accuracies
@@ -119,20 +124,24 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
             pred = torch.zeros(data.shape[0], 0).to(device)
             for i in range(data.shape[1]):
                 out, hidden = model(data[:,i,:,:], hidden)
-                # loss += F.nll_loss(out, target[:,i]) if i>0 and i<(data.shape[1]-1) else 0.  # Do not consider the first and the last label
                 all_out.append(out)
                 pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
             
-
             # Get train loss for train environment
             loss = 0
+            env_losses = []
             train_env = np.arange(1,data.shape[1]-1)
             for e in train_env:
                 env_out = all_out[e]
                 env_loss = F.nll_loss(env_out, target[:,e])  # Only consider labels after the first frame
+                env_losses.append(env_loss)
                 loss += env_loss
 
-            losses.append(loss)
+            # Compute penalty here
+            # blabla 
+
+            # Save loss
+            losses.append(loss.item())
 
             # Get train accuracy
             nb_correct = pred[:,1:-1].eq(target[:,1:-1]).cpu().sum()
@@ -142,6 +151,7 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
             # back propagate
             optimizer.zero_grad()
             loss.backward()
+            # (loss+penalty).backward()
             optimizer.step()
 
             # Get test loss
@@ -154,12 +164,8 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
                 nb_items = pred[:,-1].numel()
                 test_accuracies.append(nb_correct / nb_items)
 
-
         return model, losses, accuracies, test_losses, test_accuracies
 
-
-
-    return model, losses, accuracies
 
 def train(flags, model, train_loader, test_loader, device):
 
@@ -199,6 +205,9 @@ def train(flags, model, train_loader, test_loader, device):
 
 def get_accuracy(ds_setup, model, loader, device):
 
+    # Check if this is the right setup
+    assert not ds_setup == 'step', "Wrong use of get_accuracy: Not valid for 'step' setup"
+
     model.eval()
     test = 0
     nb_correct = 0
@@ -206,25 +215,21 @@ def get_accuracy(ds_setup, model, loader, device):
     losses = []
 
     with torch.no_grad():
-        if ds_setup == 'grey' or ds_setup == 'seq':
-            for data, target in loader:
+        for data, target in loader:
+        
+            data, target = data.to(device), target.to(device)
+
+            loss = 0
+            pred = torch.zeros(data.shape[0], 0).to(device)
+            hidden = model.initHidden(data.shape[0]).to(device)
+            for i in range(data.shape[1]):
+                out, hidden = model(data[:,i,:,:], hidden)
+                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
             
-                data, target = data.to(device), target.to(device)
-
-                loss = 0
-                pred = torch.zeros(data.shape[0], 0).to(device)
-                hidden = model.initHidden(data.shape[0]).to(device)
-                for i in range(data.shape[1]):
-                    out, hidden = model(data[:,i,:,:], hidden)
-                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
-                    loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
-                
-                nb_correct += pred[:,1:].eq(target[:,1:]).cpu().sum()
-                nb_item += pred[:,1:].numel()
-                losses.append(loss.item())
-
-        elif ds_setup == 'step':
-            pass
+            nb_correct += pred[:,1:].eq(target[:,1:]).cpu().sum()
+            nb_item += pred[:,1:].numel()
+            losses.append(loss.item())
 
     return nb_correct / nb_item, np.mean(losses)
 
