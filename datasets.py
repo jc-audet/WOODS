@@ -7,6 +7,84 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import datasets, transforms
 
+import matplotlib.pyplot as plt
+
+def plot_sequences(ds_setup, images, labels):
+    
+    if ds_setup == 'grey':
+        fig, axs = plt.subplots(3,4)
+        axs[0,0].imshow(images[0,0,:,:], cmap='gray')
+        axs[0,0].set_ylabel('Sequence 1')
+        axs[0,1].imshow(images[0,1,:,:], cmap='gray')
+        axs[0,1].set_title('Label = '+str(labels[0,1].cpu().item()))
+        axs[0,2].imshow(images[0,2,:,:], cmap='gray')
+        axs[0,2].set_title('Label = '+str(labels[0,2].cpu().item()))
+        axs[0,3].imshow(images[0,3,:,:], cmap='gray')
+        axs[0,3].set_title('Label = '+str(labels[0,3].cpu().item()))
+        axs[1,0].imshow(images[1,0,:,:], cmap='gray')
+        axs[1,0].set_ylabel('Sequence 2')
+        axs[1,1].imshow(images[1,1,:,:], cmap='gray')
+        axs[1,1].set_title('Label = '+str(labels[1,1].cpu().item()))
+        axs[1,2].imshow(images[1,2,:,:], cmap='gray')
+        axs[1,2].set_title('Label = '+str(labels[1,2].cpu().item()))
+        axs[1,3].imshow(images[1,3,:,:], cmap='gray')
+        axs[1,3].set_title('Label = '+str(labels[1,3].cpu().item()))
+        axs[2,0].imshow(images[2,0,:,:], cmap='gray')
+        axs[2,0].set_ylabel('Sequence 3')
+        axs[2,0].set_xlabel('Time Step 1')
+        axs[2,1].imshow(images[2,1,:,:], cmap='gray')
+        axs[2,1].set_xlabel('Time Step 2')
+        axs[2,1].set_title('Label = '+str(labels[2,1].cpu().item()))
+        axs[2,2].imshow(images[2,2,:,:], cmap='gray')
+        axs[2,2].set_xlabel('Time Step 3')
+        axs[2,2].set_title('Label = '+str(labels[2,2].cpu().item()))
+        axs[2,3].imshow(images[2,3,:,:], cmap='gray')
+        axs[2,3].set_xlabel('Time Step 4')
+        axs[2,3].set_title('Label = '+str(labels[2,3].cpu().item()))
+        for row in axs:
+            for ax in row:
+                ax.set_xticks([]) 
+                ax.set_yticks([]) 
+        plt.tight_layout()
+        plt.savefig('./figure/TCMNIST_'+ds_setup+'.pdf')
+    else:
+        show_images = torch.cat([images,torch.zeros_like(images[:,:,0:1,:,:])], dim=2)
+        fig, axs = plt.subplots(3,4)
+        axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
+        axs[0,0].set_ylabel('Sequence 1')
+        axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
+        axs[0,1].set_title('Label = '+str(labels[0,1].cpu().item()))
+        axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
+        axs[0,2].set_title('Label = '+str(labels[0,2].cpu().item()))
+        axs[0,3].imshow(show_images[0,3,:,:,:].permute(1,2,0))
+        axs[0,3].set_title('Label = '+str(labels[0,3].cpu().item()))
+        axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
+        axs[1,0].set_ylabel('Sequence 2')
+        axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
+        axs[1,1].set_title('Label = '+str(labels[1,1].cpu().item()))
+        axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
+        axs[1,2].set_title('Label = '+str(labels[1,2].cpu().item()))
+        axs[1,3].imshow(show_images[1,3,:,:,:].permute(1,2,0))
+        axs[1,3].set_title('Label = '+str(labels[1,3].cpu().item()))
+        axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
+        axs[2,0].set_ylabel('Sequence 3')
+        axs[2,0].set_xlabel('Time Step 1')
+        axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
+        axs[2,1].set_xlabel('Time Step 2')
+        axs[2,1].set_title('Label = '+str(labels[2,1].cpu().item()))
+        axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
+        axs[2,2].set_xlabel('Time Step 3')
+        axs[2,2].set_title('Label = '+str(labels[2,2].cpu().item()))
+        axs[2,3].imshow(show_images[2,3,:,:,:].permute(1,2,0))
+        axs[2,3].set_xlabel('Time Step 4')
+        axs[2,3].set_title('Label = '+str(labels[2,3].cpu().item()))
+        for row in axs:
+            for ax in row:
+                ax.set_xticks([]) 
+                ax.set_yticks([]) 
+        plt.tight_layout()
+        plt.savefig('./figure/TCMNIST_'+ds_setup+'.pdf')
+
 def biggest_multiple(multiple_of, input_number):
     return input_number - input_number % multiple_of
 
@@ -38,19 +116,14 @@ def color_dataset(ds_setup, images, labels, env_id, p, d):
     elif ds_setup == 'step':
 
         # Add label noise
-        labels = XOR(labels, bernoulli(d, labels.shape)).long()
+        labels[:,env_id] = XOR(labels[:,env_id], bernoulli(d, labels[:,env_id].shape)).long()
 
         # Choose colors
-        colors = XOR(labels, bernoulli(1-p, labels.shape))
+        colors = XOR(labels[:,env_id], bernoulli(1-p, labels[:,env_id].shape))
 
         # Apply colors
-        if env_id == 0:  # If coloring first frame, do not touch the color
-            pass 
-            # for sample in range(colors.shape[0]):
-            #     images[sample,env_id,0,:,:] *= 0 
-        else:
-            for sample in range(colors.shape[0]):
-                images[sample,env_id,(1-colors[sample,env_id]).long(),:,:] *= 0 
+        for sample in range(colors.shape[0]):
+            images[sample,env_id,colors[sample].long(),:,:] *= 0 
 
     return images, labels
 
@@ -68,10 +141,13 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
         train_ds.targets = train_ds.targets[:n_train_samples].reshape(-1,time_steps)
         test_ds.targets = test_ds.targets[:n_test_samples].reshape(-1,time_steps)
 
+
         # Assign label to the objective : Is the last number in the sequence larger than the current
-        train_ds.targets = ( train_ds.targets[:,:-1] > train_ds.targets[:,1:] )
+        # train_ds.targets = ( train_ds.targets[:,:-1] > train_ds.targets[:,1:] )       # Is the previous one bigger than the current one?
+        train_ds.targets = ( train_ds.targets[:,:-1] + train_ds.targets[:,1:] ) % 2     # Is the sum of this one and the last one an even number?
         train_ds.targets = torch.cat((torch.zeros((train_ds.targets.shape[0],1)), train_ds.targets), 1).long()
-        test_ds.targets = ( test_ds.targets[:,:-1] > test_ds.targets[:,1:] )
+        # test_ds.targets = ( test_ds.targets[:,:-1] > test_ds.targets[:,1:] )          # Is the previous one bigger than the current one?
+        test_ds.targets = ( test_ds.targets[:,:-1] + test_ds.targets[:,1:] ) % 2        # Is the sum of this one and the last one an even number?
         test_ds.targets = torch.cat((torch.zeros((test_ds.targets.shape[0],1)), test_ds.targets), 1).long()
 
         # Make Tensor dataset
@@ -83,6 +159,8 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
         input_size = 28 * 28
+
+        plot_sequences(ds_setup, train_ds.data, train_ds.targets)
 
         return input_size, train_loader, test_loader
 
@@ -100,14 +178,20 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
         MNIST_labels = MNIST_labels[:n_samples].reshape(-1,4)
 
         # Assign label to the objective : Is the last number in the sequence larger than the current
-        MNIST_labels = ( MNIST_labels[:,:3] > MNIST_labels[:,1:] )
+
+        ########################
+        ### Choose the task:
+        # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
+        MNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
+
         MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
 
         # Make the color datasets
-
+        show_images = []
+        show_labels = []
         train_loaders = []          # array of training environment dataloaders
         d = 0.25                    # Label noise
-        envs = [0.8, 0.9, 0.1]            # Environment is a function of correlation
+        envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
         test_env = 2
         for i, e in enumerate(envs):
 
@@ -117,6 +201,9 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
 
             # Color subset
             colored_images, colored_labels = color_dataset(ds_setup, images, labels, i, e, d)
+
+            show_images.append(colored_images[0,:,:,:,:])
+            show_labels.append(colored_labels[0,:])
 
             # Make Tensor dataset
             td = torch.utils.data.TensorDataset(colored_images, colored_labels)
@@ -131,6 +218,8 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
                     train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(envs), shuffle=True) )
 
         input_size = 2 * 28 * 28
+
+        plot_sequences(ds_setup, torch.stack(show_images, 0), torch.stack(show_labels,0))
 
         return input_size, train_loaders, test_loader
 
@@ -147,28 +236,32 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
         MNIST_labels = MNIST_labels.reshape(-1,4)
 
         # Assign label to the objective : Is the last number in the sequence larger than the current
-        MNIST_labels = ( MNIST_labels[:,:3] > MNIST_labels[:,1:] )
-        MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
+        ########################
+        ### Choose the task:
+        # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
+        MNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
+        
+        colored_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
 
         ## Make the color datasets
+        # Stack a second color channel
+        colored_images = torch.stack([MNIST_images,MNIST_images], dim=2)
 
-        d = 0.25                  # Label noise
-        envs = [0.8, 0.9, 0.1]            # Environment is a function of correlation
+        d = 0.25                # Label noise
+        envs = [0.8, 0.9, 0.1]  # Environment is a function of correlation
         train_env = [1,2]
         test_env = [3]
-
-        # Configure channels and first frame
-        colored_images = torch.stack([MNIST_images,MNIST_images], dim=2) # Stack a second color channel
-        
         for i, e in enumerate(envs):
 
             # Color i-th frame subset
-            colored_images, colored_labels = color_dataset(ds_setup, colored_images, MNIST_labels, i+1, e, d)
+            colored_images, colored_labels = color_dataset(ds_setup, colored_images, colored_labels, i+1, e, d)
 
         # Make Tensor dataset and dataloader
-        td = torch.utils.data.TensorDataset(colored_images, colored_labels)
+        td = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
         loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True)
 
         input_size = 2 * 28 * 28
+
+        plot_sequences(ds_setup, colored_images, colored_labels.long())
 
         return input_size, loader, []

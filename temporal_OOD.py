@@ -12,6 +12,8 @@ from datasets import make_dataset
 from models import RNN
 from objectives import get_objective_class
 
+import matplotlib.pyplot as plt
+
 ## Train function
 def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
     """
@@ -33,7 +35,6 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
             hidden = model.initHidden(data.shape[0]).to(device)
             pred = torch.zeros(data.shape[0], 0).to(device)
             for i in range(data.shape[1]):
-
                 out, hidden = model(data[:,i,:,:], hidden)
                 loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
                 
@@ -117,19 +118,21 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
             all_out = []
             hidden = model.initHidden(all_x.shape[0]).to(device)
             pred = torch.zeros(all_x.shape[0], 0).to(device)
+
             for i in range(all_x.shape[1]):
                 out, hidden = model(all_x[:,i,:,:], hidden)
                 all_out.append(out)
                 pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
-            
+
             # Get train loss for train environment
             loss = 0
-            env_losses = []
             train_env = np.arange(1,all_x.shape[1]-1)
-            for e in train_env:
+            env_losses = torch.zeros(len(train_env))
+            for i, e in enumerate(train_env):
                 env_out = all_out[e]
                 env_loss = F.nll_loss(env_out, target[:,e])  # Only consider labels after the first frame
-                env_losses.append(env_loss)
+                env_losses[i] = env_loss
+                objective.gather_logits_and_labels(env_out, target[:,e])
                 loss += env_loss
             loss /= np.size(train_env)
 
@@ -237,7 +240,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train MLPs')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--weight_decay', type=float,default=0.)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--time_steps', type=int, default=4)
     parser.add_argument('--ds_setup', type=str, choices=['grey','seq','step'])
@@ -260,7 +263,7 @@ if __name__ == '__main__':
     input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, flags.batch_size)
 
     ## Initialize some RNN
-    model = RNN(input_size, 50, 10, 2)
+    model = RNN(input_size, 100, 10, 2)
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
