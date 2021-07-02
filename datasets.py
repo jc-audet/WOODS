@@ -152,8 +152,8 @@ def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
 
         ## Make the color datasets
 
-        d = 0                  # Label noise
-        envs = [0.8, 0.9, 0]            # Environment is a function of correlation
+        d = 0.25                  # Label noise
+        envs = [0.8, 0.9, 0.1]            # Environment is a function of correlation
         train_env = [1,2]
         test_env = [3]
 

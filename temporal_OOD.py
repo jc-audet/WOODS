@@ -8,14 +8,12 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import datasets, transforms
 
-## Remove later
-import matplotlib.pyplot as plt
-
 from datasets import make_dataset
 from models import RNN
+from objectives import get_objective_class
 
 ## Train function
-def train_epoch(ds_setup, model, train_loader, optimizer, device):
+def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
     """
     :param model: nn model defined in a models.py
     :param train_loader: training dataloader(s)
@@ -63,36 +61,34 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
 
             ## Group all inputs and get prediction
             all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-            all_y = torch.cat([y for x,y in minibatches_device])
+            all_y = torch.cat([y for x,y in minibatches_device]).to(device)
             all_out = []
 
             # Get logit and make prediction
             hidden = model.initHidden(all_x.shape[0]).to(device)
-            pred = torch.zeros(all_x.shape[0], 0)
+            pred = torch.zeros(all_x.shape[0], 0).to(device)
             for i in range(all_x.shape[1]):
                 out, hidden = model(all_x[:,i,:,:], hidden)
                 all_out.append(out)
-                pred = torch.cat((pred, out.argmax(1, keepdim=True).cpu()), dim=1)
+                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
             # Compute environment-wise losses
             all_loss = 0
             all_logits_idx = 0
-            # env_losses = []
+            env_losses = torch.zeros(len(minibatches_device))
             for i, (x,y) in enumerate(minibatches_device):
                 env_loss = 0
                 y = y.to(device)
-                for t in range(all_x.shape[1]):     # Number of time steps
+                for t in range(1,all_x.shape[1]):     # Number of time steps
                     env_out_t = all_out[t][all_logits_idx:all_logits_idx + x.shape[0],:]
-                    env_loss += F.nll_loss(env_out_t, y[:,t]) if t>0 else 0.  # Only consider labels after the first frame
-                    # env_losses.append(env_loss)
+                    env_loss += F.nll_loss(env_out_t, y[:,t])  # Only consider labels after the first frame
+                    objective.gather_logits_and_labels(env_out_t, y[:,t])
+                env_losses[i] = env_loss
                 all_logits_idx += x.shape[0]
                 all_loss += env_loss / len(train_loader) # Average across environments
 
-            # Compute penalty with env_losses
-            ## blabla
-
             # get average train accuracy and save it
-            nb_correct = pred[:,1:].eq(all_y[:,1:]).sum()
+            nb_correct = pred[:,1:].eq(all_y[:,1:]).cpu().sum()
             nb_items = pred[:,1:].numel()
             accuracies.append(nb_correct / nb_items)
 
@@ -102,8 +98,7 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
 
             # Back propagate
             optimizer.zero_grad()
-            loss.backward()
-            # (loss+penalty).backward() # with penalty
+            objective.backward(env_losses)
             optimizer.step()
 
         return model, losses, accuracies
@@ -113,32 +108,30 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
         test_accuracies = []
         test_losses = []
 
-        for data, target in train_loader:
+        for all_x, target in train_loader:
 
             # Send everything onto device
-            data, target = data.to(device), target.to(device)
+            all_x, target = all_x.to(device), target.to(device)
 
             ## Group all inputs and get prediction
             all_out = []
-            hidden = model.initHidden(data.shape[0]).to(device)
-            pred = torch.zeros(data.shape[0], 0).to(device)
-            for i in range(data.shape[1]):
-                out, hidden = model(data[:,i,:,:], hidden)
+            hidden = model.initHidden(all_x.shape[0]).to(device)
+            pred = torch.zeros(all_x.shape[0], 0).to(device)
+            for i in range(all_x.shape[1]):
+                out, hidden = model(all_x[:,i,:,:], hidden)
                 all_out.append(out)
                 pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
             
             # Get train loss for train environment
             loss = 0
             env_losses = []
-            train_env = np.arange(1,data.shape[1]-1)
+            train_env = np.arange(1,all_x.shape[1]-1)
             for e in train_env:
                 env_out = all_out[e]
                 env_loss = F.nll_loss(env_out, target[:,e])  # Only consider labels after the first frame
                 env_losses.append(env_loss)
                 loss += env_loss
-
-            # Compute penalty here
-            # blabla 
+            loss /= np.size(train_env)
 
             # Save loss
             losses.append(loss.item())
@@ -150,8 +143,7 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
 
             # back propagate
             optimizer.zero_grad()
-            loss.backward()
-            # (loss+penalty).backward()
+            objective.backward(env_losses)
             optimizer.step()
 
             # Get test loss
@@ -167,7 +159,7 @@ def train_epoch(ds_setup, model, train_loader, optimizer, device):
         return model, losses, accuracies, test_losses, test_accuracies
 
 
-def train(flags, model, train_loader, test_loader, device):
+def train(flags, model, objective, train_loader, test_loader, device):
 
     optimizer = optim.Adam(model.parameters(), lr=flags.lr, weight_decay=flags.weight_decay)
     training_accuracies = []
@@ -180,7 +172,7 @@ def train(flags, model, train_loader, test_loader, device):
 
         if flags.ds_setup == 'grey' or flags.ds_setup == 'seq':
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy = train_epoch(flags.ds_setup, model, train_loader, optimizer, device)
+            model, training_loss, training_accuracy = train_epoch(flags.ds_setup, model, objective, train_loader, optimizer, device)
             training_losses.append(training_loss)
             training_accuracies.append(training_accuracy)
 
@@ -193,7 +185,7 @@ def train(flags, model, train_loader, test_loader, device):
 
         elif flags.ds_setup == 'step':
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(flags.ds_setup, model, train_loader, optimizer, device)
+            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(flags.ds_setup, model, objective, train_loader, optimizer, device)
             training_losses.append(training_loss)
             training_accuracies.append(training_accuracy)
             test_losses.append(test_loss)
@@ -249,6 +241,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--time_steps', type=int, default=4)
     parser.add_argument('--ds_setup', type=str, choices=['grey','seq','step'])
+    parser.add_argument('--objective', type=str, choices=['ERM','IRM','VREx', 'SD', 'IGA', 'ANDMask', 'SANDMask'])
     parser.add_argument('--data-path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save-path', type=str, default='./')
     flags = parser.parse_args()
@@ -269,6 +262,10 @@ if __name__ == '__main__':
     ## Initialize some RNN
     model = RNN(input_size, 50, 10, 2)
 
+    ## Initialize some Objective
+    objective_class = get_objective_class(flags.objective)
+    objective = objective_class(model)
+
     ## Train it
     model.to(device)
-    train(flags, model, train_loader, test_loader, device)
+    train(flags, model, objective, train_loader, test_loader, device)
