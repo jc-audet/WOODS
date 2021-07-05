@@ -11,7 +11,7 @@ from torchvision import datasets, transforms
 
 from datasets import make_dataset
 from models import RNN
-from objectives import get_objective_class
+from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_hyperparams
 
 import matplotlib.pyplot as plt
@@ -230,7 +230,6 @@ def get_accuracy(ds_setup, model, loader, device):
 
     return nb_correct / nb_item, np.mean(losses)
 
-
 if __name__ == '__main__':
 
     ## Args
@@ -249,14 +248,14 @@ if __name__ == '__main__':
     parser.add_argument('--time_steps', type=int, default=4)
     parser.add_argument('--ds_setup', type=str, choices=['grey','seq','step'])
     # Setup arguments
-    parser.add_argument('--objective', type=str, choices=['ERM','IRM','VREx', 'SD', 'IGA', 'ANDMask', 'SANDMask'])
+    parser.add_argument('--objective', type=str, choices=OBJECTIVES)
     # Hyperparameters argument
     parser.add_argument('--sample_hparams', action='store_true')
     parser.add_argument('--hparams_seed', type=int, default=0)
     parser.add_argument('--trial_seed', type=int, default=0)
     # Directory arguments
-    parser.add_argument('--data-path', type=str, default='~/Documents/Data/')
-    parser.add_argument('--save-path', type=str, default='./')
+    parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
+    parser.add_argument('--save_path', type=str, default='./')
     flags = parser.parse_args()
 
     print('Flags:')
@@ -295,4 +294,4 @@ if __name__ == '__main__':
 
     ## Train it
     model.to(device)
-    train(flags, model, objective, train_loader, test_loader, device)
+    training_accuracies, training_losses, test_accuracies, test_losses = train(flags, model, objective, train_loader, test_loader, device)

@@ -1,4 +1,7 @@
+import numpy as np
+
 from objectives import OBJECTIVES
+
 
 def get_hyperparams(objective_name, seed, sample=False):
 
@@ -12,7 +15,7 @@ def get_hyperparams(objective_name, seed, sample=False):
     hyper_dict = hyper_function(sample)
 
     for k in hyper_dict.keys():
-        hyper_dict[k] = hyper_dict[k](seed)
+        hyper_dict[k] = hyper_dict[k](np.random.RandomState(seed))
     
     return hyper_dict
 
