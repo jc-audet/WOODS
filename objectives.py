@@ -31,8 +31,10 @@ class Objective(torch.nn.Module):
     Subclasses should implement the following:
     - gradients()
     """
-    def __init__(self):
+    def __init__(self, hparams):
         super(Objective, self).__init__()
+
+        self.hparams = hparams
 
     def backward(self, losses):
         """
@@ -47,8 +49,8 @@ class ERM(Objective):
     Empirical Risk Minimization (ERM)
     """
 
-    def __init__(self, model):
-        super(ERM, self).__init__()
+    def __init__(self, model, hparams):
+        super(ERM, self).__init__(hparams)
 
         self.model = model
 
@@ -65,12 +67,12 @@ class IRM(ERM):
     Invariant Risk Minimization (IRM)
     """
 
-    def __init__(self, model):
-        super(IRM, self).__init__(model)
+    def __init__(self, model, hparams):
+        super(IRM, self).__init__(model, hparams)
 
         # Hyper parameters
-        self.penalty_weight = 1e4
-        self.anneal_iters = 0
+        self.penalty_weight = self.hparams['penalty_weight']
+        self.anneal_iters = self.hparams['anneal_iters']
 
         # Memory
         self.penalty = 0
@@ -117,12 +119,12 @@ class VREx(ERM):
     """
     V-REx Objective from http://arxiv.org/abs/2003.00688
     """
-    def __init__(self, model):
-        super(VREx, self).__init__(model)
+    def __init__(self, model, hparams):
+        super(VREx, self).__init__(model, hparams)
 
         # Hyper parameters
-        self.penalty_weight = 1e4
-        self.anneal_iters = 0
+        self.penalty_weight = self.hparams['penalty_weight']
+        self.anneal_iters = self.hparams['anneal_iters']
 
         # Memory
         self.register_buffer('update_count', torch.tensor([0]))
@@ -148,11 +150,11 @@ class SD(ERM):
     Gradient Starvation: A Learning Proclivity in Neural Networks
     Equation 25 from [https://arxiv.org/pdf/2011.09468.pdf]
     """
-    def __init__(self, model):
-        super(SD, self).__init__(model)
+    def __init__(self, model, hparams):
+        super(SD, self).__init__(model, hparams)
 
         # Hyper parameters
-        self.penalty_weight = 10
+        self.penalty_weight = self.hparams['penalty_weight']
 
         # Memory
         self.penalty = 0
@@ -180,11 +182,11 @@ class ANDMask(ERM):
     AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
     """
 
-    def __init__(self, model):
-        super(ANDMask, self).__init__(model)
+    def __init__(self, model, hparams):
+        super(ANDMask, self).__init__(model, hparams)
 
         # Hyper parameters
-        self.tau = 1
+        self.tau = self.hparams['tau']
 
     def backward(self, losses):
         
@@ -218,11 +220,11 @@ class IGA(ERM):
     From https://arxiv.org/abs/2008.01883v2
     """
 
-    def __init__(self, model):
-        super(IGA, self).__init__(model)
+    def __init__(self, model, hparams):
+        super(IGA, self).__init__(model, hparams)
 
         # Hyper parameters
-        self.penalty_weight = 1e5
+        self.penalty_weight = self.hparams['penalty_weight']
 
     def backward(self, losses):
 
@@ -257,11 +259,11 @@ class SANDMask(ERM):
     <https://arxiv.org/abs/2106.02266>
     """
 
-    def __init__(self, model):
-        super(SANDMask, self).__init__(model)
+    def __init__(self, model, hparams):
+        super(SANDMask, self).__init__(model, hparams)
 
-        self.tau = 0.5
-        self.k = 1
+        self.tau = self.hparams['tau']
+        self.k = self.hparams['k']
 
     def backward(self, losses):
 

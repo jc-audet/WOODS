@@ -2,6 +2,7 @@
 import os
 import argparse
 import numpy as np
+import random
 
 import torch
 import torch.nn.functional as F
@@ -11,6 +12,7 @@ from torchvision import datasets, transforms
 from datasets import make_dataset
 from models import RNN
 from objectives import get_objective_class
+from hyperparams import get_hyperparams
 
 import matplotlib.pyplot as plt
 
@@ -238,13 +240,21 @@ if __name__ == '__main__':
         device = torch.device("cpu")
 
     parser = argparse.ArgumentParser(description='Train MLPs')
+    # Training arguments
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--weight_decay', type=float,default=0.)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--batch_size', type=int, default=64)
+    # Dataset arguments
     parser.add_argument('--time_steps', type=int, default=4)
     parser.add_argument('--ds_setup', type=str, choices=['grey','seq','step'])
+    # Setup arguments
     parser.add_argument('--objective', type=str, choices=['ERM','IRM','VREx', 'SD', 'IGA', 'ANDMask', 'SANDMask'])
+    # Hyperparameters argument
+    parser.add_argument('--sample_hparams', action='store_true')
+    parser.add_argument('--hparams_seed', type=int, default=0)
+    parser.add_argument('--trial_seed', type=int, default=0)
+    # Directory arguments
     parser.add_argument('--data-path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save-path', type=str, default='./')
     flags = parser.parse_args()
@@ -252,6 +262,20 @@ if __name__ == '__main__':
     print('Flags:')
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
+    
+    ## Getting hparams
+    hparams = get_hyperparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
+
+    print('HParams:')
+    for k, v in sorted(hparams.items()):
+        print('\t{}: {}'.format(k, v))
+
+    ## Setting trial seed
+    random.seed(flags.trial_seed)
+    np.random.seed(flags.trial_seed)
+    torch.manual_seed(flags.trial_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     ## Import original MNIST data
     MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
@@ -263,11 +287,11 @@ if __name__ == '__main__':
     input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, flags.batch_size)
 
     ## Initialize some RNN
-    model = RNN(input_size, 100, 10, 2)
+    model = RNN(input_size, 50, 10, 2)
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
-    objective = objective_class(model)
+    objective = objective_class(model, hparams)
 
     ## Train it
     model.to(device)
