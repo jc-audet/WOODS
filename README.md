@@ -17,10 +17,10 @@ Two definition of environments are of interest in this dataset.
 ### Sequences as environments
 First definition of interest is the setup where a single sequence is taken from an enviroment and the level of correlation between the color and the label is constant across time-steps.
 
-![TCMNIST-seq](figure/TCMNIST_seq.pdf)
+![TCMNIST-seq](figure/TCMNIST_seq.pdf){width=65%}
 
 
 ### Time steps as environments
 The second definition of interest is the setup where every time step is an environment, so sequences of data have different level of correlation of color within the sequence
 
-![TCMNIST-step](figure/TCMNIST_step.pdf)
+![TCMNIST-step](figure/TCMNIST_step.pdf){width=65%}
