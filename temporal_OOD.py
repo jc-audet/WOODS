@@ -3,6 +3,7 @@ import os
 import argparse
 import numpy as np
 import random
+import json
 
 import torch
 import torch.nn.functional as F
@@ -93,11 +94,13 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
             # get average train accuracy and save it
             nb_correct = pred[:,1:].eq(all_y[:,1:]).cpu().sum()
             nb_items = pred[:,1:].numel()
-            accuracies.append(nb_correct / nb_items)
+            accuracies.append(nb_correct.item() / nb_items)
 
-            # get average loss and save it
-            loss = all_loss
-            losses.append(loss.item())
+            # get loss from all environment and save it
+            # env_loss_item = [e_loss.item() for e_loss in env_losses]
+            # losses.append(env_loss_item)
+            # Get average loss and save it
+            losses.append(all_loss.item())
 
             # Back propagate
             optimizer.zero_grad()
@@ -144,7 +147,7 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
             # Get train accuracy
             nb_correct = pred[:,1:-1].eq(target[:,1:-1]).cpu().sum()
             nb_items = pred[:,1:-1].numel()
-            accuracies.append(nb_correct / nb_items)
+            accuracies.append(nb_correct.item() / nb_items)
 
             # back propagate
             optimizer.zero_grad()
@@ -167,38 +170,38 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
 def train(flags, model, objective, train_loader, test_loader, device):
 
     optimizer = optim.Adam(model.parameters(), lr=flags.lr, weight_decay=flags.weight_decay)
-    training_accuracies = []
-    training_losses = []
-    test_accuracies = []
-    test_losses = []
+    record = {}
 
     print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
     for epoch in range(1, flags.epochs + 1):
-
         if flags.ds_setup == 'grey' or flags.ds_setup == 'seq':
             ## Make training step and report accuracies and losses
             model, training_loss, training_accuracy = train_epoch(flags.ds_setup, model, objective, train_loader, optimizer, device)
-            training_losses.append(training_loss)
-            training_accuracies.append(training_accuracy)
 
             ## Get test accuracy and loss
             test_accuracy, test_loss = get_accuracy(flags.ds_setup, model, test_loader, device)
-            test_losses.append(test_loss)
-            test_accuracies.append(test_accuracy)
+
+            ## Update records
+            record[str(epoch)] =   {'train_acc': training_accuracy[-1],
+                                    'test_acc': test_accuracy,
+                                    'train_loss': training_loss[-1], 
+                                    'test_loss': test_loss}
 
             print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, training_accuracy[-1], test_accuracy, training_loss[-1], test_loss))
 
         elif flags.ds_setup == 'step':
             ## Make training step and report accuracies and losses
             model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(flags.ds_setup, model, objective, train_loader, optimizer, device)
-            training_losses.append(training_loss)
-            training_accuracies.append(training_accuracy)
-            test_losses.append(test_loss)
-            test_accuracies.append(test_accuracy)
+
+            ## Update records
+            record[str(epoch)] =   {'train_acc': training_accuracy[-1],
+                                    'test_acc': test_accuracy[-1],
+                                    'train_loss': training_loss[-1], 
+                                    'test_loss': test_loss[-1]}
 
             print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, training_accuracy[-1], test_accuracy[-1], training_loss[-1], test_loss[-1]))
 
-    return training_accuracies, training_losses, test_accuracies, test_losses
+    return record
 
 def get_accuracy(ds_setup, model, loader, device):
 
@@ -228,7 +231,7 @@ def get_accuracy(ds_setup, model, loader, device):
             nb_item += pred[:,1:].numel()
             losses.append(loss.item())
 
-    return nb_correct / nb_item, np.mean(losses)
+    return nb_correct.item() / nb_item, np.mean(losses)
 
 if __name__ == '__main__':
 
@@ -294,4 +297,13 @@ if __name__ == '__main__':
 
     ## Train it
     model.to(device)
-    training_accuracies, training_losses, test_accuracies, test_losses = train(flags, model, objective, train_loader, test_loader, device)
+    record = train(flags, model, objective, train_loader, test_loader, device)\
+
+    ## Save record
+    if flags.sample_hparams:
+        job_id = flags.objective + '_' + flags.ds_setup + '_H' + flags.hparams_seed + '_T' + flags.trial_seed
+    else:
+        job_id = flags.objective + '_' + flags.ds_setup
+    job_json = job_id + '.json'
+    with open(os.path.join(flags.save_path, job_json), 'w') as f:
+        json.dump(record, f)
