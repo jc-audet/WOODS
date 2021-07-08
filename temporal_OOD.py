@@ -13,7 +13,7 @@ from torchvision import datasets, transforms
 from datasets import make_dataset
 from models import RNN
 from objectives import get_objective_class, OBJECTIVES
-from hyperparams import get_hyperparams
+from hyperparams import get_objective_hparams, get_training_hparams
 
 import matplotlib.pyplot as plt
 
@@ -167,19 +167,19 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
         return model, losses, accuracies, test_losses, test_accuracies
 
 
-def train(flags, model, objective, train_loader, test_loader, device):
+def train(training_hparams, model, objective, ds_setup, train_loader, test_loader, device):
 
-    optimizer = optim.Adam(model.parameters(), lr=flags.lr, weight_decay=flags.weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
     record = {}
 
     print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
-    for epoch in range(1, flags.epochs + 1):
-        if flags.ds_setup == 'grey' or flags.ds_setup == 'seq':
+    for epoch in range(1, training_hparams['epochs'] + 1):
+        if ds_setup == 'grey' or ds_setup == 'seq':
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy = train_epoch(flags.ds_setup, model, objective, train_loader, optimizer, device)
+            model, training_loss, training_accuracy = train_epoch(ds_setup, model, objective, train_loader, optimizer, device)
 
             ## Get test accuracy and loss
-            test_accuracy, test_loss = get_accuracy(flags.ds_setup, model, test_loader, device)
+            test_accuracy, test_loss = get_accuracy(ds_setup, model, test_loader, device)
 
             ## Update records
             record[str(epoch)] =   {'train_acc': training_accuracy[-1],
@@ -189,9 +189,9 @@ def train(flags, model, objective, train_loader, test_loader, device):
 
             print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, training_accuracy[-1], test_accuracy, training_loss[-1], test_loss))
 
-        elif flags.ds_setup == 'step':
+        elif ds_setup == 'step':
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(flags.ds_setup, model, objective, train_loader, optimizer, device)
+            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(ds_setup, model, objective, train_loader, optimizer, device)
 
             ## Update records
             record[str(epoch)] =   {'train_acc': training_accuracy[-1],
@@ -244,9 +244,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train MLPs')
     # Training arguments
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--weight_decay', type=float,default=0.)
-    parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--batch_size', type=int, default=64)
     # Dataset arguments
     parser.add_argument('--time_steps', type=int, default=4)
     parser.add_argument('--ds_setup', type=str, choices=['grey','seq','step'])
@@ -265,11 +262,26 @@ if __name__ == '__main__':
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
     
+    ## Making job ID and checking if done
+    if flags.sample_hparams:
+        job_id = flags.objective + '_' + flags.ds_setup + '_H' + flags.hparams_seed + '_T' + flags.trial_seed
+    else:
+        job_id = flags.objective + '_' + flags.ds_setup
+    job_json = job_id + '.json'
+
+    if os.path.isfile(job_json):
+        print("\n*********************************\n*** Job Already ran and saved ***\n*********************************\n")
+        exit()
+    
     ## Getting hparams
-    hparams = get_hyperparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
+    training_hparams = get_training_hparams(flags.hparams_seed, flags.sample_hparams)
+    training_hparams['epochs'] = flags.epochs
+    objective_hparams = get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
 
     print('HParams:')
-    for k, v in sorted(hparams.items()):
+    for k, v in sorted(training_hparams.items()):
+        print('\t{}: {}'.format(k, v))
+    for k, v in sorted(objective_hparams.items()):
         print('\t{}: {}'.format(k, v))
 
     ## Setting trial seed
@@ -286,24 +298,19 @@ if __name__ == '__main__':
     test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
 
     ## Create dataset
-    input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, flags.batch_size)
+    input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
 
     ## Initialize some RNN
     model = RNN(input_size, 50, 10, 2)
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
-    objective = objective_class(model, hparams)
+    objective = objective_class(model, objective_hparams)
 
     ## Train it
     model.to(device)
-    record = train(flags, model, objective, train_loader, test_loader, device)\
+    record = train(training_hparams, model, objective, flags.ds_setup, train_loader, test_loader, device)\
 
     ## Save record
-    if flags.sample_hparams:
-        job_id = flags.objective + '_' + flags.ds_setup + '_H' + flags.hparams_seed + '_T' + flags.trial_seed
-    else:
-        job_id = flags.objective + '_' + flags.ds_setup
-    job_json = job_id + '.json'
     with open(os.path.join(flags.save_path, job_json), 'w') as f:
         json.dump(record, f)

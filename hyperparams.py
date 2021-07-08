@@ -2,8 +2,27 @@ import numpy as np
 
 from objectives import OBJECTIVES
 
+def get_training_hparams(seed, sample=False):
 
-def get_hyperparams(objective_name, seed, sample=False):
+    if sample:
+        hparams = {
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-4.5, -2.5),
+            'batch_size': lambda r: int(2**r.uniform(3, 9))
+        }
+    else:
+        hparams = {
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 1e-3,
+            'batch_size': lambda r: 64
+        }
+    
+    for k in hparams.keys():
+        hparams[k] = hparams[k](np.random.RandomState(seed))
+
+    return hparams
+
+def get_objective_hparams(objective_name, seed, sample=False):
 
     """Return the objective class with the given name."""
     objective_hyper = objective_name+'_hyper'
@@ -12,17 +31,16 @@ def get_hyperparams(objective_name, seed, sample=False):
     else:
         hyper_function = globals()[objective_hyper]
 
-    hyper_dict = hyper_function(sample)
+    hparams = hyper_function(sample)
 
-    for k in hyper_dict.keys():
-        hyper_dict[k] = hyper_dict[k](np.random.RandomState(seed))
+    for k in hparams.keys():
+        hparams[k] = hparams[k](np.random.RandomState(seed))
     
-    return hyper_dict
+    return hparams
 
 def ERM_hyper(sample):
 
     return {}
-
 
 def IRM_hyper(sample):
 
