@@ -9,6 +9,212 @@ from torchvision import datasets, transforms
 
 import matplotlib.pyplot as plt
 
+DATASETS = [
+    # Small images
+    "TMNIST_grey",
+    # Small correlation shift dataset
+    "TCMNIST_seq",
+    "TCMNIST_step",
+]
+
+def get_dataset_class(dataset_name):
+    """Return the dataset class with the given name."""
+    if dataset_name not in globals():
+        raise NotImplementedError("Dataset not found: {}".format(dataset_name))
+    return globals()[dataset_name]
+
+def biggest_multiple(multiple_of, input_number):
+    return input_number - input_number % multiple_of
+
+def XOR(a, b):
+    return ( a - b ).abs()
+
+def bernoulli(p, size):
+    return ( torch.rand(size) < p ).float()
+
+class TMNIST:
+    setup = 'basic' # Child classes must overwrite
+
+    def __init__(self, data_path):
+        
+        ## Import original MNIST data
+        MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
+
+        self.train_ds = datasets.MNIST(data_path, train=True, download=True, transform=MNIST_tfrm) 
+        self.test_ds = datasets.MNIST(data_path, train=False, download=True, transform=MNIST_tfrm) 
+
+    def get_setup(self):
+        return self.setup
+
+
+
+class TMNIST_grey(TMNIST):
+    setup = 'basic'
+
+    def __init__(self, data_path, time_steps, batch_size):
+        super(TMNIST_grey, self).__init__(data_path)
+
+        # Create sequences of 3 digits
+        n_train_samples = biggest_multiple(time_steps, self.train_ds.data.shape[0])
+        n_test_samples = biggest_multiple(time_steps, self.test_ds.data.shape[0])
+        self.train_ds.data = self.train_ds.data[:n_train_samples].reshape(-1,time_steps,28,28)
+        self.test_ds.data = self.test_ds.data[:n_test_samples].reshape(-1,time_steps,28,28)
+
+        # With their corresponding label
+        self.train_ds.targets = self.train_ds.targets[:n_train_samples].reshape(-1,time_steps)
+        self.test_ds.targets = self.test_ds.targets[:n_test_samples].reshape(-1,time_steps)
+
+
+        # Assign label to the objective : Is the last number in the sequence larger than the current
+        # self.train_ds.targets = ( self.train_ds.targets[:,:-1] > self.train_ds.targets[:,1:] )       # Is the previous one bigger than the current one?
+        self.train_ds.targets = ( self.train_ds.targets[:,:-1] + self.train_ds.targets[:,1:] ) % 2     # Is the sum of this one and the last one an even number?
+        self.train_ds.targets = torch.cat((torch.zeros((self.train_ds.targets.shape[0],1)), self.train_ds.targets), 1).long()
+        # self.test_ds.targets = ( self.test_ds.targets[:,:-1] > self.test_ds.targets[:,1:] )          # Is the previous one bigger than the current one?
+        self.test_ds.targets = ( self.test_ds.targets[:,:-1] + self.test_ds.targets[:,1:] ) % 2        # Is the sum of this one and the last one an even number?
+        self.test_ds.targets = torch.cat((torch.zeros((self.test_ds.targets.shape[0],1)), self.test_ds.targets), 1).long()
+
+        # Make Tensor dataset
+        train_dataset = torch.utils.data.TensorDataset(self.train_ds.data, self.train_ds.targets)
+        test_dataset = torch.utils.data.TensorDataset(self.test_ds.data, self.test_ds.targets)
+
+        # Make dataloader
+        self.train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+        self.input_size = 28 * 28
+        
+    def get_input_size(self):
+        return self.input_size
+        
+    def get_loaders(self):
+        return self.train_loader, self.test_loader
+
+class TCMNIST(TMNIST):
+    def __init__(self, data_path, time_steps):
+        super(TCMNIST, self).__init__(data_path)
+
+        # Concatenate all data and labels
+        MNIST_images = torch.cat((self.train_ds.data, self.test_ds.data))
+        MNIST_labels = torch.cat((self.train_ds.targets, self.test_ds.targets))
+
+        # Create sequences of 3 digits
+        self.MNIST_images = MNIST_images.reshape(-1,time_steps,28,28)
+
+        # With their corresponding label
+        MNIST_labels = MNIST_labels.reshape(-1,time_steps)
+
+        # Assign label to the objective : Is the last number in the sequence larger than the current
+        ########################
+        ### Choose the task:
+        # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
+        MNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
+        
+        self.MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
+
+        self.input_size = 2 * 28 * 28
+
+    def get_input_size(self):
+        return self.input_size
+
+class TCMNIST_seq(TCMNIST):
+
+    setup = 'seq'
+    label_noise = 0.25                    # Label noise
+    envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
+
+    def __init__(self, data_path, time_steps, batch_size):
+        super(TCMNIST_seq, self).__init__(data_path, time_steps)
+
+        # Make the color datasets
+        self.train_loaders = []          # array of training environment dataloaders
+        d = 0.25                    # Label noise
+        envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
+        test_env = 2
+        for i, e in enumerate(self.envs):
+
+            # Choose data subset
+            images = self.MNIST_images[i::len(envs)]
+            labels = self.MNIST_labels[i::len(envs)]
+
+            # Color subset
+            colored_images, colored_labels = self.color_dataset(images, labels, i, e, self.label_noise)
+
+            # Make Tensor dataset
+            td = torch.utils.data.TensorDataset(colored_images, colored_labels)
+
+            # Make dataloader
+            if i==test_env:
+                self.test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
+            else:
+                if batch_size < len(envs):
+                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
+                else:
+                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(envs), shuffle=True) )
+
+    def color_dataset(self, images, labels, env_id, p, d):
+
+        # Add label noise
+        labels = XOR(labels, bernoulli(d, labels.shape)).long()
+
+        # Choose colors
+        colors = XOR(labels, bernoulli(1-p, labels.shape))
+
+        # Stack a second color channel
+        images = torch.stack([images,images], dim=2)
+
+        # Apply colors
+        for sample in range(colors.shape[0]):
+            for frame in range(colors.shape[1]):
+                if not frame == 0:      # Leave first channel both colors
+                    images[sample,frame,colors[sample,frame].long(),:,:] *= 0
+
+        return images, labels
+
+    def get_loaders(self):
+        return self.train_loaders, self.test_loader
+
+class TCMNIST_step(TCMNIST):
+
+    setup = 'step'
+    label_noise = 0.25                # Label noise
+    envs = [0.8, 0.9, 0.1]  # Environment is a function of correlation
+
+    def __init__(self, data_path, time_steps, batch_size):
+        super(TCMNIST_step, self).__init__(data_path, time_steps)
+
+        ## Make the color datasets
+        # Stack a second color channel
+        colored_images = torch.stack([self.MNIST_images, self.MNIST_images], dim=2)
+
+        train_env = [1,2]
+        test_env = [3]
+        for i, e in enumerate(self.envs):
+
+            # Color i-th frame subset
+            colored_images, colored_labels = self.color_dataset(colored_images, self.MNIST_labels, i+1, e, self.label_noise)
+
+        # Make Tensor dataset and dataloader
+        td = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
+        self.loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True)
+
+    def color_dataset(self, images, labels, env_id, p, d):
+
+        # Add label noise
+        labels[:,env_id] = XOR(labels[:,env_id], bernoulli(d, labels[:,env_id].shape)).long()
+
+        # Choose colors
+        colors = XOR(labels[:,env_id], bernoulli(1-p, labels[:,env_id].shape))
+
+        # Apply colors
+        for sample in range(colors.shape[0]):
+            images[sample,env_id,colors[sample].long(),:,:] *= 0 
+
+        return images, labels
+        
+    def get_loaders(self):
+        return self.loader, []
+
+
 def plot_sequences(ds_setup, images, labels):
     
     if ds_setup == 'grey':
@@ -84,184 +290,3 @@ def plot_sequences(ds_setup, images, labels):
                 ax.set_yticks([]) 
         plt.tight_layout()
         plt.savefig('./figure/TCMNIST_'+ds_setup+'.pdf')
-
-def biggest_multiple(multiple_of, input_number):
-    return input_number - input_number % multiple_of
-
-def XOR(a, b):
-    return ( a - b ).abs()
-
-def bernoulli(p, size):
-    return ( torch.rand(size) < p ).float()
-
-def color_dataset(ds_setup, images, labels, env_id, p, d):
-
-    if ds_setup == 'seq':
-
-        # Add label noise
-        labels = XOR(labels, bernoulli(d, labels.shape)).long()
-
-        # Choose colors
-        colors = XOR(labels, bernoulli(1-p, labels.shape))
-
-        # Stack a second color channel
-        images = torch.stack([images,images], dim=2)
-
-        # Apply colors
-        for sample in range(colors.shape[0]):
-            for frame in range(colors.shape[1]):
-                if not frame == 0:      # Leave first channel both colors
-                    images[sample,frame,colors[sample,frame].long(),:,:] *= 0
-
-    elif ds_setup == 'step':
-
-        # Add label noise
-        labels[:,env_id] = XOR(labels[:,env_id], bernoulli(d, labels[:,env_id].shape)).long()
-
-        # Choose colors
-        colors = XOR(labels[:,env_id], bernoulli(1-p, labels[:,env_id].shape))
-
-        # Apply colors
-        for sample in range(colors.shape[0]):
-            images[sample,env_id,colors[sample].long(),:,:] *= 0 
-
-    return images, labels
-
-def make_dataset(ds_setup, time_steps, train_ds, test_ds, batch_size):
-
-    if ds_setup == 'grey':
-        
-        # Create sequences of 3 digits
-        n_train_samples = biggest_multiple(time_steps, train_ds.data.shape[0])
-        n_test_samples = biggest_multiple(time_steps, test_ds.data.shape[0])
-        train_ds.data = train_ds.data[:n_train_samples].reshape(-1,time_steps,28,28)
-        test_ds.data = test_ds.data[:n_test_samples].reshape(-1,time_steps,28,28)
-
-        # With their corresponding label
-        train_ds.targets = train_ds.targets[:n_train_samples].reshape(-1,time_steps)
-        test_ds.targets = test_ds.targets[:n_test_samples].reshape(-1,time_steps)
-
-
-        # Assign label to the objective : Is the last number in the sequence larger than the current
-        # train_ds.targets = ( train_ds.targets[:,:-1] > train_ds.targets[:,1:] )       # Is the previous one bigger than the current one?
-        train_ds.targets = ( train_ds.targets[:,:-1] + train_ds.targets[:,1:] ) % 2     # Is the sum of this one and the last one an even number?
-        train_ds.targets = torch.cat((torch.zeros((train_ds.targets.shape[0],1)), train_ds.targets), 1).long()
-        # test_ds.targets = ( test_ds.targets[:,:-1] > test_ds.targets[:,1:] )          # Is the previous one bigger than the current one?
-        test_ds.targets = ( test_ds.targets[:,:-1] + test_ds.targets[:,1:] ) % 2        # Is the sum of this one and the last one an even number?
-        test_ds.targets = torch.cat((torch.zeros((test_ds.targets.shape[0],1)), test_ds.targets), 1).long()
-
-        # Make Tensor dataset
-        train_dataset = torch.utils.data.TensorDataset(train_ds.data, train_ds.targets)
-        test_dataset = torch.utils.data.TensorDataset(test_ds.data, test_ds.targets)
-
-        # Make dataloader
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-        input_size = 28 * 28
-
-        plot_sequences(ds_setup, train_ds.data, train_ds.targets)
-
-        return input_size, train_loader, test_loader
-
-    elif ds_setup == 'seq':
-
-        # Concatenate all data and labels
-        MNIST_images = torch.cat((train_ds.data, test_ds.data))
-        MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
-
-        # Create sequences of 3 digits
-        n_samples = biggest_multiple(time_steps, MNIST_images.shape[0])
-        MNIST_images = MNIST_images[:n_samples].reshape(-1,4,28,28)
-
-        # With their corresponding label
-        MNIST_labels = MNIST_labels[:n_samples].reshape(-1,4)
-
-        # Assign label to the objective : Is the last number in the sequence larger than the current
-
-        ########################
-        ### Choose the task:
-        # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
-        MNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
-
-        MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
-
-        # Make the color datasets
-        show_images = []
-        show_labels = []
-        train_loaders = []          # array of training environment dataloaders
-        d = 0.25                    # Label noise
-        envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
-        test_env = 2
-        for i, e in enumerate(envs):
-
-            # Choose data subset
-            images = MNIST_images[i::len(envs)]
-            labels = MNIST_labels[i::len(envs)]
-
-            # Color subset
-            colored_images, colored_labels = color_dataset(ds_setup, images, labels, i, e, d)
-
-            show_images.append(colored_images[0,:,:,:,:])
-            show_labels.append(colored_labels[0,:])
-
-            # Make Tensor dataset
-            td = torch.utils.data.TensorDataset(colored_images, colored_labels)
-
-            # Make dataloader
-            if i==test_env:
-                test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
-            else:
-                if batch_size < len(envs):
-                    train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
-                else:
-                    train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(envs), shuffle=True) )
-
-        input_size = 2 * 28 * 28
-
-        plot_sequences(ds_setup, torch.stack(show_images, 0), torch.stack(show_labels,0))
-
-        return input_size, train_loaders, test_loader
-
-    elif ds_setup == 'step':
-
-        # Concatenate all data and labels
-        MNIST_images = torch.cat((train_ds.data, test_ds.data))
-        MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
-
-        # Create sequences of 3 digits
-        MNIST_images = MNIST_images.reshape(-1,4,28,28)
-
-        # With their corresponding label
-        MNIST_labels = MNIST_labels.reshape(-1,4)
-
-        # Assign label to the objective : Is the last number in the sequence larger than the current
-        ########################
-        ### Choose the task:
-        # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
-        MNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
-        
-        colored_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
-
-        ## Make the color datasets
-        # Stack a second color channel
-        colored_images = torch.stack([MNIST_images,MNIST_images], dim=2)
-
-        d = 0.25                # Label noise
-        envs = [0.8, 0.9, 0.1]  # Environment is a function of correlation
-        train_env = [1,2]
-        test_env = [3]
-        for i, e in enumerate(envs):
-
-            # Color i-th frame subset
-            colored_images, colored_labels = color_dataset(ds_setup, colored_images, colored_labels, i+1, e, d)
-
-        # Make Tensor dataset and dataloader
-        td = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
-        loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True)
-
-        input_size = 2 * 28 * 28
-
-        plot_sequences(ds_setup, colored_images, colored_labels.long())
-
-        return input_size, loader, []

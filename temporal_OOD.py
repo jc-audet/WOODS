@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import datasets, transforms
 
-from datasets import make_dataset
+from datasets import get_dataset_class
 from models import RNN
 from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams
@@ -29,7 +29,7 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
     accuracies = []
     losses = []
 
-    if ds_setup == 'grey':
+    if ds_setup == 'basic':
 
         for data, target in train_loader:
             data, target = data.to(device), target.to(device)
@@ -174,7 +174,7 @@ def train(training_hparams, model, objective, ds_setup, train_loader, test_loade
 
     print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
     for epoch in range(1, training_hparams['epochs'] + 1):
-        if ds_setup == 'grey' or ds_setup == 'seq':
+        if ds_setup == 'basic' or ds_setup == 'seq':
             ## Make training step and report accuracies and losses
             model, training_loss, training_accuracy = train_epoch(ds_setup, model, objective, train_loader, optimizer, device)
 
@@ -246,7 +246,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=100)
     # Dataset arguments
     parser.add_argument('--time_steps', type=int, default=4)
-    parser.add_argument('--ds_setup', type=str, choices=['grey','seq','step'])
+    parser.add_argument('--dataset', type=str, choices=['TMNIST_grey','TCMNIST_seq','TCMNIST_step'])
     # Setup arguments
     parser.add_argument('--objective', type=str, choices=OBJECTIVES)
     # Hyperparameters argument
@@ -264,9 +264,9 @@ if __name__ == '__main__':
     
     ## Making job ID and checking if done
     if flags.sample_hparams:
-        job_id = flags.objective + '_' + flags.ds_setup + '_H' + flags.hparams_seed + '_T' + flags.trial_seed
+        job_id = flags.objective + '_' + flags.dataset + '_H' + flags.hparams_seed + '_T' + flags.trial_seed
     else:
-        job_id = flags.objective + '_' + flags.ds_setup
+        job_id = flags.objective + '_' + flags.dataset
     job_json = job_id + '.json'
 
     if os.path.isfile(job_json):
@@ -291,14 +291,19 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    ## Import original MNIST data
-    MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
+    # ## Import original MNIST data
+    # MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
 
-    train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
-    test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
+    # train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
+    # test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
 
     ## Create dataset
-    input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
+    # input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
+
+    dataset_class = get_dataset_class(flags.dataset)
+    dataset = dataset_class(flags.data_path, flags.time_steps, training_hparams['batch_size'])
+    input_size = dataset.get_input_size()
+    train_loader, test_loader = dataset.get_loaders()
 
     ## Initialize some RNN
     model = RNN(input_size, 50, 10, 2)
@@ -309,7 +314,7 @@ if __name__ == '__main__':
 
     ## Train it
     model.to(device)
-    record = train(training_hparams, model, objective, flags.ds_setup, train_loader, test_loader, device)\
+    record = train(training_hparams, model, objective, dataset.get_setup(), train_loader, test_loader, device)\
 
     ## Save record
     with open(os.path.join(flags.save_path, job_json), 'w') as f:
