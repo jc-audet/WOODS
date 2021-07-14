@@ -11,14 +11,14 @@ from torch import nn, optim
 from torchvision import datasets, transforms
 
 from datasets import get_dataset_class
-from models import RNN
+from models import small_RNN, RNN
 from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams
 
 import matplotlib.pyplot as plt
 
 ## Train function
-def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
+def train_epoch(model, objective, dataset, optimizer, device):
     """
     :param model: nn model defined in a models.py
     :param train_loader: training dataloader(s)
@@ -29,22 +29,54 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
     accuracies = []
     losses = []
 
-    if ds_setup == 'basic':
+    train_loader, _ = dataset.get_loaders()
+    ts = torch.tensor(dataset.time_pred).to(device)
+
+    if dataset.get_setup() == 'basic':
 
         for data, target in train_loader:
+
             data, target = data.to(device), target.to(device)
 
             loss = 0
             hidden = model.initHidden(data.shape[0]).to(device)
             pred = torch.zeros(data.shape[0], 0).to(device)
             for i in range(data.shape[1]):
-                out, hidden = model(data[:,i,:,:], hidden)
-                loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
-                
-                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                out, hidden = model(data[:,i,...], hidden)
+                if i in ts:     # Only consider labels after the first frame
+                    loss += F.nll_loss(out, target[:,i]) 
+                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
-            nb_correct = pred[:,1:].eq(target[:,1:]).cpu().sum()
-            nb_items = pred[:,1:].numel()
+            nb_correct = pred.eq(target[:,ts]).cpu().sum()
+            nb_items = pred.numel()
+
+            losses.append(loss.item())
+            accuracies.append(nb_correct / nb_items)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        return model, losses, accuracies
+        
+    if dataset.get_setup() == 'alt_basic':
+        
+        train_loader = train_loader[0]
+        for data, target in train_loader:
+
+            data, target = data.to(device), target.to(device)
+
+            loss = 0
+            hidden = model.initHidden(data.shape[0]).to(device)
+            pred = torch.zeros(data.shape[0], 0).to(device)
+            for i in range(data.shape[1]):
+                out, hidden = model(data[:,i,...], hidden)
+                if i in ts:     # Only consider labels after the first frame
+                    loss += F.nll_loss(out, target[:,i]) 
+                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+
+            nb_correct = pred.eq(target[:,ts]).cpu().sum()
+            nb_items = pred.numel()
 
             losses.append(loss.item())
             accuracies.append(nb_correct / nb_items)
@@ -55,10 +87,16 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
 
         return model, losses, accuracies
 
-    elif ds_setup == 'seq':
+    elif dataset.get_setup() == 'seq':
 
         train_loader_iter = zip(*train_loader)
         for batch_loaders in train_loader_iter:
+
+            # data, target = batch_loaders[0]
+            # plt.figure()
+            # plt.plot(data[0,:])
+            # plt.title(target[0,49])
+            # plt.show()
 
             # Send everything onto device
             minibatches_device = [(x, y) for x,y in batch_loaders]
@@ -72,9 +110,10 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
             hidden = model.initHidden(all_x.shape[0]).to(device)
             pred = torch.zeros(all_x.shape[0], 0).to(device)
             for i in range(all_x.shape[1]):
-                out, hidden = model(all_x[:,i,:,:], hidden)
+                out, hidden = model(all_x[:,i,...], hidden)
                 all_out.append(out)
-                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                if i in ts:
+                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
             # Compute environment-wise losses
             all_loss = 0
@@ -83,17 +122,17 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
             for i, (x,y) in enumerate(minibatches_device):
                 env_loss = 0
                 y = y.to(device)
-                for t in range(1,all_x.shape[1]):     # Number of time steps
+                for t in ts:     # Number of time steps
                     env_out_t = all_out[t][all_logits_idx:all_logits_idx + x.shape[0],:]
-                    env_loss += F.nll_loss(env_out_t, y[:,t])  # Only consider labels after the first frame
+                    env_loss += F.nll_loss(env_out_t, y[:,t]) 
                     objective.gather_logits_and_labels(env_out_t, y[:,t])
                 env_losses[i] = env_loss
                 all_logits_idx += x.shape[0]
                 all_loss += env_loss / len(train_loader) # Average across environments
 
             # get average train accuracy and save it
-            nb_correct = pred[:,1:].eq(all_y[:,1:]).cpu().sum()
-            nb_items = pred[:,1:].numel()
+            nb_correct = pred.eq(all_y[:,ts]).cpu().sum()
+            nb_items = pred.numel()
             accuracies.append(nb_correct.item() / nb_items)
 
             # get loss from all environment and save it
@@ -109,7 +148,7 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
 
         return model, losses, accuracies
 
-    elif ds_setup == 'step':    # Test environment (step) is assumed to be the last one.
+    elif dataset.get_setup() == 'step':    # Test environment (step) is assumed to be the last one.
 
         test_accuracies = []
         test_losses = []
@@ -167,19 +206,19 @@ def train_epoch(ds_setup, model, objective, train_loader, optimizer, device):
         return model, losses, accuracies, test_losses, test_accuracies
 
 
-def train(training_hparams, model, objective, ds_setup, train_loader, test_loader, device):
+def train(training_hparams, model, objective, dataset, device):
 
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
     record = {}
 
     print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
     for epoch in range(1, training_hparams['epochs'] + 1):
-        if ds_setup == 'basic' or ds_setup == 'seq':
+        if dataset.get_setup() in ['basic', 'seq', 'alt_basic']:
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy = train_epoch(ds_setup, model, objective, train_loader, optimizer, device)
+            model, training_loss, training_accuracy = train_epoch(model, objective, dataset, optimizer, device)
 
             ## Get test accuracy and loss
-            test_accuracy, test_loss = get_accuracy(ds_setup, model, test_loader, device)
+            test_accuracy, test_loss = get_accuracy(model, dataset, device)
 
             ## Update records
             record[str(epoch)] =   {'train_acc': training_accuracy[-1],
@@ -187,11 +226,11 @@ def train(training_hparams, model, objective, ds_setup, train_loader, test_loade
                                     'train_loss': training_loss[-1], 
                                     'test_loss': test_loss}
 
-            print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, training_accuracy[-1], test_accuracy, training_loss[-1], test_loss))
+            print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, np.mean(training_accuracy), test_accuracy, np.mean(training_loss), test_loss))
 
-        elif ds_setup == 'step':
+        elif dataset.get_setup() in ['step']:
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(ds_setup, model, objective, train_loader, optimizer, device)
+            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(model, objective, dataset, optimizer, device)
 
             ## Update records
             record[str(epoch)] =   {'train_acc': training_accuracy[-1],
@@ -203,10 +242,10 @@ def train(training_hparams, model, objective, ds_setup, train_loader, test_loade
 
     return record
 
-def get_accuracy(ds_setup, model, loader, device):
+def get_accuracy(model, dataset, device):
 
     # Check if this is the right setup
-    assert not ds_setup == 'step', "Wrong use of get_accuracy: Not valid for 'step' setup"
+    assert not dataset.get_setup() == 'step', "Wrong use of get_accuracy: Not valid for 'step' setup"
 
     model.eval()
     test = 0
@@ -214,21 +253,24 @@ def get_accuracy(ds_setup, model, loader, device):
     nb_item = 0
     losses = []
 
+    ts = dataset.time_pred
+    _, loader = dataset.get_loaders()
     with torch.no_grad():
         for data, target in loader:
-        
+
             data, target = data.to(device), target.to(device)
 
             loss = 0
             pred = torch.zeros(data.shape[0], 0).to(device)
             hidden = model.initHidden(data.shape[0]).to(device)
             for i in range(data.shape[1]):
-                out, hidden = model(data[:,i,:,:], hidden)
-                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
-                loss += F.nll_loss(out, target[:,i]) if i>0 else 0.  # Only consider labels after the first frame
+                out, hidden = model(data[:,i,...], hidden)
+                if i in ts:     # Only consider labels after the prediction at prediction times
+                    loss += F.nll_loss(out, target[:,i]) 
+                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
             
-            nb_correct += pred[:,1:].eq(target[:,1:]).cpu().sum()
-            nb_item += pred[:,1:].numel()
+            nb_correct += pred.eq(target[:,ts]).cpu().sum()
+            nb_item += pred.numel()
             losses.append(loss.item())
 
     return nb_correct.item() / nb_item, np.mean(losses)
@@ -246,7 +288,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=100)
     # Dataset arguments
     parser.add_argument('--time_steps', type=int, default=4)
-    parser.add_argument('--dataset', type=str, choices=['TMNIST_grey','TCMNIST_seq','TCMNIST_step'])
+    parser.add_argument('--dataset', type=str)
     # Setup arguments
     parser.add_argument('--objective', type=str, choices=OBJECTIVES)
     # Hyperparameters argument
@@ -284,6 +326,9 @@ if __name__ == '__main__':
     for k, v in sorted(objective_hparams.items()):
         print('\t{}: {}'.format(k, v))
 
+    dataset_class = get_dataset_class(flags.dataset)
+    dataset = dataset_class(flags, training_hparams['batch_size'])
+
     ## Setting trial seed
     random.seed(flags.trial_seed)
     np.random.seed(flags.trial_seed)
@@ -300,13 +345,12 @@ if __name__ == '__main__':
     ## Create dataset
     # input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
 
-    dataset_class = get_dataset_class(flags.dataset)
-    dataset = dataset_class(flags.data_path, flags.time_steps, training_hparams['batch_size'])
-    input_size = dataset.get_input_size()
-    train_loader, test_loader = dataset.get_loaders()
+    # input_size = dataset.get_input_size()
+    # train_loader, test_loader = dataset.get_loaders()
 
     ## Initialize some RNN
-    model = RNN(input_size, 50, 10, 2)
+    # model = RNN(input_size, 20, 10, 2)
+    model = small_RNN(dataset.get_input_size(), 10, 2)
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
@@ -314,7 +358,7 @@ if __name__ == '__main__':
 
     ## Train it
     model.to(device)
-    record = train(training_hparams, model, objective, dataset.get_setup(), train_loader, test_loader, device)\
+    record = train(training_hparams, model, objective, dataset, device)
 
     ## Save record
     with open(os.path.join(flags.save_path, job_json), 'w') as f:

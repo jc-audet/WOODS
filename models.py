@@ -39,3 +39,30 @@ class RNN(nn.Module):
 
     def initHidden(self, batch_size):
         return torch.zeros(batch_size, self.hidden_size)
+
+
+class small_RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(small_RNN, self).__init__()
+
+        self.hidden_size = hidden_size
+
+        self.FCH = nn.Linear(input_size + hidden_size, hidden_size)
+        nn.init.xavier_uniform_(self.FCH.weight)
+        nn.init.zeros_(self.FCH.bias)
+
+
+        lin = nn.Linear(input_size + hidden_size, output_size)
+        nn.init.xavier_uniform_(lin.weight)
+        nn.init.zeros_(lin.bias)
+        self.FCO = nn.Sequential(lin, nn.LogSoftmax(dim=1))
+
+
+    def forward(self, input, hidden):
+        combined = torch.cat((input.view(input.shape[0],-1), hidden), 1)
+        hidden = self.FCH(combined)
+        output = self.FCO(combined)
+        return output, hidden
+
+    def initHidden(self, batch_size):
+        return torch.zeros(batch_size, self.hidden_size)

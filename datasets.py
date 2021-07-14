@@ -1,4 +1,5 @@
 import os
+import copy
 import argparse
 import numpy as np
 
@@ -7,9 +8,15 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import datasets, transforms
 
+from scipy import fft
+
 import matplotlib.pyplot as plt
 
 DATASETS = [
+    # 1D datasets
+    'Fourier_basic',
+    'Fourier_cheat',
+    'Spurious_Fourier',
     # Small images
     "TMNIST_grey",
     # Small correlation shift dataset
@@ -32,8 +39,158 @@ def XOR(a, b):
 def bernoulli(p, size):
     return ( torch.rand(size) < p ).float()
 
+class Single_Dim_dataset:
+    setup = 'test'
+
+    def __init__(self):
+        pass
+
+    def get_setup(self):
+        return self.setup
+
+    def get_input_size(self):
+        return 1
+
+class Fourier(Single_Dim_dataset):
+    def __init__(self, flags):
+        super(Fourier, self).__init__()
+
+        ## Define label 0 and 1 Fourier spectrum
+        self.fourier_0 = np.zeros(1000)
+        self.fourier_0[800:900] = np.linspace(0, 500, num=100)
+        self.fourier_1 = np.zeros(1000)
+        self.fourier_1[800:900] = np.linspace(500, 0, num=100)
+
+class Fourier_basic(Fourier):
+    setup = 'basic'
+    time_pred = [49]
+
+    def __init__(self, flags, batch_size):
+        super(Fourier_basic, self).__init__(flags)
+
+        ## Make the full time series with inverse fft
+        signal_0 = fft.irfft(self.fourier_0, n=10000)[1000:9000]
+        signal_1 = fft.irfft(self.fourier_1, n=10000)[1000:9000]
+        signal_0 = torch.tensor( signal_0.reshape(-1,50) ).float()
+        signal_1 = torch.tensor( signal_1.reshape(-1,50) ).float()
+        signal = torch.cat((signal_0, signal_1))
+
+        ## Create the labels
+        labels_0 = torch.zeros((signal_0.shape[0],50)).long()
+        labels_1 = torch.ones((signal_1.shape[0],50)).long()
+        labels = torch.cat((labels_0, labels_1))
+
+        ## Permute and split
+        perm = torch.randperm(labels.shape[0])
+        split = labels.shape[0] // 5
+        perm_signal, perm_labels = signal[perm,:], labels[perm,:]
+        train_signal, test_signal = perm_signal[split:,:], perm_signal[:split,:]
+        train_labels, test_labels = perm_labels[split:,:], perm_labels[:split,:]
+
+        ## Create tensor dataset and dataloader
+        train_dataset = torch.utils.data.TensorDataset(train_signal, train_labels)
+        self.train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        test_dataset = torch.utils.data.TensorDataset(test_signal, test_labels)
+        self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+        
+    def get_loaders(self):
+        return self.train_loader, self.test_loader
+
+class Spurious_Fourier(Fourier):
+
+    setup = 'seq'
+    time_pred = [49]
+    label_noise = 0.25          # Label noise
+    envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
+
+    def __init__(self, flags, batch_size):
+        super(Spurious_Fourier, self).__init__(flags)
+
+        ## Define the spurious Fourier spectrum (one direct and the inverse)
+        self.direct_fourier_0 = copy.deepcopy(self.fourier_0)
+        self.direct_fourier_1 = copy.deepcopy(self.fourier_1)
+        self.direct_fourier_0[250] = 1000
+        self.direct_fourier_1[400] = 1000
+
+        self.inverse_fourier_0 = copy.deepcopy(self.fourier_0)
+        self.inverse_fourier_1 = copy.deepcopy(self.fourier_1)
+        self.inverse_fourier_0[400] = 1000
+        self.inverse_fourier_1[250] = 1000
+
+        ## Create the sequences for direct and inverse
+        direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)[1000:9000]
+        direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50) ).float()
+        perm = torch.randperm(direct_signal_0.shape[0])
+        direct_signal_0 = direct_signal_0[perm,:]
+        direct_signal_1 = fft.irfft(self.direct_fourier_1, n=10000)[1000:9000]
+        direct_signal_1 = torch.tensor( direct_signal_1.reshape(-1,50) ).float()
+        perm = torch.randperm(direct_signal_1.shape[0])
+        direct_signal_1 = direct_signal_1[perm,:]
+        direct_signal = [direct_signal_0, direct_signal_1]
+
+        inverse_signal_0 = fft.irfft(self.inverse_fourier_0, n=10000)[1000:9000]
+        inverse_signal_0 = torch.tensor( inverse_signal_0.reshape(-1,50) ).float()
+        perm = torch.randperm(inverse_signal_0.shape[0])
+        inverse_signal_0 = inverse_signal_0[perm,:]
+        inverse_signal_1 = fft.irfft(self.inverse_fourier_1, n=10000)[1000:9000]
+        inverse_signal_1 = torch.tensor( inverse_signal_1.reshape(-1,50) ).float()
+        perm = torch.randperm(inverse_signal_1.shape[0])
+        inverse_signal_1 = inverse_signal_1[perm,:]
+        inverse_signal = [inverse_signal_0, inverse_signal_1]
+
+        ## Create the environments with different correlations
+        test_env = 2
+        env_size = 150
+        self.train_loaders = []          # array of training environment dataloaders
+        for i, e in enumerate(self.envs):
+
+            ## Create set of labels
+            env_labels_0 = torch.zeros((env_size // 2, 50)).long()
+            env_labels_1 = torch.ones((env_size // 2, 50)).long()
+            env_labels = torch.cat((env_labels_0, env_labels_1))
+
+            ## Fill signal
+            env_signal = torch.zeros((env_size, 50))
+            for j, label in enumerate(env_labels[:,-1]):
+
+                # Label noise
+                if bool(bernoulli(self.label_noise, 1)):
+                    # Correlation to label
+                    if bool(bernoulli(e, 1)):
+                        env_signal[j,:] = inverse_signal[label][0,:]
+                        inverse_signal[label] = inverse_signal[label][1:,:]
+                    else:
+                        env_signal[j,:] = direct_signal[label][0,:]
+                        direct_signal[label] = direct_signal[label][1:,:]
+                    
+                    # Flip the label
+                    env_labels[j, -1] = XOR(label, 1)
+                else:
+                    if bool(bernoulli(e, 1)):
+                        env_signal[j,:] = direct_signal[label][0,:]
+                        direct_signal[label] = direct_signal[label][1:,:]
+                    else:
+                        env_signal[j,:] = inverse_signal[label][0,:]
+                        inverse_signal[label] = inverse_signal[label][1:,:]
+
+            # Make Tensor dataset
+            td = torch.utils.data.TensorDataset(env_signal, env_labels)
+
+            # Make dataloader
+            if i==test_env:
+                self.test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
+            else:
+                if batch_size < len(self.envs):
+                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
+                else:
+                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(self.envs), shuffle=True) )
+
+    def get_loaders(self):
+        return self.train_loaders, self.test_loader
+
 class TMNIST:
-    setup = 'basic' # Child classes must overwrite
+    setup = 'basic'         # Child classes must overwrite
+    time_pred = [1,2,3]     # Child classes can overwrite
 
     def __init__(self, data_path):
         
@@ -46,23 +203,21 @@ class TMNIST:
     def get_setup(self):
         return self.setup
 
-
-
 class TMNIST_grey(TMNIST):
     setup = 'basic'
 
-    def __init__(self, data_path, time_steps, batch_size):
-        super(TMNIST_grey, self).__init__(data_path)
+    def __init__(self, flags, batch_size):
+        super(TMNIST_grey, self).__init__(flags.data_path)
 
         # Create sequences of 3 digits
-        n_train_samples = biggest_multiple(time_steps, self.train_ds.data.shape[0])
-        n_test_samples = biggest_multiple(time_steps, self.test_ds.data.shape[0])
-        self.train_ds.data = self.train_ds.data[:n_train_samples].reshape(-1,time_steps,28,28)
-        self.test_ds.data = self.test_ds.data[:n_test_samples].reshape(-1,time_steps,28,28)
+        n_train_samples = biggest_multiple(flags.time_steps, self.train_ds.data.shape[0])
+        n_test_samples = biggest_multiple(flags.time_steps, self.test_ds.data.shape[0])
+        self.train_ds.data = self.train_ds.data[:n_train_samples].reshape(-1,flags.time_steps,28,28)
+        self.test_ds.data = self.test_ds.data[:n_test_samples].reshape(-1,flags.time_steps,28,28)
 
         # With their corresponding label
-        self.train_ds.targets = self.train_ds.targets[:n_train_samples].reshape(-1,time_steps)
-        self.test_ds.targets = self.test_ds.targets[:n_test_samples].reshape(-1,time_steps)
+        self.train_ds.targets = self.train_ds.targets[:n_train_samples].reshape(-1,flags.time_steps)
+        self.test_ds.targets = self.test_ds.targets[:n_test_samples].reshape(-1,flags.time_steps)
 
 
         # Assign label to the objective : Is the last number in the sequence larger than the current
@@ -91,17 +246,17 @@ class TMNIST_grey(TMNIST):
 
 class TCMNIST(TMNIST):
     def __init__(self, data_path, time_steps):
-        super(TCMNIST, self).__init__(data_path)
+        super(TCMNIST, self).__init__( data_path)
 
         # Concatenate all data and labels
         MNIST_images = torch.cat((self.train_ds.data, self.test_ds.data))
         MNIST_labels = torch.cat((self.train_ds.targets, self.test_ds.targets))
 
         # Create sequences of 3 digits
-        self.MNIST_images = MNIST_images.reshape(-1,time_steps,28,28)
+        self.MNIST_images = MNIST_images.reshape(-1, time_steps, 28, 28)
 
         # With their corresponding label
-        MNIST_labels = MNIST_labels.reshape(-1,time_steps)
+        MNIST_labels = MNIST_labels.reshape(-1, time_steps)
 
         # Assign label to the objective : Is the last number in the sequence larger than the current
         ########################
@@ -122,13 +277,11 @@ class TCMNIST_seq(TCMNIST):
     label_noise = 0.25                    # Label noise
     envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
 
-    def __init__(self, data_path, time_steps, batch_size):
-        super(TCMNIST_seq, self).__init__(data_path, time_steps)
+    def __init__(self, flags, batch_size):
+        super(TCMNIST_seq, self).__init__(flags.data_path, flags.time_steps)
 
         # Make the color datasets
         self.train_loaders = []          # array of training environment dataloaders
-        d = 0.25                    # Label noise
-        envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
         test_env = 2
         for i, e in enumerate(self.envs):
 
@@ -176,11 +329,12 @@ class TCMNIST_seq(TCMNIST):
 class TCMNIST_step(TCMNIST):
 
     setup = 'step'
+    time_pred = [1,2]
     label_noise = 0.25                # Label noise
     envs = [0.8, 0.9, 0.1]  # Environment is a function of correlation
 
-    def __init__(self, data_path, time_steps, batch_size):
-        super(TCMNIST_step, self).__init__(data_path, time_steps)
+    def __init__(self, flags, batch_size):
+        super(TCMNIST_step, self).__init__(flags.data_path, flags.time_steps)
 
         ## Make the color datasets
         # Stack a second color channel
