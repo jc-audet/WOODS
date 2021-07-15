@@ -1,8 +1,17 @@
 # Temporal_OOD
 Repository aiming to benchmark OOD performance of temporal data.
 
-## Current benchmark
+# Current benchmarks
+## Spurious Fourier
+### The task
+The task is to classify Fourier spectrum from observed signals.
+![CFourier](figure/clean_task.png)
 
+### Spurious Version
+In the spurious version of the dataset, we add a spike in the Fourier spectrum that is correlated with the label.
+![SFourier](figure/env_task.png)
+
+## Temporal ColoredMNIST
 ### Greyscale
 We create a sequence of 4 digits (one digit per frame) and the task is to predict if the sum of the last digit and the current digit is an odd number.
 
