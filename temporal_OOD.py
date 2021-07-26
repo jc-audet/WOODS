@@ -51,7 +51,7 @@ def train_epoch(model, objective, dataset, optimizer, device):
             nb_items = pred.numel()
 
             losses.append(loss.item())
-            accuracies.append(nb_correct / nb_items)
+            accuracies.append(nb_correct.item() / nb_items)
 
             optimizer.zero_grad()
             loss.backward()
@@ -59,44 +59,10 @@ def train_epoch(model, objective, dataset, optimizer, device):
 
         return model, losses, accuracies
         
-    if dataset.get_setup() == 'alt_basic':
-        
-        train_loader = train_loader[0]
-        for data, target in train_loader:
-
-            data, target = data.to(device), target.to(device)
-
-            loss = 0
-            hidden = model.initHidden(data.shape[0]).to(device)
-            pred = torch.zeros(data.shape[0], 0).to(device)
-            for i in range(data.shape[1]):
-                out, hidden = model(data[:,i,...], hidden)
-                if i in ts:     # Only consider labels after the first frame
-                    loss += F.nll_loss(out, target[:,i]) 
-                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
-
-            nb_correct = pred.eq(target[:,ts]).cpu().sum()
-            nb_items = pred.numel()
-
-            losses.append(loss.item())
-            accuracies.append(nb_correct / nb_items)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        return model, losses, accuracies
-
     elif dataset.get_setup() == 'seq':
 
         train_loader_iter = zip(*train_loader)
         for batch_loaders in train_loader_iter:
-
-            # data, target = batch_loaders[0]
-            # plt.figure()
-            # plt.plot(data[0,:])
-            # plt.title(target[0,49])
-            # plt.show()
 
             # Send everything onto device
             minibatches_device = [(x, y) for x,y in batch_loaders]
@@ -196,12 +162,12 @@ def train_epoch(model, objective, dataset, optimizer, device):
             # Get test loss
             with torch.no_grad():
                 env_out = all_out[-1]
-                test_losses.append( F.nll_loss(env_out, target[:,-1]) )
+                test_losses.append( F.nll_loss(env_out, target[:,-1]).item() )
 
                 # Get test accuracy
                 nb_correct = pred[:,-1].eq(target[:,-1]).cpu().sum()
                 nb_items = pred[:,-1].numel()
-                test_accuracies.append(nb_correct / nb_items)
+                test_accuracies.append(nb_correct.item() / nb_items)
 
         return model, losses, accuracies, test_losses, test_accuracies
 
@@ -213,7 +179,8 @@ def train(training_hparams, model, objective, dataset, device):
 
     print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
     for epoch in range(1, training_hparams['epochs'] + 1):
-        if dataset.get_setup() in ['basic', 'seq', 'alt_basic']:
+
+        if dataset.get_setup() in ['basic', 'seq']:
             ## Make training step and report accuracies and losses
             model, training_loss, training_accuracy = train_epoch(model, objective, dataset, optimizer, device)
 
@@ -297,7 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('--trial_seed', type=int, default=0)
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
-    parser.add_argument('--save_path', type=str, default='./')
+    parser.add_argument('--save_path', type=str, default='./results/')
     flags = parser.parse_args()
 
     print('Flags:')
@@ -311,7 +278,7 @@ if __name__ == '__main__':
         job_id = flags.objective + '_' + flags.dataset
     job_json = job_id + '.json'
 
-    if os.path.isfile(job_json):
+    if os.path.isfile(os.path.join(flags.save_path, job_json)):
         print("\n*********************************\n*** Job Already ran and saved ***\n*********************************\n")
         exit()
     
@@ -326,6 +293,15 @@ if __name__ == '__main__':
     for k, v in sorted(objective_hparams.items()):
         print('\t{}: {}'.format(k, v))
 
+
+    ## Setting dataset seed
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    ## Make dataset
     dataset_class = get_dataset_class(flags.dataset)
     dataset = dataset_class(flags, training_hparams['batch_size'])
 
@@ -333,8 +309,6 @@ if __name__ == '__main__':
     random.seed(flags.trial_seed)
     np.random.seed(flags.trial_seed)
     torch.manual_seed(flags.trial_seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
     # ## Import original MNIST data
     # MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
@@ -349,8 +323,13 @@ if __name__ == '__main__':
     # train_loader, test_loader = dataset.get_loaders()
 
     ## Initialize some RNN
-    # model = RNN(input_size, 20, 10, 2)
-    model = small_RNN(dataset.get_input_size(), 10, 2)
+    if flags.dataset in ['TMNIST_grey', 'TCMNIST_seq', 'TCMNIST_step']:
+        model = RNN(dataset.get_input_size(), 20, 10, 2)
+    elif flags.dataset in ['Fourier_basic', 'Spurious_Fourier']:
+        model = small_RNN(dataset.get_input_size(), 10, 2)
+    else:
+        print("Dataset doesn't have a designed model")
+        exit()
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)

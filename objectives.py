@@ -90,12 +90,9 @@ class IRM(ERM):
         return result
 
     def gather_logits_and_labels(self, logits, labels):
-
         self.penalty += self._irm_penalty(logits, labels)
 
-
     def backward(self, losses):
-
         # Define stuff
         penalty_weight = (self.penalty_weight   if self.update_count >= self.anneal_iters 
                                                 else 1.0)

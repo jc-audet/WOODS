@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 DATASETS = [
     # 1D datasets
     'Fourier_basic',
-    'Fourier_cheat',
     'Spurious_Fourier',
     # Small images
     "TMNIST_grey",
@@ -75,6 +74,12 @@ class Fourier_basic(Fourier):
         signal_1 = torch.tensor( signal_1.reshape(-1,50) ).float()
         signal = torch.cat((signal_0, signal_1))
 
+        plt.figure()
+        plt.plot(signal_0[50,:], 'r', label='Label 0')
+        plt.plot(signal_1[50,:], 'b', label='Label 1')
+        plt.legend()
+        plt.savefig('./figure/fourier_clean_signal.pdf')
+
         ## Create the labels
         labels_0 = torch.zeros((signal_0.shape[0],50)).long()
         labels_1 = torch.ones((signal_1.shape[0],50)).long()
@@ -117,6 +122,22 @@ class Spurious_Fourier(Fourier):
         self.inverse_fourier_0[400] = 1000
         self.inverse_fourier_1[250] = 1000
 
+        plt.figure()
+        plt.plot(self.fourier_0, 'r', label='Label 0')
+        plt.plot(self.fourier_1, 'b', label='Label 1')
+        plt.legend()
+        plt.savefig('./figure/fourier_clean_task.pdf')
+
+        plt.figure()
+        plt.plot(self.direct_fourier_0, 'r')
+        plt.plot(self.inverse_fourier_0, 'b')
+        plt.savefig('./figure/fourier_cheat_0.pdf')
+        
+        plt.figure()
+        plt.plot(self.direct_fourier_1, 'r')
+        plt.plot(self.inverse_fourier_1, 'b')
+        plt.savefig('./figure/fourier_cheat_1.pdf')
+
         ## Create the sequences for direct and inverse
         direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)[1000:9000]
         direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50) ).float()
@@ -137,6 +158,16 @@ class Spurious_Fourier(Fourier):
         perm = torch.randperm(inverse_signal_1.shape[0])
         inverse_signal_1 = inverse_signal_1[perm,:]
         inverse_signal = [inverse_signal_0, inverse_signal_1]
+
+        plt.figure()
+        plt.plot(direct_signal_0[50,:], 'r')
+        plt.plot(inverse_signal_0[50,:], 'b')
+        plt.savefig('./figure/fourier_cheat_signal_0.pdf')
+
+        plt.figure()
+        plt.plot(direct_signal_1[50,:], 'r')
+        plt.plot(inverse_signal_1[50,:], 'b')
+        plt.savefig('./figure/fourier_cheat_signal_1.pdf')
 
         ## Create the environments with different correlations
         test_env = 2
@@ -286,8 +317,8 @@ class TCMNIST_seq(TCMNIST):
         for i, e in enumerate(self.envs):
 
             # Choose data subset
-            images = self.MNIST_images[i::len(envs)]
-            labels = self.MNIST_labels[i::len(envs)]
+            images = self.MNIST_images[i::len(self.envs)]
+            labels = self.MNIST_labels[i::len(self.envs)]
 
             # Color subset
             colored_images, colored_labels = self.color_dataset(images, labels, i, e, self.label_noise)
@@ -299,10 +330,10 @@ class TCMNIST_seq(TCMNIST):
             if i==test_env:
                 self.test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
             else:
-                if batch_size < len(envs):
+                if batch_size < len(self.envs):
                     self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
                 else:
-                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(envs), shuffle=True) )
+                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(self.envs), shuffle=True) )
 
     def color_dataset(self, images, labels, env_id, p, d):
 
