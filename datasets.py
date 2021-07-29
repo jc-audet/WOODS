@@ -23,6 +23,13 @@ DATASETS = [
     "TCMNIST_step",
 ]
 
+'''
+TODO Make a note the says that you need the 'time_pred' and 'setup' variable for every new dataset added
+TODO Make a package test that checks if every class has 'time_pred' and 'setup'
+TODO Notify users that datasets need to be (batch, time, dimensions...)
+TODO Define the targets as only the prediction times
+'''
+
 def get_dataset_class(dataset_name):
     """Return the dataset class with the given name."""
     if dataset_name not in globals():
@@ -93,7 +100,7 @@ class Fourier_basic(Fourier):
         train_labels, test_labels = perm_labels[split:,:], perm_labels[:split,:]
 
         ## Create tensor dataset and dataloader
-        train_dataset = torch.utils.data.TensorDataset(train_signal, train_labels)
+        train_dataset = torch.utils.data.TensorDataset(train_signal, train_labels[:,self.time_pred])
         self.train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_dataset = torch.utils.data.TensorDataset(test_signal, test_labels)
         self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
@@ -235,7 +242,6 @@ class TMNIST:
         return self.setup
 
 class TMNIST_grey(TMNIST):
-    setup = 'basic'
 
     def __init__(self, flags, batch_size):
         super(TMNIST_grey, self).__init__(flags.data_path)

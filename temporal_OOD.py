@@ -32,6 +32,8 @@ def train_epoch(model, objective, dataset, optimizer, device):
     train_loader, _ = dataset.get_loaders()
     ts = torch.tensor(dataset.time_pred).to(device)
 
+    ## No domain definition
+    # TODO Look into merging this into the 'seq' setup
     if dataset.get_setup() == 'basic':
 
         for data, target in train_loader:
@@ -39,15 +41,19 @@ def train_epoch(model, objective, dataset, optimizer, device):
             data, target = data.to(device), target.to(device)
 
             loss = 0
+            idx = 0     
             hidden = model.initHidden(data.shape[0]).to(device)
             pred = torch.zeros(data.shape[0], 0).to(device)
+            # Iterate through the time dimension
             for i in range(data.shape[1]):
                 out, hidden = model(data[:,i,...], hidden)
-                if i in ts:     # Only consider labels after the first frame
-                    loss += F.nll_loss(out, target[:,i]) 
+                if i in ts:     # Only consider labels after the ts frames # PROBLEM WITH i VARIABLE NOT BEING THE TS -> OUT OF SHAPE
+                    idx = (ts == i).nonzero(as_tuple=True)[0] # CHECK 
+                    loss += F.nll_loss(out, target[:,idx]) 
                     pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
-            nb_correct = pred.eq(target[:,ts]).cpu().sum()
+            # Remove the [:,ts] and redefine target formulation inside dataset.py
+            nb_correct = pred.eq(target).cpu().sum()
             nb_items = pred.numel()
 
             losses.append(loss.item())
@@ -114,6 +120,7 @@ def train_epoch(model, objective, dataset, optimizer, device):
 
         return model, losses, accuracies
 
+    ## This is only valid for TCMNIST_step dataset
     elif dataset.get_setup() == 'step':    # Test environment (step) is assumed to be the last one.
 
         test_accuracies = []
@@ -128,7 +135,6 @@ def train_epoch(model, objective, dataset, optimizer, device):
             all_out = []
             hidden = model.initHidden(all_x.shape[0]).to(device)
             pred = torch.zeros(all_x.shape[0], 0).to(device)
-
             for i in range(all_x.shape[1]):
                 out, hidden = model(all_x[:,i,:,:], hidden)
                 all_out.append(out)
@@ -278,9 +284,7 @@ if __name__ == '__main__':
         job_id = flags.objective + '_' + flags.dataset
     job_json = job_id + '.json'
 
-    if os.path.isfile(os.path.join(flags.save_path, job_json)):
-        print("\n*********************************\n*** Job Already ran and saved ***\n*********************************\n")
-        exit()
+    assert not os.path.isfile(os.path.join(flags.save_path, job_json)), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
     training_hparams = get_training_hparams(flags.hparams_seed, flags.sample_hparams)
@@ -292,7 +296,6 @@ if __name__ == '__main__':
         print('\t{}: {}'.format(k, v))
     for k, v in sorted(objective_hparams.items()):
         print('\t{}: {}'.format(k, v))
-
 
     ## Setting dataset seed
     random.seed(0)
@@ -310,26 +313,13 @@ if __name__ == '__main__':
     np.random.seed(flags.trial_seed)
     torch.manual_seed(flags.trial_seed)
 
-    # ## Import original MNIST data
-    # MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
-
-    # train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
-    # test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
-
-    ## Create dataset
-    # input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
-
-    # input_size = dataset.get_input_size()
-    # train_loader, test_loader = dataset.get_loaders()
-
     ## Initialize some RNN
     if flags.dataset in ['TMNIST_grey', 'TCMNIST_seq', 'TCMNIST_step']:
         model = RNN(dataset.get_input_size(), 20, 10, 2)
     elif flags.dataset in ['Fourier_basic', 'Spurious_Fourier']:
         model = small_RNN(dataset.get_input_size(), 10, 2)
     else:
-        print("Dataset doesn't have a designed model")
-        exit()
+        raise ValueError("Dataset doesn't have a designed model")
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
@@ -342,3 +332,22 @@ if __name__ == '__main__':
     ## Save record
     with open(os.path.join(flags.save_path, job_json), 'w') as f:
         json.dump(record, f)
+
+
+
+
+
+
+##############################################
+##############################################
+# ## Import original MNIST data
+# MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
+
+# train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
+# test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
+
+## Create dataset
+# input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
+
+# input_size = dataset.get_input_size()
+# train_loader, test_loader = dataset.get_loaders()
