@@ -68,7 +68,7 @@ class Fourier(Single_Dim_dataset):
         self.fourier_1[800:900] = np.linspace(500, 0, num=100)
 
 class Fourier_basic(Fourier):
-    setup = 'basic'
+    setup = 'seq'
     time_pred = [49]
 
     def __init__(self, flags, batch_size):
@@ -88,8 +88,8 @@ class Fourier_basic(Fourier):
         plt.savefig('./figure/fourier_clean_signal.pdf')
 
         ## Create the labels
-        labels_0 = torch.zeros((signal_0.shape[0],50)).long()
-        labels_1 = torch.ones((signal_1.shape[0],50)).long()
+        labels_0 = torch.zeros((signal_0.shape[0],1)).long()
+        labels_1 = torch.ones((signal_1.shape[0],1)).long()
         labels = torch.cat((labels_0, labels_1))
 
         ## Permute and split
@@ -100,13 +100,13 @@ class Fourier_basic(Fourier):
         train_labels, test_labels = perm_labels[split:,:], perm_labels[:split,:]
 
         ## Create tensor dataset and dataloader
-        train_dataset = torch.utils.data.TensorDataset(train_signal, train_labels[:,self.time_pred])
+        train_dataset = torch.utils.data.TensorDataset(train_signal, train_labels)
         self.train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_dataset = torch.utils.data.TensorDataset(test_signal, test_labels)
         self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
         
     def get_loaders(self):
-        return self.train_loader, self.test_loader
+        return [self.train_loader], self.test_loader
 
 class Spurious_Fourier(Fourier):
 
@@ -183,13 +183,13 @@ class Spurious_Fourier(Fourier):
         for i, e in enumerate(self.envs):
 
             ## Create set of labels
-            env_labels_0 = torch.zeros((env_size // 2, 50)).long()
-            env_labels_1 = torch.ones((env_size // 2, 50)).long()
+            env_labels_0 = torch.zeros((env_size // 2, 1)).long()
+            env_labels_1 = torch.ones((env_size // 2, 1)).long()
             env_labels = torch.cat((env_labels_0, env_labels_1))
 
             ## Fill signal
             env_signal = torch.zeros((env_size, 50))
-            for j, label in enumerate(env_labels[:,-1]):
+            for j, label in enumerate(env_labels):
 
                 # Label noise
                 if bool(bernoulli(self.label_noise, 1)):
@@ -227,7 +227,7 @@ class Spurious_Fourier(Fourier):
         return self.train_loaders, self.test_loader
 
 class TMNIST:
-    setup = 'basic'         # Child classes must overwrite
+    setup = 'seq'         # Child classes must overwrite
     time_pred = [1,2,3]     # Child classes can overwrite
 
     def __init__(self, data_path):
@@ -260,10 +260,10 @@ class TMNIST_grey(TMNIST):
         # Assign label to the objective : Is the last number in the sequence larger than the current
         # self.train_ds.targets = ( self.train_ds.targets[:,:-1] > self.train_ds.targets[:,1:] )       # Is the previous one bigger than the current one?
         self.train_ds.targets = ( self.train_ds.targets[:,:-1] + self.train_ds.targets[:,1:] ) % 2     # Is the sum of this one and the last one an even number?
-        self.train_ds.targets = torch.cat((torch.zeros((self.train_ds.targets.shape[0],1)), self.train_ds.targets), 1).long()
+        self.train_ds.targets = self.train_ds.targets.long()
         # self.test_ds.targets = ( self.test_ds.targets[:,:-1] > self.test_ds.targets[:,1:] )          # Is the previous one bigger than the current one?
         self.test_ds.targets = ( self.test_ds.targets[:,:-1] + self.test_ds.targets[:,1:] ) % 2        # Is the sum of this one and the last one an even number?
-        self.test_ds.targets = torch.cat((torch.zeros((self.test_ds.targets.shape[0],1)), self.test_ds.targets), 1).long()
+        self.test_ds.targets = self.test_ds.targets.long()
 
         # Make Tensor dataset
         train_dataset = torch.utils.data.TensorDataset(self.train_ds.data, self.train_ds.targets)
@@ -279,7 +279,7 @@ class TMNIST_grey(TMNIST):
         return self.input_size
         
     def get_loaders(self):
-        return self.train_loader, self.test_loader
+        return [self.train_loader], self.test_loader
 
 class TCMNIST(TMNIST):
     def __init__(self, data_path, time_steps):
@@ -290,7 +290,7 @@ class TCMNIST(TMNIST):
         MNIST_labels = torch.cat((self.train_ds.targets, self.test_ds.targets))
 
         # Create sequences of 3 digits
-        self.MNIST_images = MNIST_images.reshape(-1, time_steps, 28, 28)
+        self.TCMNIST_images = MNIST_images.reshape(-1, time_steps, 28, 28)
 
         # With their corresponding label
         MNIST_labels = MNIST_labels.reshape(-1, time_steps)
@@ -299,9 +299,9 @@ class TCMNIST(TMNIST):
         ########################
         ### Choose the task:
         # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
-        MNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
+        TCMNIST_labels = ( MNIST_labels[:,:-1] + MNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
         
-        self.MNIST_labels = torch.cat((torch.zeros((MNIST_labels.shape[0],1)), MNIST_labels), 1)
+        self.TCMNIST_labels = TCMNIST_labels.long()
 
         self.input_size = 2 * 28 * 28
 
@@ -323,8 +323,8 @@ class TCMNIST_seq(TCMNIST):
         for i, e in enumerate(self.envs):
 
             # Choose data subset
-            images = self.MNIST_images[i::len(self.envs)]
-            labels = self.MNIST_labels[i::len(self.envs)]
+            images = self.TCMNIST_images[i::len(self.envs)]
+            labels = self.TCMNIST_labels[i::len(self.envs)]
 
             # Color subset
             colored_images, colored_labels = self.color_dataset(images, labels, i, e, self.label_noise)
@@ -366,23 +366,21 @@ class TCMNIST_seq(TCMNIST):
 class TCMNIST_step(TCMNIST):
 
     setup = 'step'
-    time_pred = [1,2]
-    label_noise = 0.25                # Label noise
+    time_pred = [1,2,3]     # Time steps where dataset has labels
+    train_env = [0,1]       # idx of time_pred that are training time steps (absolute time step index for the time series would be time_pred[train_env])
+    test_env = [2]          # idx of time_pred that are testing time steps (absolute time step index for the time series would be time_pred[test_env])
+    label_noise = 0.25      # Label noise
     envs = [0.8, 0.9, 0.1]  # Environment is a function of correlation
-
     def __init__(self, flags, batch_size):
         super(TCMNIST_step, self).__init__(flags.data_path, flags.time_steps)
 
         ## Make the color datasets
         # Stack a second color channel
-        colored_images = torch.stack([self.MNIST_images, self.MNIST_images], dim=2)
+        colored_images = torch.stack([self.TCMNIST_images, self.TCMNIST_images], dim=2)
 
-        train_env = [1,2]
-        test_env = [3]
         for i, e in enumerate(self.envs):
-
             # Color i-th frame subset
-            colored_images, colored_labels = self.color_dataset(colored_images, self.MNIST_labels, i+1, e, self.label_noise)
+            colored_images, colored_labels = self.color_dataset(colored_images, self.TCMNIST_labels, i, e, self.label_noise)
 
         # Make Tensor dataset and dataloader
         td = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
@@ -398,7 +396,7 @@ class TCMNIST_step(TCMNIST):
 
         # Apply colors
         for sample in range(colors.shape[0]):
-            images[sample,env_id,colors[sample].long(),:,:] *= 0 
+            images[sample,env_id+1,colors[sample].long(),:,:] *= 0 
 
         return images, labels
         
