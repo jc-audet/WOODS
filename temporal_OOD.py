@@ -15,10 +15,13 @@ from models import small_RNN, RNN
 from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams
 
+from prettytable import PrettyTable
+from utils import setup_pretty_table
+
 import matplotlib.pyplot as plt
 
 ## Train function
-def train_epoch(model, objective, dataset, optimizer, device):
+def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
     """
     :param model: nn model defined in a models.py
     :param train_loader: training dataloader(s)
@@ -26,66 +29,70 @@ def train_epoch(model, objective, dataset, optimizer, device):
     :param device: device on which we are training
     """
     model.train()
-    accuracies = []
-    losses = []
 
-    train_loader, _ = dataset.get_loaders()
-    ts = torch.tensor(dataset.time_pred).to(device)
+    in_names, _ = dataset.get_in_loaders()
+    ts = torch.tensor(dataset.get_pred_time()).to(device)
+    record = {}
         
     if dataset.get_setup() == 'seq':
+        
+        # Get next batch of training data
+        batch_loaders = next(in_loaders_iter)
 
-        train_loader_iter = zip(*train_loader)
-        for batch_loaders in train_loader_iter:
+        # Send everything in an array
+        minibatches_device = [(x, y) for x,y in batch_loaders]
 
-            # Send everything onto device
-            minibatches_device = [(x, y) for x,y in batch_loaders]
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        all_out = []
 
-            ## Group all inputs and get prediction
-            all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-            all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-            all_out = []
+        # Get logit and make prediction
+        hidden = model.initHidden(all_x.shape[0]).to(device)
+        pred = torch.zeros(all_x.shape[0], 0).to(device)
+        for i in range(all_x.shape[1]):
+            out, hidden = model(all_x[:,i,...], hidden)
+            if i in ts:
+                all_out.append(out)
+                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
-            # Get logit and make prediction
-            hidden = model.initHidden(all_x.shape[0]).to(device)
-            pred = torch.zeros(all_x.shape[0], 0).to(device)
-            for i in range(all_x.shape[1]):
-                out, hidden = model(all_x[:,i,...], hidden)
-                if i in ts:
-                    all_out.append(out)
-                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+        # Compute environment-wise losses
+        all_loss = 0
+        all_logits_idx = 0
+        env_losses = torch.zeros(len(minibatches_device))
+        for i, (x,y) in enumerate(minibatches_device):
+            env_loss = 0
+            y = y.to(device)
+            for t_idx, out in enumerate(all_out):     # Number of time steps
+                env_out_t = out[all_logits_idx:all_logits_idx + x.shape[0],:]
+                env_loss += F.nll_loss(env_out_t, y[:,t_idx]) 
+                objective.gather_logits_and_labels(env_out_t, y[:,t_idx])
 
-            # Compute environment-wise losses
-            all_loss = 0
-            all_logits_idx = 0
-            env_losses = torch.zeros(len(minibatches_device))
-            for i, (x,y) in enumerate(minibatches_device):
-                env_loss = 0
-                y = y.to(device)
-                for t_idx, out in enumerate(all_out):     # Number of time steps
-                    env_out_t = out[all_logits_idx:all_logits_idx + x.shape[0],:]
-                    env_loss += F.nll_loss(env_out_t, y[:,t_idx]) 
-                    objective.gather_logits_and_labels(env_out_t, y[:,t_idx])
-                env_losses[i] = env_loss
-                all_logits_idx += x.shape[0]
-                all_loss += env_loss / len(train_loader) # Average across environments
+            # get train accuracy and save it
+            nb_correct = pred[all_logits_idx:all_logits_idx + x.shape[0],:].eq(y).cpu().sum()
+            nb_items = pred[all_logits_idx:all_logits_idx + x.shape[0],:].numel()
+            record[in_names[i]+'_acc'] = nb_correct.item() / nb_items
 
-            # get average train accuracy and save it
-            nb_correct = pred.eq(all_y).cpu().sum()
-            nb_items = pred.numel()
-            accuracies.append(nb_correct.item() / nb_items)
+            # Save loss
+            env_losses[i] = env_loss
+            record[in_names[i]+'_loss'] = env_loss.item()
 
-            # get loss from all environment and save it
-            # env_loss_item = [e_loss.item() for e_loss in env_losses]
-            # losses.append(env_loss_item)
-            # Get average loss and save it
-            losses.append(all_loss.item())
+            # Update stuff
+            all_logits_idx += x.shape[0]
+            all_loss += env_loss / len(batch_loaders) # Average across environments
 
-            # Back propagate
-            optimizer.zero_grad()
-            objective.backward(env_losses)
-            optimizer.step()
+        # get loss from all environment and save it
+        # env_loss_item = [e_loss.item() for e_loss in env_losses]
+        # losses.append(env_loss_item)
+        # Get average loss and save it
+        # losses.append(all_loss.item())
 
-        return model, losses, accuracies
+        # Back propagate
+        optimizer.zero_grad()
+        objective.backward(env_losses)
+        optimizer.step()
+
+        return model, record
 
     ## This is only valid for TCMNIST_step dataset
     elif dataset.get_setup() == 'step':    # Test environment (step) is assumed to be the last one.
@@ -93,7 +100,7 @@ def train_epoch(model, objective, dataset, optimizer, device):
         test_accuracies = []
         test_losses = []
 
-        for all_x, target in train_loader:
+        for all_x, target in in_loaders:
 
             # Send everything onto device
             all_x, target = all_x.to(device), target.to(device)
@@ -151,52 +158,64 @@ def train(training_hparams, model, objective, dataset, device):
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
     record = {}
 
-    print('Epoch\t||\tTrain Acc\t|\tTest Acc\t||\tTraining Loss\t|\tTest Loss ')
-    for epoch in range(1, training_hparams['epochs'] + 1):
+    # x = PrettyTable()
+    # x.set_style(13)
+    # env_name = dataset.envs
+    # x.field_names = ['Step' + ' '*(len(str(training_hparams['steps']))-len('steps'))] + [e for e in env_name]
+    # print(x)
+    t = setup_pretty_table(training_hparams, dataset)
+
+    in_names, in_loaders = dataset.get_in_loaders() 
+    out_names, out_loaders = dataset.get_out_loaders() 
+    all_names = in_names + out_names
+    all_loaders = in_loaders + out_loaders
+    for step in range(1, training_hparams['steps'] + 1):
 
         if dataset.get_setup() == 'seq':
+
+            in_loaders_iter = zip(*in_loaders)
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy = train_epoch(model, objective, dataset, optimizer, device)
+            model, step_record = train_step(model, objective, dataset, in_loaders_iter, optimizer, device)
 
-            ## Get test accuracy and loss
-            test_accuracy, test_loss = get_accuracy(model, dataset, device)
+            if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
+                ## Get test accuracy and loss
+                record[str(step)] = {}
+                for name, loader in zip(all_names, all_loaders):
+                    accuracy, loss = get_accuracy(model, dataset, loader, device)
 
-            ## Update records
-            record[str(epoch)] =   {'train_acc': training_accuracy[-1],
-                                    'test_acc': test_accuracy,
-                                    'train_loss': training_loss[-1], 
-                                    'test_loss': test_loss}
+                    record[str(step)].update({name+'_acc': accuracy,
+                                            name+'_loss': loss})
 
-            print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, np.mean(training_accuracy), test_accuracy, np.mean(training_loss), test_loss))
+                t.add_row([step] +["{:.2f} / {:.2f}".format(record[str(step)][n_in+'_acc'], record[str(step)][n_out+'_acc']) for n_in, n_out in zip(in_names, out_names)])
+                print("\n".join(t.get_string().splitlines()[-1:]))
 
         elif dataset.get_setup() == 'step':
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy, test_loss, test_accuracy = train_epoch(model, objective, dataset, optimizer, device)
+            model, training_loss, training_accuracy, test_loss, test_accuracy = train_step(model, objective, dataset, optimizer, device)
 
             ## Update records
-            record[str(epoch)] =   {'train_acc': training_accuracy[-1],
+            record[str(step)] =   {'train_acc': training_accuracy[-1],
                                     'test_acc': test_accuracy[-1],
                                     'train_loss': training_loss[-1], 
                                     'test_loss': test_loss[-1]}
 
-            print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(epoch, training_accuracy[-1], test_accuracy[-1], training_loss[-1], test_loss[-1]))
+            print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(step, training_accuracy[-1], test_accuracy[-1], training_loss[-1], test_loss[-1]))
 
     return record
 
-def get_accuracy(model, dataset, device):
+def get_accuracy(model, dataset, loader, device):
 
     # Check if this is the right setup
     assert not dataset.get_setup() == 'step', "Wrong use of get_accuracy: Not valid for 'step' setup"
 
     model.eval()
-    test = 0
+    losses = []
     nb_correct = 0
     nb_item = 0
-    losses = []
 
-    ts = torch.tensor(dataset.time_pred).to(device)
-    _, loader = dataset.get_loaders()
+    ts = torch.tensor(dataset.get_pred_time()).to(device)
     with torch.no_grad():
+
         for data, target in loader:
 
             data, target = data.to(device), target.to(device)
@@ -214,6 +233,9 @@ def get_accuracy(model, dataset, device):
             nb_correct += pred.eq(target).cpu().sum()
             nb_item += pred.numel()
             losses.append(loss.item())
+            
+        ## TODO
+        ## Save stuff in the right place for every out loaders
 
     return nb_correct.item() / nb_item, np.mean(losses)
 
@@ -227,10 +249,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train MLPs')
     # Training arguments
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--steps', type=int, default=1000)
     # Dataset arguments
-    parser.add_argument('--time_steps', type=int, default=4)
+    # parser.add_argument('--time_steps', type=int, default=4)  # Should be in the TMNIST dataset definition
+    parser.add_argument('--test_env', type=int)
     parser.add_argument('--dataset', type=str)
+    parser.add_argument('--holdout_fraction', type=float, default=0.2)
     # Setup arguments
     parser.add_argument('--objective', type=str, choices=OBJECTIVES)
     # Hyperparameters argument
@@ -257,7 +281,7 @@ if __name__ == '__main__':
     
     ## Getting hparams
     training_hparams = get_training_hparams(flags.hparams_seed, flags.sample_hparams)
-    training_hparams['epochs'] = flags.epochs
+    training_hparams['steps'] = flags.steps
     objective_hparams = get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
 
     print('HParams:')
@@ -276,9 +300,9 @@ if __name__ == '__main__':
     ## Make dataset
     dataset_class = get_dataset_class(flags.dataset)
     dataset = dataset_class(flags, training_hparams['batch_size'])
-    train_loaders, _ = dataset.get_loaders()
+    _, in_loaders = dataset.get_in_loaders()
 
-    if len(train_loaders) == 1:
+    if len(in_loaders) == 1:
         assert flags.objective == 'ERM' , "Dataset has only one environment, cannot compute multi-environment penalties"
 
     ## Setting trial seed

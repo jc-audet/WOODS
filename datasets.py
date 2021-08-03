@@ -27,7 +27,6 @@ DATASETS = [
 TODO Make a note the says that you need the 'time_pred' and 'setup' variable for every new dataset added
 TODO Make a package test that checks if every class has 'time_pred' and 'setup'
 TODO Notify users that datasets need to be (batch, time, dimensions...)
-TODO Define the targets as only the prediction times
 '''
 
 def get_dataset_class(dataset_name):
@@ -45,19 +44,50 @@ def XOR(a, b):
 def bernoulli(p, size):
     return ( torch.rand(size) < p ).float()
 
-class Single_Dim_dataset:
-    setup = 'test'
+def make_split(dataset, holdout_fraction, seed=0):
+
+    split = int(len(dataset)*holdout_fraction)
+
+    keys = list(range(len(dataset)))
+    np.random.RandomState(seed).shuffle(keys)
+
+    in_split = dataset[keys[split:]]
+    out_split = dataset[keys[:split]]
+
+    return torch.utils.data.TensorDataset(*in_split), torch.utils.data.TensorDataset(*out_split)
+
+class Multi_Domain_Dataset:
+    N_STEPS = 5001
+    CHECKPOINT_FREQ = 1
+    SETUP = None
+    PRED_TIME = [None]
+    ENVS = [None]
+    INPUT_SIZE = None
 
     def __init__(self):
         pass
 
     def get_setup(self):
-        return self.setup
+        return self.SETUP
 
     def get_input_size(self):
-        return 1
+        return self.INPUT_SIZE
 
-class Fourier(Single_Dim_dataset):
+    def get_envs(self):
+        return self.ENVS
+
+    def get_pred_time(self):
+        return self.PRED_TIME
+
+    def get_in_loaders(self):
+        print("CHANGE THIS TO GET TRAIN LOADERS")
+        return [str(env)+'_in' for env in self.ENVS], self.in_loaders
+    
+    def get_out_loaders(self):
+        print("CHANGE THIS TO GET ALL LOADERS")
+        return [str(env)+'_out' for env in self.ENVS], self.out_loaders
+
+class Fourier(Multi_Domain_Dataset):
     def __init__(self, flags):
         super(Fourier, self).__init__()
 
@@ -68,8 +98,10 @@ class Fourier(Single_Dim_dataset):
         self.fourier_1[800:900] = np.linspace(500, 0, num=100)
 
 class Fourier_basic(Fourier):
-    setup = 'seq'
-    time_pred = [49]
+    SETUP = 'seq'
+    PRED_TIME = [49]
+    ENVS = ['no_spur']
+    INPUT_SIZE = 1
 
     def __init__(self, flags, batch_size):
         super(Fourier_basic, self).__init__(flags)
@@ -100,20 +132,21 @@ class Fourier_basic(Fourier):
         train_labels, test_labels = perm_labels[split:,:], perm_labels[:split,:]
 
         ## Create tensor dataset and dataloader
-        train_dataset = torch.utils.data.TensorDataset(train_signal, train_labels)
-        self.train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_dataset = torch.utils.data.TensorDataset(test_signal, test_labels)
-        self.test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-        
-    def get_loaders(self):
-        return [self.train_loader], self.test_loader
+        self.in_loaders, self.out_loaders = [], []
+        for e in self.ENVS:
+            dataset = torch.utils.data.TensorDataset(signal, labels)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            self.in_loaders.append(in_loader)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            self.out_loaders.append(out_loader)
 
 class Spurious_Fourier(Fourier):
-
-    setup = 'seq'
-    time_pred = [49]
+    SETUP = 'seq'
+    INPUT_SIZE = 1
+    PRED_TIME = [49]
     label_noise = 0.25          # Label noise
-    envs = [0.8, 0.9, 0.1]      # Environment is a function of correlation
+    ENVS = [0.8, 0.9, 0.1]      # Environment is a function of correlation
 
     def __init__(self, flags, batch_size):
         super(Spurious_Fourier, self).__init__(flags)
@@ -177,10 +210,9 @@ class Spurious_Fourier(Fourier):
         plt.savefig('./figure/fourier_cheat_signal_1.pdf')
 
         ## Create the environments with different correlations
-        test_env = 2
         env_size = 150
-        self.train_loaders = []          # array of training environment dataloaders
-        for i, e in enumerate(self.envs):
+        self.in_loaders, self.out_loaders = [], []
+        for i, e in enumerate(self.ENVS):
 
             ## Create set of labels
             env_labels_0 = torch.zeros((env_size // 2, 1)).long()
@@ -212,19 +244,22 @@ class Spurious_Fourier(Fourier):
                         inverse_signal[label] = inverse_signal[label][1:,:]
 
             # Make Tensor dataset
-            td = torch.utils.data.TensorDataset(env_signal, env_labels)
+            dataset = torch.utils.data.TensorDataset(env_signal, env_labels)
 
-            # Make dataloader
-            if i==test_env:
-                self.test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
-            else:
-                if batch_size < len(self.envs):
-                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
-                else:
-                    self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(self.envs), shuffle=True) )
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size//(len(self.ENVS)-1), shuffle=True)
+            self.in_loaders.append(in_loader)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            self.out_loaders.append(out_loader)
 
-    def get_loaders(self):
-        return self.train_loaders, self.test_loader
+            # # Make dataloader
+            # if i==test_env:
+            #     self.test_loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=False)
+            # else:
+            #     if batch_size < len(self.ENVS):
+            #         self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=1, shuffle=True) )
+            #     else:
+            #         self.train_loaders.append( torch.utils.data.DataLoader(td, batch_size=batch_size//len(self.ENVS), shuffle=True) )
 
 class TMNIST:
     setup = 'seq'         # Child classes must overwrite
@@ -255,7 +290,6 @@ class TMNIST_grey(TMNIST):
         # With their corresponding label
         self.train_ds.targets = self.train_ds.targets[:n_train_samples].reshape(-1,flags.time_steps)
         self.test_ds.targets = self.test_ds.targets[:n_test_samples].reshape(-1,flags.time_steps)
-
 
         # Assign label to the objective : Is the last number in the sequence larger than the current
         # self.train_ds.targets = ( self.train_ds.targets[:,:-1] > self.train_ds.targets[:,1:] )       # Is the previous one bigger than the current one?
