@@ -13,7 +13,7 @@ def get_training_hparams(seed, sample=False):
     else:
         hparams = {
             'weight_decay': lambda r: 0,
-            'lr': lambda r: 1e-4,
+            'lr': lambda r: 1e-3,
             'batch_size': lambda r: 64
         }
     

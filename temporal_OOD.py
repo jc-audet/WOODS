@@ -30,7 +30,6 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
     """
     model.train()
 
-    in_names, _ = dataset.get_in_loaders()
     ts = torch.tensor(dataset.get_pred_time()).to(device)
     record = {}
         
@@ -71,11 +70,9 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
             # get train accuracy and save it
             nb_correct = pred[all_logits_idx:all_logits_idx + x.shape[0],:].eq(y).cpu().sum()
             nb_items = pred[all_logits_idx:all_logits_idx + x.shape[0],:].numel()
-            record[in_names[i]+'_acc'] = nb_correct.item() / nb_items
 
             # Save loss
             env_losses[i] = env_loss
-            record[in_names[i]+'_loss'] = env_loss.item()
 
             # Update stuff
             all_logits_idx += x.shape[0]
@@ -158,24 +155,19 @@ def train(training_hparams, model, objective, dataset, device):
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
     record = {}
 
-    # x = PrettyTable()
-    # x.set_style(13)
-    # env_name = dataset.envs
-    # x.field_names = ['Step' + ' '*(len(str(training_hparams['steps']))-len('steps'))] + [e for e in env_name]
-    # print(x)
     t = setup_pretty_table(training_hparams, dataset)
 
-    in_names, in_loaders = dataset.get_in_loaders() 
-    out_names, out_loaders = dataset.get_out_loaders() 
-    all_names = in_names + out_names
-    all_loaders = in_loaders + out_loaders
-    for step in range(1, training_hparams['steps'] + 1):
+    train_names, train_loaders = dataset.get_train_loaders() 
+    val_names, val_loaders = dataset.get_val_loaders() 
+    all_names = train_names + val_names
+    all_loaders = train_loaders + val_loaders
+    for step in range(1, dataset.N_STEPS + 1):
 
         if dataset.get_setup() == 'seq':
 
-            in_loaders_iter = zip(*in_loaders)
+            train_loaders_iter = zip(*train_loaders)
             ## Make training step and report accuracies and losses
-            model, step_record = train_step(model, objective, dataset, in_loaders_iter, optimizer, device)
+            model, step_record = train_step(model, objective, dataset, train_loaders_iter, optimizer, device)
 
             if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
                 ## Get test accuracy and loss
@@ -186,7 +178,7 @@ def train(training_hparams, model, objective, dataset, device):
                     record[str(step)].update({name+'_acc': accuracy,
                                             name+'_loss': loss})
 
-                t.add_row([step] +["{:.2f} / {:.2f}".format(record[str(step)][n_in+'_acc'], record[str(step)][n_out+'_acc']) for n_in, n_out in zip(in_names, out_names)])
+                t.add_row([step] +["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()])
                 print("\n".join(t.get_string().splitlines()[-1:]))
 
         elif dataset.get_setup() == 'step':
@@ -248,11 +240,9 @@ if __name__ == '__main__':
         device = torch.device("cpu")
 
     parser = argparse.ArgumentParser(description='Train MLPs')
-    # Training arguments
-    parser.add_argument('--steps', type=int, default=1000)
     # Dataset arguments
     # parser.add_argument('--time_steps', type=int, default=4)  # Should be in the TMNIST dataset definition
-    parser.add_argument('--test_env', type=int)
+    parser.add_argument('--test_env', type=int, required=True)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--holdout_fraction', type=float, default=0.2)
     # Setup arguments
@@ -281,7 +271,6 @@ if __name__ == '__main__':
     
     ## Getting hparams
     training_hparams = get_training_hparams(flags.hparams_seed, flags.sample_hparams)
-    training_hparams['steps'] = flags.steps
     objective_hparams = get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
 
     print('HParams:')
@@ -300,7 +289,7 @@ if __name__ == '__main__':
     ## Make dataset
     dataset_class = get_dataset_class(flags.dataset)
     dataset = dataset_class(flags, training_hparams['batch_size'])
-    _, in_loaders = dataset.get_in_loaders()
+    _, in_loaders = dataset.get_train_loaders()
 
     if len(in_loaders) == 1:
         assert flags.objective == 'ERM' , "Dataset has only one environment, cannot compute multi-environment penalties"
@@ -311,7 +300,7 @@ if __name__ == '__main__':
     torch.manual_seed(flags.trial_seed)
 
     ## Initialize some RNN
-    if flags.dataset in ['TMNIST_grey', 'TCMNIST_seq', 'TCMNIST_step']:
+    if flags.dataset in ['TMNIST', 'TCMNIST_seq', 'TCMNIST_step']:
         model = RNN(dataset.get_input_size(), 20, 10, 2)
     elif flags.dataset in ['Fourier_basic', 'Spurious_Fourier']:
         model = small_RNN(dataset.get_input_size(), 10, 2)
