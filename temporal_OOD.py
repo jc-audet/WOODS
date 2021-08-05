@@ -31,7 +31,6 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
     model.train()
 
     ts = torch.tensor(dataset.get_pred_time()).to(device)
-    record = {}
         
     if dataset.get_setup() == 'seq':
         
@@ -56,7 +55,6 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
                 pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
         # Compute environment-wise losses
-        all_loss = 0
         all_logits_idx = 0
         env_losses = torch.zeros(len(minibatches_device))
         for i, (x,y) in enumerate(minibatches_device):
@@ -76,78 +74,48 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
 
             # Update stuff
             all_logits_idx += x.shape[0]
-            all_loss += env_loss / len(batch_loaders) # Average across environments
-
-        # get loss from all environment and save it
-        # env_loss_item = [e_loss.item() for e_loss in env_losses]
-        # losses.append(env_loss_item)
-        # Get average loss and save it
-        # losses.append(all_loss.item())
 
         # Back propagate
         optimizer.zero_grad()
         objective.backward(env_losses)
         optimizer.step()
 
-        return model, record
-
     ## This is only valid for TCMNIST_step dataset
     elif dataset.get_setup() == 'step':    # Test environment (step) is assumed to be the last one.
 
-        test_accuracies = []
-        test_losses = []
+        # Get next batch of training data
+        batch_loaders = next(in_loaders_iter)
+        minibatches_device = [(x, y) for x,y in batch_loaders]
 
-        for all_x, target in in_loaders:
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        all_out = []
 
-            # Send everything onto device
-            all_x, target = all_x.to(device), target.to(device)
+        ## Group all inputs and get prediction
+        hidden = model.initHidden(all_x.shape[0]).to(device)
+        pred = torch.zeros(all_x.shape[0], 0).to(device)
+        for i in range(all_x.shape[1]):
+            out, hidden = model(all_x[:,i,...], hidden)
+            if i in ts:
+                all_out.append(out)
+                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
 
-            ## Group all inputs and get prediction
-            all_out = []
-            hidden = model.initHidden(all_x.shape[0]).to(device)
-            pred = torch.zeros(all_x.shape[0], 0).to(device)
-            for i in range(all_x.shape[1]):
-                out, hidden = model(all_x[:,i,...], hidden)
-                if i in ts:
-                    all_out.append(out)
-                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+        # Get train loss for train environment
+        train_env = [i for i, t in enumerate(ts) if i != flags.test_env]
+        env_losses = torch.zeros(len(train_env))
+        for i, e in enumerate(train_env):
+            env_out = all_out[e]
+            env_loss = F.nll_loss(env_out, all_y[:,e])  
+            env_losses[i] = env_loss
+            objective.gather_logits_and_labels(env_out, all_y[:,e])
 
-            # Get train loss for train environment
-            loss = 0
-            env_losses = torch.zeros(len(dataset.train_env))
-            for i, e in enumerate(dataset.train_env):
-                env_out = all_out[e]
-                env_loss = F.nll_loss(env_out, target[:,e])  
-                env_losses[i] = env_loss
-                objective.gather_logits_and_labels(env_out, target[:,e])
-                loss += env_loss
-            loss /= np.size(dataset.train_env)
+        # back propagate
+        optimizer.zero_grad()
+        objective.backward(env_losses)
+        optimizer.step()
 
-            # Save loss
-            losses.append(loss.item())
-
-            # Get train accuracy
-            nb_correct = pred[:,dataset.train_env].eq(target[:,dataset.train_env]).cpu().sum()
-            nb_items = pred[:,dataset.train_env].numel()
-            accuracies.append(nb_correct.item() / nb_items)
-
-            # back propagate
-            optimizer.zero_grad()
-            objective.backward(env_losses)
-            optimizer.step()
-
-            # Get test loss
-            with torch.no_grad():
-                for e in dataset.test_env:
-                    env_out = all_out[e]
-                    test_losses.append( F.nll_loss(env_out, target[:,e]).item() )
-
-                # Get test accuracy
-                nb_correct = pred[:,dataset.test_env].eq(target[:,dataset.test_env]).cpu().sum()
-                nb_items = pred[:,dataset.test_env].numel()
-                test_accuracies.append(nb_correct.item() / nb_items)
-
-        return model, losses, accuracies, test_losses, test_accuracies
+    return model
 
 
 def train(training_hparams, model, objective, dataset, device):
@@ -167,7 +135,7 @@ def train(training_hparams, model, objective, dataset, device):
 
             train_loaders_iter = zip(*train_loaders)
             ## Make training step and report accuracies and losses
-            model, step_record = train_step(model, objective, dataset, train_loaders_iter, optimizer, device)
+            model = train_step(model, objective, dataset, train_loaders_iter, optimizer, device)
 
             if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
                 ## Get test accuracy and loss
@@ -182,23 +150,27 @@ def train(training_hparams, model, objective, dataset, device):
                 print("\n".join(t.get_string().splitlines()[-1:]))
 
         elif dataset.get_setup() == 'step':
+
+            train_loaders_iter = zip(*train_loaders)
             ## Make training step and report accuracies and losses
-            model, training_loss, training_accuracy, test_loss, test_accuracy = train_step(model, objective, dataset, optimizer, device)
+            model = train_step(model, objective, dataset, train_loaders_iter, optimizer, device)
 
-            ## Update records
-            record[str(step)] =   {'train_acc': training_accuracy[-1],
-                                    'test_acc': test_accuracy[-1],
-                                    'train_loss': training_loss[-1], 
-                                    'test_loss': test_loss[-1]}
+            if step % dataset.CHECKPOINT_FREQ == 0 or (step-1) == 0:
+                ## Get test accuracy and loss
+                record[str(step)] = {}
+                for name, loader in zip(all_names, all_loaders):
+                    accuracies, losses = get_accuracy(model, dataset, loader, device)
 
-            print("{}\t||\t{:.2f}\t\t|\t{:.2f}\t\t||\t{:.2e}\t|\t{:.2e}".format(step, training_accuracy[-1], test_accuracy[-1], training_loss[-1], test_loss[-1]))
+                    for i, e in enumerate(name):
+                        record[str(step)].update({e+'_acc': accuracies[i],
+                                                  e+'_loss': losses[i]})
+
+                t.add_row([step] +["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()])
+                print("\n".join(t.get_string().splitlines()[-1:]))
 
     return record
 
 def get_accuracy(model, dataset, loader, device):
-
-    # Check if this is the right setup
-    assert not dataset.get_setup() == 'step', "Wrong use of get_accuracy: Not valid for 'step' setup"
 
     model.eval()
     losses = []
@@ -208,28 +180,50 @@ def get_accuracy(model, dataset, loader, device):
     ts = torch.tensor(dataset.get_pred_time()).to(device)
     with torch.no_grad():
 
-        for data, target in loader:
+        if dataset.get_setup() == 'seq':
 
-            data, target = data.to(device), target.to(device)
+            for data, target in loader:
 
-            loss = 0
-            pred = torch.zeros(data.shape[0], 0).to(device)
-            hidden = model.initHidden(data.shape[0]).to(device)
-            for i in range(data.shape[1]):
-                out, hidden = model(data[:,i,...], hidden)
-                if i in ts:     # Only consider labels after the prediction at prediction times
-                    idx = (ts == i).nonzero(as_tuple=True)[0]
-                    loss += F.nll_loss(out, torch.squeeze(target[:,idx])) 
-                    pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                data, target = data.to(device), target.to(device)
+
+                loss = 0
+                pred = torch.zeros(data.shape[0], 0).to(device)
+                hidden = model.initHidden(data.shape[0]).to(device)
+                for i in range(data.shape[1]):
+                    out, hidden = model(data[:,i,...], hidden)
+                    if i in ts:     # Only consider labels after the prediction at prediction times
+                        idx = (ts == i).nonzero(as_tuple=True)[0]
+                        loss += F.nll_loss(out, torch.squeeze(target[:,idx])) 
+                        pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                
+                nb_correct += pred.eq(target).cpu().sum()
+                nb_item += pred.numel()
+                losses.append(loss.item())
+
+            return nb_correct.item() / nb_item, np.mean(losses)
+        
+        if dataset.get_setup() == 'step':
+
+            losses = torch.zeros(ts.shape[0], 0).to(device)
+            for i, (data, target) in enumerate(loader):
+
+                data, target = data.to(device), target.to(device)
+
+                loss = torch.zeros(ts.shape[0], 1).to(device)
+                pred = torch.zeros(data.shape[0], 0).to(device)
+                hidden = model.initHidden(data.shape[0]).to(device)
+                for i in range(data.shape[1]):
+                    out, hidden = model(data[:,i,...], hidden)
+                    if i in ts:     # Only consider labels after the prediction at prediction times
+                        idx = (ts == i).nonzero(as_tuple=True)[0]
+                        pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                        loss[idx] += F.nll_loss(out, torch.squeeze(target[:,idx]))
+
+                losses = torch.cat((losses, loss), dim=1)
+                nb_correct += torch.sum(pred.eq(target).cpu(), dim=0)
+                nb_item += pred.shape[0]
             
-            nb_correct += pred.eq(target).cpu().sum()
-            nb_item += pred.numel()
-            losses.append(loss.item())
-            
-        ## TODO
-        ## Save stuff in the right place for every out loaders
-
-    return nb_correct.item() / nb_item, np.mean(losses)
+            return (nb_correct / nb_item).tolist(), torch.mean(losses, dim=1).tolist()
 
 if __name__ == '__main__':
 

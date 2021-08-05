@@ -301,7 +301,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 class TMNIST(Single_Domain_Dataset):
     N_STEPS = 10000
     SETUP = 'seq'
-    PRED_TIME = [1,2,3]
+    PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 28*28
     ENVS = ['grey']
 
@@ -384,10 +384,11 @@ class TMNIST(Single_Domain_Dataset):
 class TCMNIST(Multi_Domain_Dataset):
 
     N_STEPS = 10000
-    PRED_TIME = [1,2,3]
+    PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 2 * 28 * 28
+    SEQ_LEN = 4
 
-    def __init__(self, flags, seq_len):
+    def __init__(self, flags):
         super(TCMNIST, self).__init__()
 
         ## Import original MNIST data
@@ -402,10 +403,10 @@ class TCMNIST(Multi_Domain_Dataset):
         MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
         # Create sequences of 3 digits
-        self.TCMNIST_images = MNIST_images.reshape(-1, seq_len, 28, 28)
+        self.TCMNIST_images = MNIST_images.reshape(-1, self.SEQ_LEN, 28, 28)
 
         # With their corresponding label
-        TCMNIST_labels = MNIST_labels.reshape(-1, seq_len)
+        TCMNIST_labels = MNIST_labels.reshape(-1, self.SEQ_LEN)
 
         ########################
         ### Choose the task:
@@ -458,11 +459,10 @@ class TCMNIST_seq(TCMNIST):
     ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
 
     ## Dataset parameters
-    SEQ_LEN = 4
     label_noise = 0.25                    # Label noise
 
     def __init__(self, flags, batch_size):
-        super(TCMNIST_seq, self).__init__(flags, self.SEQ_LEN)
+        super(TCMNIST_seq, self).__init__(flags)
 
         # Save stuff
         self.test_env = flags.test_env
@@ -510,26 +510,40 @@ class TCMNIST_seq(TCMNIST):
 
 class TCMNIST_step(TCMNIST):
 
-    setup = 'step'
-    time_pred = [1,2,3]     # Time steps where dataset has labels
-    train_env = [0,1]       # idx of time_pred that are training time steps (absolute time step index for the time series would be time_pred[train_env])
-    test_env = [2]          # idx of time_pred that are testing time steps (absolute time step index for the time series would be time_pred[test_env])
+    SETUP = 'step'
+    ENVS = [0.1, 0.9, 0.85]  # Environment is a function of correlation
+
+    # Dataset parameters
     label_noise = 0.25      # Label noise
-    envs = [0.8, 0.9, 0.1]  # Environment is a function of correlation
+
     def __init__(self, flags, batch_size):
-        super(TCMNIST_step, self).__init__(flags.data_path, flags.time_steps)
+        super(TCMNIST_step, self).__init__(flags)
+
+        ## Save stuff
+        assert flags.test_env < len(self.ENVS), "Test environment not valid"
+        self.test_env = flags.test_env
+
+        # Define array of training environment dataloaders
+        self.in_loaders, self.out_loaders = [], []          
 
         ## Make the color datasets
         # Stack a second color channel
         colored_images = torch.stack([self.TCMNIST_images, self.TCMNIST_images], dim=2)
 
-        for i, e in enumerate(self.envs):
+        for i, e in enumerate(self.ENVS):
             # Color i-th frame subset
             colored_images, colored_labels = self.color_dataset(colored_images, self.TCMNIST_labels, i, e, self.label_noise)
 
         # Make Tensor dataset and dataloader
-        td = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
-        self.loader = torch.utils.data.DataLoader(td, batch_size=batch_size, shuffle=True)
+        dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
+
+        self.plot_samples(colored_images, colored_labels)
+
+        in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+        in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+        self.in_loaders.append(in_loader)
+        out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+        self.out_loaders.append(out_loader)
 
     def color_dataset(self, images, labels, env_id, p, d):
 
@@ -544,6 +558,13 @@ class TCMNIST_step(TCMNIST):
             images[sample,env_id+1,colors[sample].long(),:,:] *= 0 
 
         return images, labels
-        
-    def get_loaders(self):
-        return self.loader, []
+
+    def get_train_loaders(self):
+        loaders_ID = [[str(env)+'_in' for i, env in enumerate(self.ENVS)]]
+        loaders = self.in_loaders
+        return loaders_ID, loaders
+    
+    def get_val_loaders(self):
+        loaders_ID = [[str(env)+'_out' for env in self.ENVS]]
+        loaders = self.out_loaders
+        return loaders_ID, loaders
