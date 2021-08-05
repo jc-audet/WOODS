@@ -511,7 +511,7 @@ class TCMNIST_seq(TCMNIST):
 class TCMNIST_step(TCMNIST):
 
     SETUP = 'step'
-    ENVS = [0.1, 0.9, 0.85]  # Environment is a function of correlation
+    ENVS = [0.9, 0.8, 0.1]  # Environment is a function of correlation
 
     # Dataset parameters
     label_noise = 0.25      # Label noise

@@ -147,7 +147,7 @@ def train(training_hparams, model, objective, dataset, device):
                                             name+'_loss': loss})
 
                 t.add_row([step] +["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()])
-                print("\n".join(t.get_string().splitlines()[-1:]))
+                print("\n".join(t.get_string().splitlines()[-2:-1]))
 
         elif dataset.get_setup() == 'step':
 
@@ -166,7 +166,7 @@ def train(training_hparams, model, objective, dataset, device):
                                                   e+'_loss': losses[i]})
 
                 t.add_row([step] +["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()])
-                print("\n".join(t.get_string().splitlines()[-1:]))
+                print("\n".join(t.get_string().splitlines()[-2:-1]))
 
     return record
 
