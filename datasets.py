@@ -35,6 +35,9 @@ def get_dataset_class(dataset_name):
         raise NotImplementedError("Dataset not found: {}".format(dataset_name))
     return globals()[dataset_name]
 
+def num_environments(dataset_name):
+    return len(get_dataset_class(dataset_name).ENVS)
+
 def biggest_multiple(multiple_of, input_number):
     return input_number - input_number % multiple_of
 

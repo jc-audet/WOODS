@@ -118,12 +118,12 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
     return model
 
 
-def train(training_hparams, model, objective, dataset, device):
+def train(flags, training_hparams, model, objective, dataset, device):
 
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
     record = {}
 
-    t = setup_pretty_table(training_hparams, dataset)
+    t = setup_pretty_table(flags, training_hparams, dataset)
 
     train_names, train_loaders = dataset.get_train_loaders() 
     val_names, val_loaders = dataset.get_val_loaders() 
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     
     ## Making job ID and checking if done
     if flags.sample_hparams:
-        job_id = flags.objective + '_' + flags.dataset + '_H' + flags.hparams_seed + '_T' + flags.trial_seed
+        job_id = flags.objective + '_' + flags.dataset + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
     else:
         job_id = flags.objective + '_' + flags.dataset
     job_json = job_id + '.json'
@@ -294,6 +294,7 @@ if __name__ == '__main__':
     torch.manual_seed(flags.trial_seed)
 
     ## Initialize some RNN
+    ## TODO Define a more flexible architecture with hyper parameters that we can sweep across
     if flags.dataset in ['TMNIST', 'TCMNIST_seq', 'TCMNIST_step']:
         model = RNN(dataset.get_input_size(), 20, 10, 2)
     elif flags.dataset in ['Fourier_basic', 'Spurious_Fourier']:
@@ -307,27 +308,8 @@ if __name__ == '__main__':
 
     ## Train it
     model.to(device)
-    record = train(training_hparams, model, objective, dataset, device)
+    record = train(flags, training_hparams, model, objective, dataset, device)
 
     ## Save record
     with open(os.path.join(flags.save_path, job_json), 'w') as f:
         json.dump(record, f)
-
-
-
-
-
-
-##############################################
-##############################################
-# ## Import original MNIST data
-# MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
-
-# train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
-# test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
-
-## Create dataset
-# input_size, train_loader, test_loader = make_dataset(flags.ds_setup, flags.time_steps, train_ds, test_ds, training_hparams['batch_size'])
-
-# input_size = dataset.get_input_size()
-# train_loader, test_loader = dataset.get_loaders()
