@@ -6,7 +6,10 @@ Repository aiming to benchmark OOD performance of temporal data.
 Train a single model using one objective on one dataset with one test environment
 
 ```sh
-python3 temporal_OOD.py --dataset Spurious_Fourier --objective IRM --test_env 0
+python3 temporal_OOD.py \
+        --dataset Spurious_Fourier \
+        --objective IRM \
+        --test_env 0
 ```
 
 To launch a sweep, use the following script. Define a collection of Objective and Dataset to investigate a combination. All test environment are gonna be investigated automatically. By default, the sweep is gonna do a random search over 20 hyper parameter seeds with 3 trial seed each.
