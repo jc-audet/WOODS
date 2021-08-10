@@ -192,7 +192,7 @@ def get_accuracy(model, dataset, loader, device):
                     out, hidden = model(data[:,i,...], hidden)
                     if i in ts:     # Only consider labels after the prediction at prediction times
                         idx = (ts == i).nonzero(as_tuple=True)[0]
-                        loss += F.nll_loss(out, torch.squeeze(target[:,idx])) 
+                        loss += F.nll_loss(out, torch.squeeze(target[:,idx], dim=1)) 
                         pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
                 
                 nb_correct += pred.eq(target).cpu().sum()
