@@ -14,7 +14,6 @@ OBJECTIVES = [
     'VREx',
     'SD',
     'ANDMask',
-    'SANDMask',
     'IGA'
 ]
 
@@ -250,52 +249,3 @@ class IGA(ERM):
         # Backpropagate
         objective.backward()
     
-class SANDMask(ERM):
-    """
-    SAND-mask: An Enhanced Gradient Masking Strategy for the Discovery of Invariances in Domain Generalization
-    <https://arxiv.org/abs/2106.02266>
-    """
-
-    def __init__(self, model, hparams):
-        super(SANDMask, self).__init__(model, hparams)
-
-        self.tau = self.hparams['tau']
-        self.k = self.hparams['k']
-
-    def backward(self, losses):
-
-        # Get environment gradients
-        param_gradients = [[] for _ in self.model.parameters()]
-        for env_loss in losses:
-
-            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
-            for grads, env_grad in zip(param_gradients, env_grads):
-                grads.append(env_grad)
-
-        # Get mean loss
-        mean_loss = losses.mean()
-
-        # Backpropagate
-        self.mask_grads(param_gradients, self.model.parameters())
-
-    def mask_grads(self, gradients, params):
-        '''
-        Here a mask with continuous values in the range [0,1] is formed to control the amount of update for each
-        parameter based on the agreement of gradients coming from different environments.
-        '''
-        device = gradients[0][0].device
-        for param, grads in zip(params, gradients):
-            grads = torch.stack(grads, dim=0)
-            avg_grad = torch.mean(grads, dim=0)
-            grad_signs = torch.sign(grads)
-            gamma = torch.tensor(1.0).to(device)
-            grads_var = grads.var(dim=0)
-            grads_var[torch.isnan(grads_var)] = 1e-17
-            lam = (gamma * grads_var).pow(-1)
-            mask = torch.tanh(self.k * lam * (torch.abs(grad_signs.mean(dim=0)) - self.tau))
-            mask = torch.max(mask, torch.zeros_like(mask))
-            mask[torch.isnan(mask)] = 1e-17
-            mask_t = (mask.sum() / mask.numel())
-            param.grad = mask * avg_grad
-            param.grad *= (1. / (1e-10 + mask_t))
-

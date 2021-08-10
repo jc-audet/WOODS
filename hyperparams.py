@@ -22,6 +22,53 @@ def get_training_hparams(seed, sample=False):
 
     return hparams
 
+def get_dataset_hparams(dataset_name, seed, sample=False):
+
+    """Return the dataset class with the given name."""
+    dataset_hyper = dataset_name+'_hyper'
+    if dataset_hyper not in globals():
+        raise NotImplementedError("dataset not found: {}".format(dataset_name))
+    else:
+        hyper_function = globals()[dataset_hyper]
+
+    hparams = hyper_function(sample)
+
+    for k in hparams.keys():
+        hparams[k] = hparams[k](np.random.RandomState(seed))
+    
+    return hparams
+
+def Spurious_Fourier_hyper(sample):
+
+    if sample:
+        return {
+            'hidden_depth': lambda r: r.choice([0, 1, 2]),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'hidden_depth': lambda r: 0,
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
+def TCMNIST_hyper(sample):
+
+    if sample:
+        return {
+            'hidden_depth': lambda r: r.choice([2, 3, 4]),
+            'hidden_width': lambda r: int(2**r.uniform(5, 9)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'hidden_depth': lambda r: 2, 
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
+
 def get_objective_hparams(objective_name, seed, sample=False):
 
     """Return the objective class with the given name."""

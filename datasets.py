@@ -76,6 +76,9 @@ class Single_Domain_Dataset:
     def get_input_size(self):
         return self.INPUT_SIZE
 
+    def get_output_size(self):
+        return self.OUTPUT_SIZE
+
     def get_envs(self):
         return self.ENVS
 
@@ -99,6 +102,7 @@ class Multi_Domain_Dataset:
     PRED_TIME = [None]
     ENVS = [None]
     INPUT_SIZE = None
+    OUTPUT_SIZE = None
 
     def __init__(self):
         pass
@@ -108,6 +112,9 @@ class Multi_Domain_Dataset:
 
     def get_input_size(self):
         return self.INPUT_SIZE
+
+    def get_output_size(self):
+        return self.OUTPUT_SIZE
 
     def get_envs(self):
         return self.ENVS
@@ -130,6 +137,7 @@ class Fourier_basic(Single_Domain_Dataset):
     PRED_TIME = [49]
     ENVS = ['no_spur']
     INPUT_SIZE = 1
+    OUTPUT_SIZE = 2
 
     def __init__(self, flags, batch_size):
         super(Fourier_basic, self).__init__()
@@ -171,6 +179,7 @@ class Fourier_basic(Single_Domain_Dataset):
 class Spurious_Fourier(Multi_Domain_Dataset):
     SETUP = 'seq'
     INPUT_SIZE = 1
+    OUTPUT_SIZE = 2
     PRED_TIME = [49]
     label_noise = 0.25          # Label noise
     ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
@@ -306,6 +315,7 @@ class TMNIST(Single_Domain_Dataset):
     SETUP = 'seq'
     PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 28*28
+    OUTPUT_SIZE = 2
     ENVS = ['grey']
 
     # Dataset parameters
@@ -389,6 +399,7 @@ class TCMNIST(Multi_Domain_Dataset):
     N_STEPS = 10000
     PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 2 * 28 * 28
+    OUTPUT_SIZE = 2
     SEQ_LEN = 4
 
     def __init__(self, flags):

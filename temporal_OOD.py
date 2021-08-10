@@ -11,9 +11,9 @@ from torch import nn, optim
 from torchvision import datasets, transforms
 
 from datasets import get_dataset_class
-from models import small_RNN, RNN
+from models import RNN
 from objectives import get_objective_class, OBJECTIVES
-from hyperparams import get_objective_hparams, get_training_hparams
+from hyperparams import get_objective_hparams, get_training_hparams, get_dataset_hparams
 
 from prettytable import PrettyTable
 from utils import setup_pretty_table
@@ -256,9 +256,9 @@ if __name__ == '__main__':
     
     ## Making job ID and checking if done
     if flags.sample_hparams:
-        job_id = flags.objective + '_' + flags.dataset + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
+        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
     else:
-        job_id = flags.objective + '_' + flags.dataset
+        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env)
     job_json = job_id + '.json'
 
     assert not os.path.isfile(os.path.join(flags.save_path, job_json)), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
@@ -266,9 +266,12 @@ if __name__ == '__main__':
     ## Getting hparams
     training_hparams = get_training_hparams(flags.hparams_seed, flags.sample_hparams)
     objective_hparams = get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
+    dataset_hparams = get_dataset_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
 
     print('HParams:')
     for k, v in sorted(training_hparams.items()):
+        print('\t{}: {}'.format(k, v))
+    for k, v in sorted(dataset_hparams.items()):
         print('\t{}: {}'.format(k, v))
     for k, v in sorted(objective_hparams.items()):
         print('\t{}: {}'.format(k, v))
@@ -294,13 +297,11 @@ if __name__ == '__main__':
     torch.manual_seed(flags.trial_seed)
 
     ## Initialize some RNN
-    ## TODO Define a more flexible architecture with hyper parameters that we can sweep across
-    if flags.dataset in ['TMNIST', 'TCMNIST_seq', 'TCMNIST_step']:
-        model = RNN(dataset.get_input_size(), 20, 10, 2)
-    elif flags.dataset in ['Fourier_basic', 'Spurious_Fourier']:
-        model = small_RNN(dataset.get_input_size(), 10, 2)
-    else:
-        raise ValueError("Dataset doesn't have a designed model")
+    model = RNN(dataset.get_input_size(), 
+                dataset_hparams['hidden_depth'], 
+                dataset_hparams['hidden_width'], 
+                dataset_hparams['state_size'], 
+                dataset.get_output_size())
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
