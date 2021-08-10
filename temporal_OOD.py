@@ -235,7 +235,6 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train MLPs')
     # Dataset arguments
-    # parser.add_argument('--time_steps', type=int, default=4)  # Should be in the TMNIST dataset definition
     parser.add_argument('--test_env', type=int, required=True)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--holdout_fraction', type=float, default=0.2)
@@ -312,5 +311,11 @@ if __name__ == '__main__':
     record = train(flags, training_hparams, model, objective, dataset, device)
 
     ## Save record
+    hparams = {}
+    hparams.update(training_hparams)
+    hparams.update(dataset_hparams)
+    hparams.update(objective_hparams)
+    record['hparams'] = hparams
+    record['flags'] = vars(flags)
     with open(os.path.join(flags.save_path, job_json), 'w') as f:
         json.dump(record, f)

@@ -311,7 +311,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
 
 class TMNIST(Single_Domain_Dataset):
-    N_STEPS = 10000
+    N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 28*28
@@ -396,7 +396,7 @@ class TMNIST(Single_Domain_Dataset):
 
 class TCMNIST(Multi_Domain_Dataset):
 
-    N_STEPS = 10000
+    N_STEPS = 5001
     PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 2 * 28 * 28
     OUTPUT_SIZE = 2
