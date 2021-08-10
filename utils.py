@@ -3,7 +3,7 @@ import math
 
 def setup_pretty_table(flags, hparams, dataset):
 
-    job_id = 'Training ' + flags.objective + ' on ' + flags.dataset + ' (Hparams=' + str(flags.hparams_seed) + ', Trial=' + str(flags.trial_seed) + ')'
+    job_id = 'Training ' + flags.objective + ' on ' + flags.dataset + ' (H=' + str(flags.hparams_seed) + ', T=' + str(flags.trial_seed) + ')'
 
     t = PrettyTable()
 

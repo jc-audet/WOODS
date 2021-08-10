@@ -53,7 +53,22 @@ def Spurious_Fourier_hyper(sample):
             'state_size': lambda r: 10
         }
 
-def TCMNIST_hyper(sample):
+def TCMNIST_seq_hyper(sample):
+
+    if sample:
+        return {
+            'hidden_depth': lambda r: r.choice([2, 3, 4]),
+            'hidden_width': lambda r: int(2**r.uniform(5, 9)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'hidden_depth': lambda r: 2, 
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
+def TCMNIST_step_hyper(sample):
 
     if sample:
         return {

@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('--launcher', type=str, default='dummy')
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
-    parser.add_argument('--save_path', type=str, default='./')
+    parser.add_argument('--save_path', type=str, default='./results/')
     flags = parser.parse_args()
 
     train_args_list = []
