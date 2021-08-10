@@ -1,4 +1,3 @@
-
 import os
 import argparse
 import numpy as np
@@ -199,6 +198,7 @@ def get_accuracy(model, dataset, loader, device):
                 nb_correct += pred.eq(target).cpu().sum()
                 nb_item += pred.numel()
                 losses.append(loss.item())
+
 
             return nb_correct.item() / nb_item, np.mean(losses)
         

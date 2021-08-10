@@ -35,12 +35,12 @@ class RNN(nn.Module):
         ## Construct the part of the model in charge of the output
         O_layers = []
         if hidden_depth == 0:
-            O_layers.append( nn.Linear(input_size + state_size, state_size) )
+            O_layers.append( nn.Linear(input_size + state_size, output_size) )
         else:
             O_layers.append( nn.Linear(input_size + state_size, hidden_width) )
             for i in range(hidden_depth-1):
                 O_layers.append( nn.Linear(hidden_width, hidden_width) )
-            O_layers.append( nn.Linear(hidden_width, state_size) )
+            O_layers.append( nn.Linear(hidden_width, output_size) )
         
         seq_arr = []
         for i, lin in enumerate(O_layers):

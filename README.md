@@ -16,7 +16,7 @@ To launch a sweep, use the following script. Define a collection of Objective an
 
 ```sh
 python3 hparams_sweep.py \
-        --dataset Spurious_Fourier TCMNIST_seq \
+        --dataset Spurious_Fourier \
         --objective ERM IRM \
         --save_path ./results \
         --launcher local

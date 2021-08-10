@@ -42,7 +42,7 @@ def Spurious_Fourier_hyper(sample):
 
     if sample:
         return {
-            'hidden_depth': lambda r: r.choice([0, 1, 2]),
+            'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
             'hidden_width': lambda r: int(2**r.uniform(5, 7)),
             'state_size': lambda r: 10
         }
@@ -57,7 +57,7 @@ def TCMNIST_seq_hyper(sample):
 
     if sample:
         return {
-            'hidden_depth': lambda r: r.choice([2, 3, 4]),
+            'hidden_depth': lambda r: int(r.choice([2, 3, 4])),
             'hidden_width': lambda r: int(2**r.uniform(5, 9)),
             'state_size': lambda r: 10
         }
@@ -109,7 +109,7 @@ def IRM_hyper(sample):
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5),
-            'anneal_iters': lambda r: r.uniform(0,100)
+            'anneal_iters': lambda r: r.uniform(0,2000)
         }
     else:
         return {
@@ -122,7 +122,7 @@ def VREx_hyper(sample):
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5),
-            'anneal_iters': lambda r: r.uniform(0,100)
+            'anneal_iters': lambda r: r.uniform(0,2000)
         }
     else:
         return {
@@ -161,17 +161,4 @@ def ANDMask_hyper(sample):
     else:
         return {
             'tau': lambda r: 1
-        }
-
-def SANDMask_hyper(sample):
-
-    if sample:
-        return {
-            'tau': lambda r: r.uniform(0,1),
-            'k': lambda r: 10**r.uniform(-4,4)
-        }
-    else:
-        return {
-            'tau': lambda r: 1,
-            'k': lambda r: 10
         }

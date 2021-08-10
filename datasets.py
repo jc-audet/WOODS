@@ -96,7 +96,7 @@ class Single_Domain_Dataset:
         return loaders_ID, loaders
 
 class Multi_Domain_Dataset:
-    N_STEPS = 5001
+    N_STEPS = 501
     CHECKPOINT_FREQ = 50
     SETUP = None
     PRED_TIME = [None]
