@@ -3,22 +3,22 @@ import math
 
 def setup_pretty_table(flags, hparams, dataset):
 
-    job_id = 'Training ' + flags.objective + ' on ' + flags.dataset + ' (H=' + str(flags.hparams_seed) + ', T=' + str(flags.trial_seed) + ')'
+    job_id = 'Training ' + flags.objective  + flags.dataset + ' (H=' + str(flags.hparams_seed) + ', T=' + str(flags.trial_seed) + ')'
 
     t = PrettyTable()
 
     env_name = dataset.get_envs()
-    step_str = 'Env'
-    if len(str(dataset.N_STEPS))+1 > len('Env'):
-        step_str = ' '*((len(str(dataset.N_STEPS))+1-len('Env'))//2) + 'Env' + ' '*((len(str(dataset.N_STEPS))+1-len('Env'))//2)
 
-    column_name = []
+    t.field_names = ['Env'] + [e for e in env_name]
+
+    max_width = {'Env': 5}
+    min_width = {'Env': 5}
     for n in env_name:
-        if len(str(n)) < 15:
-            n = ' '*((14-len('Env')) // 2) + str(n) + ' '*((15-len('Env')) // 2)
-        column_name.append(n)
-    t.field_names = [step_str] + [e for e in column_name]
-    t.add_row(['Steps'] + ['in   :: out' for e in column_name])
+        max_width.update({str(n): 15})
+        min_width.update({str(n): 15})
+    t._min_width = min_width
+    t._max_width = max_width
+    t.add_row(['Steps'] + ['in   :: out' for e in env_name])
     print(t.get_string(title=job_id, border=True, hrule=0))
     t.del_row(0)
     
