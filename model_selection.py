@@ -102,6 +102,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Collect result of hyper parameter sweep")
     parser.add_argument("--results_dir", type=str, required=True)
+    parser.add_argument("--latex", action='store_true')
     flags = parser.parse_args()
 
     ## Load records
@@ -145,8 +146,11 @@ if __name__ == "__main__":
         t._min_width = min_width
         t._max_width = max_width
         t.float_format = '.2'
-        print(t.get_string(title=model_selection + ' Results for ' + dataset))
-        # print(get_latex_table(t))
+        
+        if flags.latex:
+            print(get_latex_table(t))
+        else:
+            print(t.get_string(title=model_selection + ' Results for ' + dataset))
 
 
 
