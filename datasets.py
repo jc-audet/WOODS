@@ -38,6 +38,9 @@ def get_dataset_class(dataset_name):
 def num_environments(dataset_name):
     return len(get_dataset_class(dataset_name).ENVS)
 
+def get_environments(dataset_name):
+    return get_dataset_class(dataset_name).ENVS
+
 def biggest_multiple(multiple_of, input_number):
     return input_number - input_number % multiple_of
 
@@ -188,6 +191,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         super(Spurious_Fourier, self).__init__()
 
         ## Save stuff
+        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
 
         ## Define label 0 and 1 Fourier spectrum
@@ -479,6 +483,7 @@ class TCMNIST_seq(TCMNIST):
         super(TCMNIST_seq, self).__init__(flags)
 
         # Save stuff
+        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
 
         # Make the color datasets
@@ -534,7 +539,7 @@ class TCMNIST_step(TCMNIST):
         super(TCMNIST_step, self).__init__(flags)
 
         ## Save stuff
-        assert flags.test_env < len(self.ENVS), "Test environment not valid"
+        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
 
         # Define array of training environment dataloaders
