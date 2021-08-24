@@ -1,8 +1,26 @@
 from prettytable import PrettyTable
 import math
 
-def check_file_integrity():
-    pass
+def get_job_json(flags):
+
+    if flags.sample_hparams:
+        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
+    else:
+        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env)
+    job_json = job_id + '.json'
+
+    return job_json
+
+def check_file_integrity(results_dir):
+
+    with open(os.path.join(results_dir,'sweep_config.json'), 'r') as fp:
+        flags = json.load(flags_dict, fp)
+    
+    
+
+
+
+
 
 
 def setup_pretty_table(flags, hparams, dataset):
@@ -51,7 +69,7 @@ def get_latex_table(table, caption=None, label=None):
     rows = table._format_rows(table._rows, [])
     for i in range(len(rows)):
         row = [str(itm) for itm in rows[i]]
-        s = s + '&'.join(row)
+        s = s + ' & '.join(row)
         if i != len(table._rows)-1:
             s = s + r'\\'
         s = s + '\n'

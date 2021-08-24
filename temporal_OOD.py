@@ -15,7 +15,7 @@ from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams, get_dataset_hparams
 
 from prettytable import PrettyTable
-from utils import setup_pretty_table
+from utils import setup_pretty_table, get_job_json
 
 import matplotlib.pyplot as plt
 
@@ -254,11 +254,7 @@ if __name__ == '__main__':
         print("\t{}: {}".format(k, v))
     
     ## Making job ID and checking if done
-    if flags.sample_hparams:
-        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
-    else:
-        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env)
-    job_json = job_id + '.json'
+    job_json = get_job_json(flags)
 
     assert not os.path.isfile(os.path.join(flags.save_path, job_json)), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
