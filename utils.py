@@ -1,6 +1,10 @@
 from prettytable import PrettyTable
 import math
 
+def check_file_integrity():
+    pass
+
+
 def setup_pretty_table(flags, hparams, dataset):
 
     job_id = 'Training ' + flags.objective  + ' on ' + flags.dataset + ' (H=' + str(flags.hparams_seed) + ', T=' + str(flags.trial_seed) + ')'
@@ -43,7 +47,7 @@ def get_latex_table(table, caption=None, label=None):
     s = s + r'\begin{tabular}{'
     s = s + ''.join(['c',]*len(table.field_names)) + '}'
     s = s + '\n'
-    s = s + '&'.join(table.field_names)+r'\\ \hline'+'\n'
+    s = s + ' & '.join(table.field_names)+r' \\ \hline'+'\n'
     rows = table._format_rows(table._rows, [])
     for i in range(len(rows)):
         row = [str(itm) for itm in rows[i]]

@@ -29,17 +29,21 @@ def get_best_hparams(records, selection_name):
         raise NotImplementedError("Dataset not found: {}".format(selection_name))
     selection_method = globals()[selection_name]
 
-    val_dict = {}
-    test_dict = {}
+    val_acc_dict = {}
+    test_acc_dict = {}
+    val_var_dict = {}
+    test_var_dict = {}
     for h_seed, h_dict in records.items():
-        val_acc, test_acc = selection_method(h_dict)
+        val_acc, val_var, test_acc, test_var = selection_method(h_dict)
 
-        val_dict[h_seed] = val_acc
-        test_dict[h_seed] = test_acc
+        val_acc_dict[h_seed] = val_acc
+        val_var_dict[h_seed] = val_var
+        test_acc_dict[h_seed] = test_acc
+        test_var_dict[h_seed] = test_var
 
-    best_seed = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
+    best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
 
-    return val_dict[best_seed], test_dict[best_seed]
+    return val_acc_dict[best_seed], val_var_dict[best_seed], test_acc_dict[best_seed], test_var_dict[best_seed]
 
 def train_domain_validation(records):
 
@@ -73,7 +77,7 @@ def train_domain_validation(records):
         val_acc.append(val_dict[best_step])
         test_acc.append(test_dict[best_step])
 
-    return np.mean(val_acc), np.mean(test_acc)
+    return np.mean(val_acc), np.var(val_acc), np.mean(test_acc), np.var(test_acc)
 
 def test_domain_validation(records):
 
@@ -99,4 +103,4 @@ def test_domain_validation(records):
         val_acc.append(t_val_acc)
         test_acc.append(t_test_acc)
 
-    return np.mean(val_acc), np.mean(test_acc)
+    return np.mean(val_acc), np.var(val_acc), np.mean(test_acc), np.var(test_acc)

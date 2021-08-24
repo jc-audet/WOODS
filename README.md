@@ -45,6 +45,14 @@ python3 hparams_sweep.py \
         --unique_test_env 0
 ```
 
+When the sweep is complete you can compile the results in neat tables
+
+```sh
+python3 compile_results.py \
+        --results_dir /hdd/Results/temporal_OOD/Spurious_Fourier/1 \
+        --latex
+```
+
 ## Current benchmarks
 ### Spurious Fourier
 #### The task

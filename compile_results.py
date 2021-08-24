@@ -11,7 +11,7 @@ from prettytable import PrettyTable
 
 from datasets import get_environments
 from model_selection import ensure_dict_path, get_best_hparams
-from utils import get_latex_table
+from utils import get_latex_table, check_file_integrity
 
 if __name__ == "__main__":
 
@@ -19,6 +19,10 @@ if __name__ == "__main__":
     parser.add_argument("--results_dir", type=str, required=True)
     parser.add_argument("--latex", action='store_true')
     flags = parser.parse_args()
+
+    ## TODO: Check result intergrity
+    print("Checking file integrity")
+    check_file_integrity()
 
     ## Load records
     records = {}
@@ -52,10 +56,13 @@ if __name__ == "__main__":
             for obj, obj_dict in dat_dict.items():
                 obj_results = [obj]
                 for i, e in enumerate(envs):
-                    val_acc, test_acc = get_best_hparams(obj_dict[i], model_selection)
+                    val_acc, val_var, test_acc, test_var = get_best_hparams(obj_dict[i], model_selection)
 
-                    obj_results.append(test_acc)
-
+                    if flags.latex:
+                        obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=test_acc*100, var=test_var*100))
+                    else:
+                        obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=test_acc*100, var=test_var*100))
+                        
                 t.add_row(obj_results)
 
             max_width = {}
