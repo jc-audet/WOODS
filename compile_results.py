@@ -20,13 +20,11 @@ if __name__ == "__main__":
     parser.add_argument("--latex", action='store_true')
     flags = parser.parse_args()
 
-    ## TODO: Check result intergrity
-    print("Checking file integrity")
-    check_file_integrity()
+    check_file_integrity(flags.results_dir)
 
     ## Load records
     records = {}
-    for i, subdir in tqdm.tqdm(list(enumerate(os.listdir(flags.results_dir)))):
+    for i, subdir in tqdm.tqdm(list(enumerate(os.listdir(flags.results_dir))), desc="Loading Results"):
         results_path = os.path.join(flags.results_dir, subdir)
         try:
             with open(results_path, "r") as f:
@@ -37,7 +35,8 @@ if __name__ == "__main__":
                 sub_records = ensure_dict_path(sub_records, run_results['flags']['test_env'])
                 sub_records = ensure_dict_path(sub_records, run_results['flags']['hparams_seed'])
                 sub_records.update({run_results['flags']['trial_seed']: run_results})
-
+        except KeyError:
+            pass
         except IOError:
             pass
         

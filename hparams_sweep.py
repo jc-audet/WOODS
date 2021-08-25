@@ -40,7 +40,7 @@ def get_train_args(flags):
             command.append(f'--{k} {v}')
         command_list.append(' '.join(command))
     
-    return command_list, train_args
+    return command_list, train_args_list
 
 if __name__ == '__main__':
 

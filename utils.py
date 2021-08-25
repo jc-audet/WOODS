@@ -1,12 +1,15 @@
+import os
+import json
+import tqdm
+from argparse import Namespace
 from prettytable import PrettyTable
 import math
 
+from hparams_sweep import get_train_args
+
 def get_job_json(flags):
 
-    if flags.sample_hparams:
-        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
-    else:
-        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env)
+    job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
     job_json = job_id + '.json'
 
     return job_json
@@ -14,14 +17,15 @@ def get_job_json(flags):
 def check_file_integrity(results_dir):
 
     with open(os.path.join(results_dir,'sweep_config.json'), 'r') as fp:
-        flags = json.load(flags_dict, fp)
+        flags = json.load(fp)
     
-    
+    flags = Namespace(**flags)
 
+    _, train_args = get_train_args(flags)
+    for args in tqdm.tqdm(train_args, desc="Checking file integrity"):
+        name = get_job_json(Namespace(**args))
 
-
-
-
+        assert os.path.exists(os.path.join(results_dir, name)), "Some sweep results are missing from the results directory"
 
 def setup_pretty_table(flags, hparams, dataset):
 
