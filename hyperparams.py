@@ -83,6 +83,21 @@ def TCMNIST_step_hyper(sample):
             'state_size': lambda r: 10
         }
 
+def PhysioNet_hyper(sample):
+
+    if sample:
+        return {
+            'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'hidden_depth': lambda r: 2,
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
 
 def get_objective_hparams(objective_name, seed, sample=False):
 

@@ -3,12 +3,17 @@ import copy
 import argparse
 import numpy as np
 
+import re
+
 import torch
 import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import datasets, transforms
 
 from scipy import fft
+import scipy.io
+import mne
+import pyedflib
 
 import matplotlib.pyplot as plt
 
@@ -21,6 +26,8 @@ DATASETS = [
     # Small correlation shift dataset
     "TCMNIST_seq",
     "TCMNIST_step",
+    ## EEG Dataset
+    "PhysioNet",
 ]
 
 '''
@@ -587,3 +594,89 @@ class TCMNIST_step(TCMNIST):
         loaders_ID = [[str(env)+'_out' for env in self.ENVS]]
         loaders = self.out_loaders
         return loaders_ID, loaders
+
+class PhysioNet(Single_Domain_Dataset):
+    '''
+    PhysioNet Sleep stage dataset
+    Download: wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
+    '''
+    SETUP = 'seq'
+    # PRED_TIME = [49]
+    ENVS = ['no_spur']
+    # INPUT_SIZE = 1
+    # OUTPUT_SIZE = 2
+
+    def __init__(self, flags, batch_size):
+        super(PhysioNet, self).__init__()
+
+        print(flags.data_path)
+        edf_path = os.path.join(flags.data_path,'physionet.org/files/capslpdb/1.0.0/brux1.edf')
+        txt_path = os.path.join(flags.data_path,'physionet.org/files/capslpdb/1.0.0/brux1.txt')
+
+        self.read_annotation(txt_path)
+
+        data = mne.io.read_raw_edf(data_path)
+        # data = pyedflib.EdfReader('/home/jcaudet/Downloads/brux1.edf')
+        print(data)
+        print(data.info['meas_date'])
+        print(data.time_as_index(data.times))
+        print(data.times)
+        print(np.array(data.get_data()))
+
+
+        # ## Define label 0 and 1 Fourier spectrum
+        # self.fourier_0 = np.zeros(1000)
+        # self.fourier_0[800:900] = np.linspace(0, 500, num=100)
+        # self.fourier_1 = np.zeros(1000)
+        # self.fourier_1[800:900] = np.linspace(500, 0, num=100)
+
+        # ## Make the full time series with inverse fft
+        # signal_0 = fft.irfft(self.fourier_0, n=10000)[1000:9000]
+        # signal_1 = fft.irfft(self.fourier_1, n=10000)[1000:9000]
+        # signal_0 = torch.tensor( signal_0.reshape(-1,50) ).float()
+        # signal_1 = torch.tensor( signal_1.reshape(-1,50) ).float()
+        # signal = torch.cat((signal_0, signal_1))
+
+        # plt.figure()
+        # plt.plot(signal_0[50,:], 'r', label='Label 0')
+        # plt.plot(signal_1[50,:], 'b', label='Label 1')
+        # plt.legend()
+        # plt.savefig('./figure/fourier_clean_signal.pdf')
+
+        # ## Create the labels
+        # labels_0 = torch.zeros((signal_0.shape[0],1)).long()
+        # labels_1 = torch.ones((signal_1.shape[0],1)).long()
+        # labels = torch.cat((labels_0, labels_1))
+
+        # ## Create tensor dataset and dataloader
+        # self.in_loaders, self.out_loaders = [], []
+        # for e in self.ENVS:
+        #     dataset = torch.utils.data.TensorDataset(signal, labels)
+        #     in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+        #     in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+        #     self.in_loaders.append(in_loader)
+        #     out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+        #     self.out_loaders.append(out_loader)
+    
+    def read_annotation(self, txt_path):
+
+        # Initialize storage
+        labels = []
+        times = []
+
+        with open(txt_path, 'r') as file:
+            lines = file.readlines()
+
+        in_table = False
+        for line in lines:
+
+            if in_table:
+                # print(line.split())
+                pass
+            
+            if line[0:11] == 'Sleep Stage':
+                columns = line.split()
+                print(columns)
+                label_id = columns.index('a')
+                in_table = True
+            

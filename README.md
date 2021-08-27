@@ -7,8 +7,8 @@ Train a single model using one objective on one dataset with one test environmen
 
 ```sh
 python3 temporal_OOD.py \
-        --dataset Spurious_Fourier \
-        --objective IRM \
+        --dataset PhysioNet \
+        --objective ERM \
         --test_env 0
 ```
 
