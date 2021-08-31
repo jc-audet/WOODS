@@ -4,6 +4,8 @@ import argparse
 import numpy as np
 
 import re
+import datetime
+import glob
 
 import torch
 import torch.nn.functional as F
@@ -609,21 +611,35 @@ class PhysioNet(Single_Domain_Dataset):
     def __init__(self, flags, batch_size):
         super(PhysioNet, self).__init__()
 
-        print(flags.data_path)
+        self.gather_EEG(flags)
+
+        print(allo)
         edf_path = os.path.join(flags.data_path,'physionet.org/files/capslpdb/1.0.0/brux1.edf')
         txt_path = os.path.join(flags.data_path,'physionet.org/files/capslpdb/1.0.0/brux1.txt')
 
-        self.read_annotation(txt_path)
+        # Fetch all data
+        data = mne.io.read_raw_edf(edf_path)
+        labels, times, durations = self.read_annotation(txt_path)
 
-        data = mne.io.read_raw_edf(data_path)
+        start = data.info['meas_date']
+        times = [t.replace(tzinfo=start.tzinfo) for t in times]
+        time_diff = [ (t - start).total_seconds() for t in times]
+        index = data.time_as_index(time_diff)
+        
+        print(data.ch_names)
+        
+        # Remove undefined time points
+        index = index[index < len(data)]
+
+        seq = [data.get_data(start=s, stop=e) for s, e in zip(index[:-1], index[1:])]
+        print(seq[0][0])
+
+        plt.figure()
+        plt.plot(seq[0][1])
+        plt.show()
+    
+
         # data = pyedflib.EdfReader('/home/jcaudet/Downloads/brux1.edf')
-        print(data)
-        print(data.info['meas_date'])
-        print(data.time_as_index(data.times))
-        print(data.times)
-        print(np.array(data.get_data()))
-
-
         # ## Define label 0 and 1 Fourier spectrum
         # self.fourier_0 = np.zeros(1000)
         # self.fourier_0[800:900] = np.linspace(0, 500, num=100)
@@ -663,20 +679,100 @@ class PhysioNet(Single_Domain_Dataset):
         # Initialize storage
         labels = []
         times = []
+        durations = []
 
         with open(txt_path, 'r') as file:
             lines = file.readlines()
 
         in_table = False
         for line in lines:
+            # print(line[0:16])
+            if line[0:16] == 'Recording Date:	':
+                date = [int(u) for u in line.strip('\n').split('\t')[1].split('/')]
 
             if in_table:
-                # print(line.split())
-                pass
-            
+                line_list = line.split("\t")
+                if line_list[event_id][0:5] == 'SLEEP':
+                    labels.append(line_list[label_id])
+                    durations.append(line_list[duration_id])
+                    t = line_list[time_id].split('.')
+                    t = [int(u) for u in t]
+                    times.append(datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]<12)))
+
             if line[0:11] == 'Sleep Stage':
-                columns = line.split()
-                print(columns)
-                label_id = columns.index('a')
+                columns = line.split("\t")
+                label_id = columns.index('Sleep Stage')
+                time_id = columns.index('Time [hh:mm:ss]')
+                duration_id = columns.index('Duration[s]')
+                event_id = columns.index('Event')
                 in_table = True
             
+        return labels, times, durations
+
+    def gather_EEG(self, flags):
+
+        machine_id = 0
+        machines = {}
+        edf_file = []
+        table = []
+        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/*.edf')):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print("Crashed")
+                continue
+
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id]['state'] = state_set
+                machines[id]['amount'] = 1
+                machines[id]['dates'] = [data.info['meas_date']]
+                machines[id]['names'] = [file]
+            else:
+                machines[id]['amount'] += 1 
+                machines[id]['dates'].append(data.info['meas_date'])
+                machines[id]['names'].append(file)
+            
+        _table = []
+        for id, machine in machines.items():
+            if machine['amount'] > 4:
+                ch = [c[0] for c in machine['state']]
+                freq = [c[1] for c in machine['state']]
+
+                _table.append(set(ch))
+                print("___________________________________________________")
+                print("Machine ID: ", id)
+                print("Recording amount: ", machine['amount'])
+                print("Channels: ", ch)
+                print('Freqs: ', freq)
+                print("Dates:")
+                for d in machine['dates']:
+                    print(d)
+                print("Files:")
+                for f in machine['names']:
+                    print(f)
+
+        print(set.intersection(*table))
+        print(set.intersection(*_table))
