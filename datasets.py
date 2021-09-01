@@ -6,6 +6,7 @@ import numpy as np
 import re
 import datetime
 import glob
+import h5py
 
 import torch
 import torch.nn.functional as F
@@ -600,46 +601,74 @@ class TCMNIST_step(TCMNIST):
 class PhysioNet(Single_Domain_Dataset):
     '''
     PhysioNet Sleep stage dataset
-    Download: wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
     '''
     SETUP = 'seq'
     # PRED_TIME = [49]
     ENVS = ['no_spur']
-    # INPUT_SIZE = 1
-    # OUTPUT_SIZE = 2
+    INPUT_SIZE = 19
+    OUTPUT_SIZE = 6
 
     def __init__(self, flags, batch_size):
         super(PhysioNet, self).__init__()
 
-        self.gather_EEG(flags)
+        common_channels = self.gather_EEG(flags)
 
-        print(allo)
-        edf_path = os.path.join(flags.data_path,'physionet.org/files/capslpdb/1.0.0/brux1.edf')
-        txt_path = os.path.join(flags.data_path,'physionet.org/files/capslpdb/1.0.0/brux1.txt')
+        for i, env_set in enumerate(self.files):
 
-        # Fetch all data
-        data = mne.io.read_raw_edf(edf_path)
-        labels, times, durations = self.read_annotation(txt_path)
+            env_data = np.zeros((0, 19, 3840))
+            env_labels = np.zeros((0))
+            for recording in env_set:
 
-        start = data.info['meas_date']
-        times = [t.replace(tzinfo=start.tzinfo) for t in times]
-        time_diff = [ (t - start).total_seconds() for t in times]
-        index = data.time_as_index(time_diff)
+                edf_path = os.path.join(flags.data_path, recording + '.edf')
+                txt_path = os.path.join(flags.data_path, recording + '.txt')
+
+                # Fetch all data
+                data = mne.io.read_raw_edf(edf_path)
+                ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
+                data = data.pick_channels(ch)
+                labels, times, durations = self.read_annotation(txt_path)
+                
+                labels = self.string_2_label(labels)
+
+                data.resample(128)
+                start = data.info['meas_date']
+                times = [(t_s.replace(tzinfo=start.tzinfo), t_e.replace(tzinfo=start.tzinfo))  for (t_s, t_e) in times]
+                time_diff = [ ((t_s - start).total_seconds(), (t_e - start).total_seconds()) for (t_s, t_e) in times]
+                t_s, t_e = [t_s for (t_s, t_e) in time_diff], [t_e for (t_s, t_e) in time_diff]
+                index_s = data.time_as_index(t_s)
+                index_e = data.time_as_index(t_e)
+
+                # dat = [data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)]
+                # print(len(dat))
+                # print(len(index_s))
+                # for i, d in enumerate(dat):
+                #     assert len(d) == 19, "not right amount of channels"
+                #     for j, ch in enumerate(d):
+                #         # print("....")
+                #         # print(i)
+                #         # print(len(ch))
+                #         print(index_s[i], index_e[i])
+                #         print(len(data))
+                #         print(times[-1])
+                #         assert len(ch) == 3840, "not right amount of time steps"
+
+                seq = np.array([data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)])
+                labels = np.array([l for l, e in zip(labels, index_e) if e <= len(data)])
+
+                # print(env_data[0,0,0])
+                print(seq.dtype)
+
+                env_data = np.append(env_data, seq, axis=0)
+                env_labels = np.append(env_labels, labels, axis=0)
         
-        print(data.ch_names)
-        
-        # Remove undefined time points
-        index = index[index < len(data)]
+            with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
+                g = hf.create_group('Machine' + str(i))
+                g.create_dataset('data', data=env_data.astype('float32'), dtype='float32')
+                g.create_dataset('labels', data=env_labels.astype('int32'), dtype='int32')
 
-        seq = [data.get_data(start=s, stop=e) for s, e in zip(index[:-1], index[1:])]
-        print(seq[0][0])
 
-        plt.figure()
-        plt.plot(seq[0][1])
-        plt.show()
-    
 
-        # data = pyedflib.EdfReader('/home/jcaudet/Downloads/brux1.edf')
+
         # ## Define label 0 and 1 Fourier spectrum
         # self.fourier_0 = np.zeros(1000)
         # self.fourier_0[800:900] = np.linspace(0, 500, num=100)
@@ -674,6 +703,19 @@ class PhysioNet(Single_Domain_Dataset):
         #     out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
         #     self.out_loaders.append(out_loader)
     
+    def string_2_label(self, string):
+        
+        label_dict = {  'W':0,
+                        'S1':1,
+                        'S2':2,
+                        'S3':3,
+                        'S4':4,
+                        'R':5}
+                        
+        labels = [label_dict[s] for s in string]
+
+        return labels
+
     def read_annotation(self, txt_path):
 
         # Initialize storage
@@ -686,27 +728,31 @@ class PhysioNet(Single_Domain_Dataset):
 
         in_table = False
         for line in lines:
-            # print(line[0:16])
             if line[0:16] == 'Recording Date:	':
                 date = [int(u) for u in line.strip('\n').split('\t')[1].split('/')]
 
             if in_table:
                 line_list = line.split("\t")
-                if line_list[event_id][0:5] == 'SLEEP':
+                if line_list[event_id][0:5] == 'SLEEP' and (position_id == None or line_list[position_id] != 'N/A'):
                     labels.append(line_list[label_id])
                     durations.append(line_list[duration_id])
-                    t = line_list[time_id].split('.')
+                    t = line_list[time_id].split(':') if ':' in line_list[time_id] else line_list[time_id].split('.')
                     t = [int(u) for u in t]
-                    times.append(datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]<12)))
+                    dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]<12))
+                    times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
 
             if line[0:11] == 'Sleep Stage':
                 columns = line.split("\t")
                 label_id = columns.index('Sleep Stage')
                 time_id = columns.index('Time [hh:mm:ss]')
                 duration_id = columns.index('Duration[s]')
+                try:
+                    position_id = columns.index('Position')
+                except ValueError:
+                    position_id = None
                 event_id = columns.index('Event')
                 in_table = True
-            
+
         return labels, times, durations
 
     def gather_EEG(self, flags):
@@ -774,5 +820,4 @@ class PhysioNet(Single_Domain_Dataset):
                 for f in machine['names']:
                     print(f)
 
-        print(set.intersection(*table))
-        print(set.intersection(*_table))
+        return list(set.intersection(*_table))
