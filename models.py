@@ -58,5 +58,28 @@ class RNN(nn.Module):
         output = self.FCO(combined)
         return output, hidden
 
-    def initHidden(self, batch_size):
-        return torch.zeros(batch_size, self.state_size)
+    def initHidden(self, batch_size, device):
+        return torch.zeros(batch_size, self.state_size).to(device)
+
+class LSTM(nn.Module):
+    def __init__(self, input_size, hidden_depth, state_size, output_size):
+        super(LSTM, self).__init__()
+
+        self.state_size = state_size
+        self.hidden_depth = hidden_depth
+
+        self.lstm = nn.LSTM(input_size, state_size, hidden_depth, batch_first=True, dropout=0.2)
+        linear = nn.Linear(state_size, output_size)
+        nn.init.xavier_uniform_(linear.weight)
+        nn.init.zeros_(linear.bias)
+        self.classifier = nn.Sequential(linear,
+                                        nn.LogSoftmax(dim=1))
+
+    def forward(self, input, hidden):
+        out, hidden = self.lstm(torch.unsqueeze(input, 1), hidden)
+        output = self.classifier(out)
+        return torch.squeeze(output), hidden
+
+    def initHidden(self, batch_size, device):
+        return (torch.randn(self.hidden_depth, batch_size, self.state_size).to(device), 
+                torch.randn(self.hidden_depth, batch_size, self.state_size).to(device))

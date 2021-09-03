@@ -7,6 +7,7 @@ import re
 import datetime
 import glob
 import h5py
+import subprocess
 
 import mne
 import pyedflib
@@ -14,7 +15,7 @@ import pyedflib
 from datasets import DATASETS
 
 
-class PhysioNet(Single_Domain_Dataset):
+class PhysioNet():
     '''
     PhysioNet Sleep stage dataset
     Download: wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
@@ -63,15 +64,20 @@ class PhysioNet(Single_Domain_Dataset):
             'physionet.org/files/capslpdb/1.0.0/nfle17']
     ]
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags):
         super(PhysioNet, self).__init__()
 
+        ## Download 
+        subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/capslpdb/1.0.0/', '-P', flags.data_path])
+
+        ## Process data into machines
         common_channels = self.gather_EEG(flags)
 
+        ## Cluster data into machines and save
         for i, env_set in enumerate(self.files):
 
-            env_data = np.zeros((0, 19, 3840))
-            env_labels = np.zeros((0))
+            env_data = np.zeros((0, 3840, 19))
+            env_labels = np.zeros((0, 1))
             for recording in env_set:
 
                 edf_path = os.path.join(flags.data_path, recording + '.edf')
@@ -93,33 +99,17 @@ class PhysioNet(Single_Domain_Dataset):
                 index_s = data.time_as_index(t_s)
                 index_e = data.time_as_index(t_e)
 
-                # dat = [data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)]
-                # print(len(dat))
-                # print(len(index_s))
-                # for i, d in enumerate(dat):
-                #     assert len(d) == 19, "not right amount of channels"
-                #     for j, ch in enumerate(d):
-                #         # print("....")
-                #         # print(i)
-                #         # print(len(ch))
-                #         print(index_s[i], index_e[i])
-                #         print(len(data))
-                #         print(times[-1])
-                #         assert len(ch) == 3840, "not right amount of time steps"
-
                 seq = np.array([data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)])
-                labels = np.array([l for l, e in zip(labels, index_e) if e <= len(data)])
+                labels = np.array([[l] for l, e in zip(labels, index_e) if e <= len(data)])
 
-                # print(env_data[0,0,0])
-                print(seq.dtype)
-
+                seq = np.transpose(seq, (0,2,1))
                 env_data = np.append(env_data, seq, axis=0)
                 env_labels = np.append(env_labels, labels, axis=0)
         
             with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
                 g = hf.create_group('Machine' + str(i))
                 g.create_dataset('data', data=env_data.astype('float32'), dtype='float32')
-                g.create_dataset('labels', data=env_labels.astype('float32'), dtype='int32')
+                g.create_dataset('labels', data=env_labels.astype('float32'), dtype='int_')
 
 
     def string_2_label(self, string):
@@ -252,8 +242,10 @@ if __name__ == '__main__':
     flags = parser.parse_args()
 
     if flags.dataset == None:
-        falgs.dataset = DATASETS
+        flags.dataset = DATASETS
 
     print('Flags:')
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
+
+    physionet = PhysioNet(flags)

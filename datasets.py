@@ -2,6 +2,7 @@ import os
 import copy
 import argparse
 import numpy as np
+import psutil
 
 import re
 import datetime
@@ -9,8 +10,9 @@ import glob
 import h5py
 
 import torch
-import torch.nn.functional as F
 from torch import nn, optim
+from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
 from torchvision import datasets, transforms
 
 from scipy import fft
@@ -60,17 +62,38 @@ def XOR(a, b):
 def bernoulli(p, size):
     return ( torch.rand(size) < p ).float()
 
-def make_split(dataset, holdout_fraction, seed=0):
+def make_split(dataset, holdout_fraction, seed=0, sort=False):
 
     split = int(len(dataset)*holdout_fraction)
 
     keys = list(range(len(dataset)))
     np.random.RandomState(seed).shuffle(keys)
+    
+    in_keys = keys[split:]
+    out_keys = keys[:split]
+    if sort:
+        in_keys.sort()
+        out_keys.sort()
 
-    in_split = dataset[keys[split:]]
-    out_split = dataset[keys[:split]]
+    in_split = dataset[in_keys]
+    out_split = dataset[out_keys]
 
     return torch.utils.data.TensorDataset(*in_split), torch.utils.data.TensorDataset(*out_split)
+
+def get_split(dataset, holdout_fraction, seed=0, sort=False):
+
+    split = int(len(dataset)*holdout_fraction)
+
+    keys = list(range(len(dataset)))
+    np.random.RandomState(seed).shuffle(keys)
+    
+    in_keys = keys[split:]
+    out_keys = keys[:split]
+    if sort:
+        in_keys.sort()
+        out_keys.sort()
+
+    return in_keys, out_keys
 
 class Single_Domain_Dataset:
     N_STEPS = 5001
@@ -598,226 +621,63 @@ class TCMNIST_step(TCMNIST):
         loaders = self.out_loaders
         return loaders_ID, loaders
 
-class PhysioNet(Single_Domain_Dataset):
+class HDF5_dataset(Dataset):
+
+    def __init__(self, h5_path, env_id, split=None):
+        self.h5_path = h5_path
+        self.env_id = env_id
+
+        self.hdf = h5py.File(self.h5_path, 'r')
+        self.data = self.hdf[env_id]['data']
+        self.labels = self.hdf[env_id]['labels']
+
+        self.split = list(range(self.hdf[env_id]['data'].shape[0])) if split==None else split
+
+    def __len__(self):
+        return len(self.split)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        split_idx = self.split[idx]
+        
+        seq = self.data[split_idx, ...]
+        labels = self.labels[split_idx]
+
+        return (seq, labels)
+
+    def close(self):
+        self.hdf.close()
+
+class PhysioNet(Multi_Domain_Dataset):
     '''
     PhysioNet Sleep stage dataset
     '''
     SETUP = 'seq'
-    # PRED_TIME = [49]
-    ENVS = ['no_spur']
+    PRED_TIME = [3839]
+    ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
+    CHECKPOINT_FREQ = 200
 
     def __init__(self, flags, batch_size):
         super(PhysioNet, self).__init__()
 
-        common_channels = self.gather_EEG(flags)
+        ## Save stuff
+        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        self.test_env = flags.test_env
 
-        for i, env_set in enumerate(self.files):
-
-            env_data = np.zeros((0, 19, 3840))
-            env_labels = np.zeros((0))
-            for recording in env_set:
-
-                edf_path = os.path.join(flags.data_path, recording + '.edf')
-                txt_path = os.path.join(flags.data_path, recording + '.txt')
-
-                # Fetch all data
-                data = mne.io.read_raw_edf(edf_path)
-                ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
-                data = data.pick_channels(ch)
-                labels, times, durations = self.read_annotation(txt_path)
-                
-                labels = self.string_2_label(labels)
-
-                data.resample(128)
-                start = data.info['meas_date']
-                times = [(t_s.replace(tzinfo=start.tzinfo), t_e.replace(tzinfo=start.tzinfo))  for (t_s, t_e) in times]
-                time_diff = [ ((t_s - start).total_seconds(), (t_e - start).total_seconds()) for (t_s, t_e) in times]
-                t_s, t_e = [t_s for (t_s, t_e) in time_diff], [t_e for (t_s, t_e) in time_diff]
-                index_s = data.time_as_index(t_s)
-                index_e = data.time_as_index(t_e)
-
-                # dat = [data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)]
-                # print(len(dat))
-                # print(len(index_s))
-                # for i, d in enumerate(dat):
-                #     assert len(d) == 19, "not right amount of channels"
-                #     for j, ch in enumerate(d):
-                #         # print("....")
-                #         # print(i)
-                #         # print(len(ch))
-                #         print(index_s[i], index_e[i])
-                #         print(len(data))
-                #         print(times[-1])
-                #         assert len(ch) == 3840, "not right amount of time steps"
-
-                seq = np.array([data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)])
-                labels = np.array([l for l, e in zip(labels, index_e) if e <= len(data)])
-
-                # print(env_data[0,0,0])
-                print(seq.dtype)
-
-                env_data = np.append(env_data, seq, axis=0)
-                env_labels = np.append(env_labels, labels, axis=0)
-        
-            with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
-                g = hf.create_group('Machine' + str(i))
-                g.create_dataset('data', data=env_data.astype('float32'), dtype='float32')
-                g.create_dataset('labels', data=env_labels.astype('int32'), dtype='int32')
-
-
-
-
-        # ## Define label 0 and 1 Fourier spectrum
-        # self.fourier_0 = np.zeros(1000)
-        # self.fourier_0[800:900] = np.linspace(0, 500, num=100)
-        # self.fourier_1 = np.zeros(1000)
-        # self.fourier_1[800:900] = np.linspace(500, 0, num=100)
-
-        # ## Make the full time series with inverse fft
-        # signal_0 = fft.irfft(self.fourier_0, n=10000)[1000:9000]
-        # signal_1 = fft.irfft(self.fourier_1, n=10000)[1000:9000]
-        # signal_0 = torch.tensor( signal_0.reshape(-1,50) ).float()
-        # signal_1 = torch.tensor( signal_1.reshape(-1,50) ).float()
-        # signal = torch.cat((signal_0, signal_1))
-
-        # plt.figure()
-        # plt.plot(signal_0[50,:], 'r', label='Label 0')
-        # plt.plot(signal_1[50,:], 'b', label='Label 1')
-        # plt.legend()
-        # plt.savefig('./figure/fourier_clean_signal.pdf')
-
-        # ## Create the labels
-        # labels_0 = torch.zeros((signal_0.shape[0],1)).long()
-        # labels_1 = torch.ones((signal_1.shape[0],1)).long()
-        # labels = torch.cat((labels_0, labels_1))
-
-        # ## Create tensor dataset and dataloader
-        # self.in_loaders, self.out_loaders = [], []
-        # for e in self.ENVS:
-        #     dataset = torch.utils.data.TensorDataset(signal, labels)
-        #     in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-        #     in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
-        #     self.in_loaders.append(in_loader)
-        #     out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-        #     self.out_loaders.append(out_loader)
+        ## Create tensor dataset and dataloader
+        self.in_loaders, self.out_loaders = [], []
+        for e in self.ENVS:
+            full_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e)
+            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
+            full_dataset.close()
+            in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=in_split)
+            out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            self.in_loaders.append(in_loader)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            self.out_loaders.append(out_loader)
     
-    def string_2_label(self, string):
-        
-        label_dict = {  'W':0,
-                        'S1':1,
-                        'S2':2,
-                        'S3':3,
-                        'S4':4,
-                        'R':5}
-                        
-        labels = [label_dict[s] for s in string]
-
-        return labels
-
-    def read_annotation(self, txt_path):
-
-        # Initialize storage
-        labels = []
-        times = []
-        durations = []
-
-        with open(txt_path, 'r') as file:
-            lines = file.readlines()
-
-        in_table = False
-        for line in lines:
-            if line[0:16] == 'Recording Date:	':
-                date = [int(u) for u in line.strip('\n').split('\t')[1].split('/')]
-
-            if in_table:
-                line_list = line.split("\t")
-                if line_list[event_id][0:5] == 'SLEEP' and (position_id == None or line_list[position_id] != 'N/A'):
-                    labels.append(line_list[label_id])
-                    durations.append(line_list[duration_id])
-                    t = line_list[time_id].split(':') if ':' in line_list[time_id] else line_list[time_id].split('.')
-                    t = [int(u) for u in t]
-                    dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]<12))
-                    times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
-
-            if line[0:11] == 'Sleep Stage':
-                columns = line.split("\t")
-                label_id = columns.index('Sleep Stage')
-                time_id = columns.index('Time [hh:mm:ss]')
-                duration_id = columns.index('Duration[s]')
-                try:
-                    position_id = columns.index('Position')
-                except ValueError:
-                    position_id = None
-                event_id = columns.index('Event')
-                in_table = True
-
-        return labels, times, durations
-
-    def gather_EEG(self, flags):
-
-        machine_id = 0
-        machines = {}
-        edf_file = []
-        table = []
-        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/*.edf')):
-
-            # Fetch all data from file
-            edf_file.append(file)
-            try:
-                data = pyedflib.EdfReader(file)
-            except OSError:
-                print("Crashed")
-                continue
-
-            ch_freq = data.getSampleFrequencies()
-            data = mne.io.read_raw_edf(file)
-            ch = [c.lower() for c in data.ch_names]
-
-            # Create state Dict (ID)
-            state_dict = {}
-            for n, f in zip(ch, ch_freq):
-                state_dict[n] = f
-            state_set = set(state_dict.items())
-
-            # Create or assign ID
-            if state_set not in table:
-                id = copy.deepcopy(machine_id)
-                machine_id +=1
-                table.append(state_set)
-            else:
-                id = table.index(state_set)
-
-            # Add of update the dictionnary
-            if id not in machines.keys():
-                machines[id] = {}
-                machines[id]['state'] = state_set
-                machines[id]['amount'] = 1
-                machines[id]['dates'] = [data.info['meas_date']]
-                machines[id]['names'] = [file]
-            else:
-                machines[id]['amount'] += 1 
-                machines[id]['dates'].append(data.info['meas_date'])
-                machines[id]['names'].append(file)
-            
-        _table = []
-        for id, machine in machines.items():
-            if machine['amount'] > 4:
-                ch = [c[0] for c in machine['state']]
-                freq = [c[1] for c in machine['state']]
-
-                _table.append(set(ch))
-                print("___________________________________________________")
-                print("Machine ID: ", id)
-                print("Recording amount: ", machine['amount'])
-                print("Channels: ", ch)
-                print('Freqs: ', freq)
-                print("Dates:")
-                for d in machine['dates']:
-                    print(d)
-                print("Files:")
-                for f in machine['names']:
-                    print(f)
-
-        return list(set.intersection(*_table))

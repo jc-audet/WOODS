@@ -10,7 +10,7 @@ from torch import nn, optim
 from torchvision import datasets, transforms
 
 from datasets import get_dataset_class
-from models import RNN
+from models import RNN, LSTM
 from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams, get_dataset_hparams
 
@@ -44,8 +44,9 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         all_out = []
 
+
         # Get logit and make prediction
-        hidden = model.initHidden(all_x.shape[0]).to(device)
+        hidden = model.initHidden(all_x.shape[0], device)
         pred = torch.zeros(all_x.shape[0], 0).to(device)
         for i in range(all_x.shape[1]):
             out, hidden = model(all_x[:,i,...], hidden)
@@ -92,7 +93,7 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
         all_out = []
 
         ## Group all inputs and get prediction
-        hidden = model.initHidden(all_x.shape[0]).to(device)
+        hidden = model.initHidden(all_x.shape[0], device)
         pred = torch.zeros(all_x.shape[0], 0).to(device)
         for i in range(all_x.shape[1]):
             out, hidden = model(all_x[:,i,...], hidden)
@@ -128,6 +129,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
     val_names, val_loaders = dataset.get_val_loaders() 
     all_names = train_names + val_names
     all_loaders = train_loaders + val_loaders
+    n_samples = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
 
         if dataset.get_setup() == 'seq':
@@ -145,7 +147,8 @@ def train(flags, training_hparams, model, objective, dataset, device):
                     record[str(step)].update({name+'_acc': accuracy,
                                             name+'_loss': loss})
 
-                t.add_row([step] +["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()])
+                t.add_row([step] + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()]
+                            + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] + [(step*len(train_loaders)) / n_samples] )
                 print("\n".join(t.get_string().splitlines()[-2:-1]))
 
         elif dataset.get_setup() == 'step':
@@ -187,7 +190,7 @@ def get_accuracy(model, dataset, loader, device):
 
                 loss = 0
                 pred = torch.zeros(data.shape[0], 0).to(device)
-                hidden = model.initHidden(data.shape[0]).to(device)
+                hidden = model.initHidden(data.shape[0], device)
                 for i in range(data.shape[1]):
                     out, hidden = model(data[:,i,...], hidden)
                     if i in ts:     # Only consider labels after the prediction at prediction times
@@ -211,7 +214,7 @@ def get_accuracy(model, dataset, loader, device):
 
                 loss = torch.zeros(ts.shape[0], 1).to(device)
                 pred = torch.zeros(data.shape[0], 0).to(device)
-                hidden = model.initHidden(data.shape[0]).to(device)
+                hidden = model.initHidden(data.shape[0], device)
                 for i in range(data.shape[1]):
                     out, hidden = model(data[:,i,...], hidden)
                     if i in ts:     # Only consider labels after the prediction at prediction times
@@ -297,6 +300,12 @@ if __name__ == '__main__':
                 dataset_hparams['hidden_width'], 
                 dataset_hparams['state_size'], 
                 dataset.get_output_size())
+
+
+    # model = LSTM(dataset.get_input_size(), 
+    #             dataset_hparams['hidden_depth'], 
+    #             dataset_hparams['state_size'], 
+    #             dataset.get_output_size())
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
