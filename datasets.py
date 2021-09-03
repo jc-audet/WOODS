@@ -659,7 +659,7 @@ class PhysioNet(Multi_Domain_Dataset):
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
-    CHECKPOINT_FREQ = 200
+    CHECKPOINT_FREQ = 100
 
     def __init__(self, flags, batch_size):
         super(PhysioNet, self).__init__()

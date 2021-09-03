@@ -69,6 +69,11 @@ class LSTM(nn.Module):
         self.hidden_depth = hidden_depth
 
         self.lstm = nn.LSTM(input_size, state_size, hidden_depth, batch_first=True, dropout=0.2)
+        # for name, param in self.lstm.named_parameters():
+        #     if 'bias' in name:
+        #         nn.init.zeros_(param)
+        #     elif 'weight' in name:
+        #         nn.init.xavier_uniform_(param)
         linear = nn.Linear(state_size, output_size)
         nn.init.xavier_uniform_(linear.weight)
         nn.init.zeros_(linear.bias)
@@ -77,8 +82,8 @@ class LSTM(nn.Module):
 
     def forward(self, input, hidden):
         out, hidden = self.lstm(torch.unsqueeze(input, 1), hidden)
-        output = self.classifier(out)
-        return torch.squeeze(output), hidden
+        output = self.classifier(torch.squeeze(out))
+        return output, hidden
 
     def initHidden(self, batch_size, device):
         return (torch.randn(self.hidden_depth, batch_size, self.state_size).to(device), 

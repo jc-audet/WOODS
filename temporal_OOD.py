@@ -57,7 +57,7 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
         # Compute environment-wise losses
         all_logits_idx = 0
         env_losses = torch.zeros(len(minibatches_device))
-        for i, (x,y) in enumerate(minibatches_device):
+        for i, (x, y) in enumerate(minibatches_device):
             env_loss = 0
             y = y.to(device)
             for t_idx, out in enumerate(all_out):     # Number of time steps
@@ -147,8 +147,10 @@ def train(flags, training_hparams, model, objective, dataset, device):
                     record[str(step)].update({name+'_acc': accuracy,
                                             name+'_loss': loss})
 
-                t.add_row([step] + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()]
-                            + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] + [(step*len(train_loaders)) / n_samples] )
+                t.add_row([step] 
+                        + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()] 
+                        + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
+                        + ["{:.2f}".format((step*len(train_loaders)) / n_samples)] )
                 print("\n".join(t.get_string().splitlines()[-2:-1]))
 
         elif dataset.get_setup() == 'step':
@@ -295,17 +297,17 @@ if __name__ == '__main__':
     torch.manual_seed(flags.trial_seed)
 
     ## Initialize some RNN
-    model = RNN(dataset.get_input_size(), 
-                dataset_hparams['hidden_depth'], 
-                dataset_hparams['hidden_width'], 
-                dataset_hparams['state_size'], 
-                dataset.get_output_size())
-
-
-    # model = LSTM(dataset.get_input_size(), 
+    # model = RNN(dataset.get_input_size(), 
     #             dataset_hparams['hidden_depth'], 
+    #             dataset_hparams['hidden_width'], 
     #             dataset_hparams['state_size'], 
     #             dataset.get_output_size())
+
+
+    model = LSTM(dataset.get_input_size(), 
+                dataset_hparams['hidden_depth'], 
+                dataset_hparams['state_size'], 
+                dataset.get_output_size())
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)

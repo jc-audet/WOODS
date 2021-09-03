@@ -88,14 +88,14 @@ def PhysioNet_hyper(sample):
     if sample:
         return {
             'hidden_depth': lambda r: int(r.choice([3, 4, 5])),
-            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            # 'hidden_width': lambda r: int(2**r.uniform(5, 7)),
             'state_size': lambda r: int(2**r.uniform(4, 6))
         }
     else:
         return {
-            'hidden_depth': lambda r: 5,
-            'hidden_width': lambda r: 100,
-            'state_size': lambda r: 20
+            'hidden_depth': lambda r: 3,
+            # 'hidden_width': lambda r: 1000,
+            'state_size': lambda r: 50
         }
 
 
