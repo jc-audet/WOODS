@@ -654,6 +654,7 @@ class PhysioNet(Multi_Domain_Dataset):
     '''
     PhysioNet Sleep stage dataset
     '''
+    N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [3839]
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']

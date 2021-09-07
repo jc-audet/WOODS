@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import random
 import json
+import time
 
 import torch
 import torch.nn.functional as F
@@ -43,7 +44,6 @@ def train_step(model, objective, dataset, in_loaders_iter, optimizer, device):
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         all_out = []
-
 
         # Get logit and make prediction
         hidden = model.initHidden(all_x.shape[0], device)
@@ -123,6 +123,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
     record = {}
 
+    step_times = []
     t = setup_pretty_table(flags, training_hparams, dataset)
 
     train_names, train_loaders = dataset.get_train_loaders() 
@@ -131,14 +132,17 @@ def train(flags, training_hparams, model, objective, dataset, device):
     all_loaders = train_loaders + val_loaders
     n_samples = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
+        print(step)
 
         if dataset.get_setup() == 'seq':
 
             train_loaders_iter = zip(*train_loaders)
             ## Make training step and report accuracies and losses
+            start = time.time()
             model = train_step(model, objective, dataset, train_loaders_iter, optimizer, device)
+            step_times.append(time.time() - start)
 
-            if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
+            if step % dataset.CHECKPOINT_FREQ == 0:# or (step-1)==0:
                 ## Get test accuracy and loss
                 record[str(step)] = {}
                 for name, loader in zip(all_names, all_loaders):
@@ -150,7 +154,10 @@ def train(flags, training_hparams, model, objective, dataset, device):
                 t.add_row([step] 
                         + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()] 
                         + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
-                        + ["{:.2f}".format((step*len(train_loaders)) / n_samples)] )
+                        + ["{:.2f}".format((step*len(train_loaders)) / n_samples)],
+                        np.mean(step_times) )
+
+                step_times = [] 
                 print("\n".join(t.get_string().splitlines()[-2:-1]))
 
         elif dataset.get_setup() == 'step':
@@ -306,6 +313,8 @@ if __name__ == '__main__':
 
     model = LSTM(dataset.get_input_size(), 
                 dataset_hparams['hidden_depth'], 
+                dataset_hparams['hidden_width'], 
+                dataset_hparams['recurrent_layers'], 
                 dataset_hparams['state_size'], 
                 dataset.get_output_size())
 

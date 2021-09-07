@@ -248,4 +248,6 @@ if __name__ == '__main__':
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
 
+    # TODO check if something is already done in the download and if it does, don't do it
+    # TODO Seperate the download from the preprocess
     physionet = PhysioNet(flags)

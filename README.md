@@ -27,11 +27,11 @@ To change the number of seeds investigated, you can call the `--n_hparams` and `
 ```sh
 python3 hparams_sweep.py \
         --dataset Spurious_Fourier TCMNIST_seq \
-        --objective ERM IRM \
+        --objective ERM \
         --save_path ./results \
         --launcher local \
         --n_hparams 10 \
-        --n_trials 2
+        --n_trials 1
 ```
 
 You can also specify which test environment you want to investigate using the `--unique_test_env` argument
