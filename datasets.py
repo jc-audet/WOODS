@@ -39,6 +39,7 @@ DATASETS = [
 TODO Make a note the says that you need the 'time_pred' and 'setup' variable for every new dataset added
 TODO Make a package test that checks if every class has 'time_pred' and 'setup'
 TODO Notify users that datasets need to be (batch, time, dimensions...)
+TODO Make test_env = None as thing where there are no test environment
 '''
 
 def get_dataset_class(dataset_name):
@@ -679,6 +680,6 @@ class PhysioNet(Multi_Domain_Dataset):
             out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
             in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
             self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=False)
             self.out_loaders.append(out_loader)
     

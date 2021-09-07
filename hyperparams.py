@@ -13,7 +13,7 @@ def get_training_hparams(seed, sample=False):
     else:
         hparams = {
             'weight_decay': lambda r: 0,
-            'lr': lambda r: 1e-5,
+            'lr': lambda r: 1e-4,
             'batch_size': lambda r: 6
         }
     
@@ -88,15 +88,15 @@ def PhysioNet_hyper(sample):
     if sample:
         return {
             'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
-            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'hidden_width': lambda r: int(2**r.uniform(7, 10)),
             'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
-            'state_size': lambda r: int(2**r.uniform(4, 6))
+            'state_size': lambda r: int(2**r.uniform(7, 11))
         }
     else:
         return {
             'hidden_depth': lambda r: 3,
             'hidden_width': lambda r: 500,
-            'recurrent_layers': lambda r: 2,
+            'recurrent_layers': lambda r: 3,
             'state_size': lambda r: 1028
         }
 

@@ -133,7 +133,6 @@ def train(flags, training_hparams, model, objective, dataset, device):
     n_samples = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
         print(step)
-
         if dataset.get_setup() == 'seq':
 
             train_loaders_iter = zip(*train_loaders)
@@ -142,7 +141,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
             model = train_step(model, objective, dataset, train_loaders_iter, optimizer, device)
             step_times.append(time.time() - start)
 
-            if step % dataset.CHECKPOINT_FREQ == 0:# or (step-1)==0:
+            if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
                 ## Get test accuracy and loss
                 record[str(step)] = {}
                 for name, loader in zip(all_names, all_loaders):
@@ -154,8 +153,8 @@ def train(flags, training_hparams, model, objective, dataset, device):
                 t.add_row([step] 
                         + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()] 
                         + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
-                        + ["{:.2f}".format((step*len(train_loaders)) / n_samples)],
-                        np.mean(step_times) )
+                        + ["{:.2f}".format((step*len(train_loaders)) / n_samples)]
+                        + ["{:.2f}".format(np.mean(step_times))] )
 
                 step_times = [] 
                 print("\n".join(t.get_string().splitlines()[-2:-1]))
