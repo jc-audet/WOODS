@@ -20,8 +20,6 @@ import scipy.io
 import mne
 import pyedflib
 
-import pandas as pd
-
 import matplotlib.pyplot as plt
 
 DATASETS = [
