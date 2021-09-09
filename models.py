@@ -92,10 +92,23 @@ class LSTM(nn.Module):
         seq_arr.append(nn.LogSoftmax(dim=1))
         self.classifier = nn.Sequential(*seq_arr)
 
-    def forward(self, input, hidden):
-        out, hidden = self.lstm(torch.unsqueeze(input, 1), hidden)
-        output = self.classifier(torch.squeeze(out))
-        return output, hidden
+    def forward(self, input, time_pred):
+
+        # Setup array
+        all_out = []
+        pred = torch.zeros(input.shape[0], 0).to(input.device)
+        hidden = self.initHidden(input.shape[0], input.device)
+
+        # Forward propagate LSTM
+        out, hidden = self.lstm(input, hidden)
+
+        # Make prediction with fully connected
+        for t in time_pred:
+            output = self.classifier(out[:,t,:])
+            all_out.append(output)
+            pred = torch.cat((pred, output.argmax(1, keepdim=True)), dim=1)
+        
+        return all_out, pred
 
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 

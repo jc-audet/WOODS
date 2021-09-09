@@ -20,6 +20,8 @@ import scipy.io
 import mne
 import pyedflib
 
+import pandas as pd
+
 import matplotlib.pyplot as plt
 
 DATASETS = [
@@ -103,6 +105,7 @@ class Single_Domain_Dataset:
     PRED_TIME = [None]
     ENVS = [None]
     INPUT_SIZE = None
+    OUTPUT_SIZE = None
 
     def __init__(self):
         pass
@@ -121,6 +124,9 @@ class Single_Domain_Dataset:
 
     def get_pred_time(self):
         return self.PRED_TIME
+
+    def get_class_weight(self):
+        return torch.ones(self.OUTPUT_SIZE)
 
     def get_train_loaders(self):
         loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS)]
@@ -159,6 +165,35 @@ class Multi_Domain_Dataset:
     def get_pred_time(self):
         return self.PRED_TIME
 
+    def get_class_weight(self):
+
+        _, train_loaders = self.get_train_loaders()
+
+        n_labels = torch.zeros(self.OUTPUT_SIZE)
+
+        for env_loader in train_loaders:
+            labels = env_loader.dataset.targets[:]
+            for i in range(self.OUTPUT_SIZE):
+                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+
+        weights = 1. / (n_labels*self.OUTPUT_SIZE)
+
+        # Lab = ['W','S1','S2','S3','S4','R']
+        # L = np.arange(6)
+        # fig = plt.figure()
+        # # plt.bar(L, n_labels, label='Count', width=0.15)
+        # plt.bar(L, weights, label='Weights', width=0.15)
+        # # plt.bar(L+0.15, n_labels[1,:], label='Env 2', width=0.15)
+        # # plt.bar(L+0.3, n_labels[2,:], label='Env 3', width=0.15)
+        # # plt.bar(L+0.45, n_labels[3,:], label='Env 4', width=0.15)
+        # # plt.bar(L+0.6, n_labels[4,:], label='Env 5', width=0.15)
+        # plt.gca().set_xticks(L)
+        # plt.gca().set_xticklabels(Lab)
+        # plt.legend()
+        # plt.show()
+
+        return weights
+
     def get_train_loaders(self):
         loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS) if i != self.test_env]
         loaders = [l for i, l in enumerate(self.in_loaders) if i != self.test_env] 
@@ -176,7 +211,7 @@ class Fourier_basic(Single_Domain_Dataset):
     INPUT_SIZE = 1
     OUTPUT_SIZE = 2
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags, training_hparams):
         super(Fourier_basic, self).__init__()
 
         ## Define label 0 and 1 Fourier spectrum
@@ -208,7 +243,7 @@ class Fourier_basic(Single_Domain_Dataset):
         for e in self.ENVS:
             dataset = torch.utils.data.TensorDataset(signal, labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
             out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
             self.out_loaders.append(out_loader)
@@ -221,12 +256,13 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     label_noise = 0.25          # Label noise
     ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags, training_hparams):
         super(Spurious_Fourier, self).__init__()
 
         ## Save stuff
         assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
 
         ## Define label 0 and 1 Fourier spectrum
         self.fourier_0 = np.zeros(1000)
@@ -314,7 +350,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             dataset = torch.utils.data.TensorDataset(env_signal, env_labels)
 
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
             out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
             self.out_loaders.append(out_loader)
@@ -359,7 +395,7 @@ class TMNIST(Single_Domain_Dataset):
     # Dataset parameters
     SEQ_LEN = 4
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags, training_hparams):
         super(TMNIST, self).__init__()
 
         ## Import original MNIST data
@@ -389,7 +425,7 @@ class TMNIST(Single_Domain_Dataset):
         for e in self.ENVS:
             dataset = torch.utils.data.TensorDataset(TMNIST_images, TMNIST_labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
             out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
             self.out_loaders.append(out_loader)
@@ -513,12 +549,13 @@ class TCMNIST_seq(TCMNIST):
     ## Dataset parameters
     label_noise = 0.25                    # Label noise
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags, training_hparams):
         super(TCMNIST_seq, self).__init__(flags)
 
         # Save stuff
         assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
 
         # Make the color datasets
         self.in_loaders, self.out_loaders = [], []          # array of training environment dataloaders
@@ -535,7 +572,7 @@ class TCMNIST_seq(TCMNIST):
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)
 
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
             out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
             self.out_loaders.append(out_loader)
@@ -569,12 +606,13 @@ class TCMNIST_step(TCMNIST):
     # Dataset parameters
     label_noise = 0.25      # Label noise
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags, training_hparams):
         super(TCMNIST_step, self).__init__(flags)
 
         ## Save stuff
         assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
 
         # Define array of training environment dataloaders
         self.in_loaders, self.out_loaders = [], []          
@@ -593,7 +631,7 @@ class TCMNIST_step(TCMNIST):
         self.plot_samples(colored_images, colored_labels)
 
         in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-        in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+        in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
         self.in_loaders.append(in_loader)
         out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
         self.out_loaders.append(out_loader)
@@ -630,7 +668,7 @@ class HDF5_dataset(Dataset):
 
         self.hdf = h5py.File(self.h5_path, 'r')
         self.data = self.hdf[env_id]['data']
-        self.labels = self.hdf[env_id]['labels']
+        self.targets = self.hdf[env_id]['labels']
 
         self.split = list(range(self.hdf[env_id]['data'].shape[0])) if split==None else split
 
@@ -643,8 +681,8 @@ class HDF5_dataset(Dataset):
 
         split_idx = self.split[idx]
         
-        seq = self.data[split_idx, ...]
-        labels = self.labels[split_idx]
+        seq = torch.as_tensor(self.data[split_idx, ...])
+        labels = torch.as_tensor(self.targets[split_idx])
 
         return (seq, labels)
 
@@ -663,23 +701,26 @@ class PhysioNet(Multi_Domain_Dataset):
     OUTPUT_SIZE = 6
     CHECKPOINT_FREQ = 100
 
-    def __init__(self, flags, batch_size):
+    def __init__(self, flags, training_hparams):
         super(PhysioNet, self).__init__()
 
         ## Save stuff
         assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
 
         ## Create tensor dataset and dataloader
         self.in_loaders, self.out_loaders = [], []
-        for e in self.ENVS:
+        for j, e in enumerate(self.ENVS):
             full_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e)
+
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
             full_dataset.close()
             in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=in_split)
             out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=batch_size, shuffle=True)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=False)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=True)
             self.out_loaders.append(out_loader)
-    
+
+        

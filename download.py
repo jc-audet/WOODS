@@ -14,6 +14,9 @@ import pyedflib
 
 from datasets import DATASETS
 
+import matplotlib.pyplot as plt
+from scipy.fft import fft, fftfreq
+
 
 class PhysioNet():
     '''
@@ -25,14 +28,14 @@ class PhysioNet():
             'physionet.org/files/capslpdb/1.0.0/nfle7',
             'physionet.org/files/capslpdb/1.0.0/nfle1',
             'physionet.org/files/capslpdb/1.0.0/nfle5',
-            # 'physionet.org/files/capslpdb/1.0.0/n11',
-            # 'physionet.org/files/capslpdb/1.0.0/rbd18',
-            # 'physionet.org/files/capslpdb/1.0.0/plm9',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle35',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle36',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle2',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle38',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle39',
+            'physionet.org/files/capslpdb/1.0.0/n11',
+            'physionet.org/files/capslpdb/1.0.0/rbd18',
+            'physionet.org/files/capslpdb/1.0.0/plm9',
+            'physionet.org/files/capslpdb/1.0.0/nfle35',
+            'physionet.org/files/capslpdb/1.0.0/nfle36',
+            'physionet.org/files/capslpdb/1.0.0/nfle2',
+            'physionet.org/files/capslpdb/1.0.0/nfle38',
+            'physionet.org/files/capslpdb/1.0.0/nfle39',
             'physionet.org/files/capslpdb/1.0.0/nfle21'],
         [   'physionet.org/files/capslpdb/1.0.0/nfle10',
             'physionet.org/files/capslpdb/1.0.0/nfle11',
@@ -48,19 +51,19 @@ class PhysioNet():
             'physionet.org/files/capslpdb/1.0.0/nfle30',
             'physionet.org/files/capslpdb/1.0.0/nfle13',
             'physionet.org/files/capslpdb/1.0.0/nfle18',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle24',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle4',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle14',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle22',
-            # 'physionet.org/files/capslpdb/1.0.0/n5',
+            'physionet.org/files/capslpdb/1.0.0/nfle24',
+            'physionet.org/files/capslpdb/1.0.0/nfle4',
+            'physionet.org/files/capslpdb/1.0.0/nfle14',
+            'physionet.org/files/capslpdb/1.0.0/nfle22',
+            'physionet.org/files/capslpdb/1.0.0/n5',
             'physionet.org/files/capslpdb/1.0.0/nfle37'],
         [   'physionet.org/files/capslpdb/1.0.0/nfle3',
             'physionet.org/files/capslpdb/1.0.0/nfle40',
             'physionet.org/files/capslpdb/1.0.0/nfle15',
             'physionet.org/files/capslpdb/1.0.0/nfle12',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle28',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle34',
-            # 'physionet.org/files/capslpdb/1.0.0/nfle16',
+            'physionet.org/files/capslpdb/1.0.0/nfle28',
+            'physionet.org/files/capslpdb/1.0.0/nfle34',
+            'physionet.org/files/capslpdb/1.0.0/nfle16',
             'physionet.org/files/capslpdb/1.0.0/nfle17']
     ]
 
@@ -68,7 +71,7 @@ class PhysioNet():
         super(PhysioNet, self).__init__()
 
         ## Download 
-        subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/capslpdb/1.0.0/', '-P', flags.data_path])
+        #subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/capslpdb/1.0.0/', '-P', flags.data_path])
 
         ## Process data into machines
         common_channels = self.gather_EEG(flags)
@@ -76,10 +79,9 @@ class PhysioNet():
         ## Cluster data into machines and save
         for i, env_set in enumerate(self.files):
 
-            env_data = np.zeros((0, 3840, 19))
-            env_labels = np.zeros((0, 1))
-            for recording in env_set:
+            for j, recording in enumerate(env_set):
 
+                # Create data path
                 edf_path = os.path.join(flags.data_path, recording + '.edf')
                 txt_path = os.path.join(flags.data_path, recording + '.txt')
 
@@ -88,10 +90,15 @@ class PhysioNet():
                 ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
                 data = data.pick_channels(ch)
                 labels, times = self.read_annotation(txt_path)
-                
+
+                # Get labels
                 labels = self.string_2_label(labels)
 
+                # Sample and filter
                 data.resample(128)
+                data.filter(l_freq=0.3, h_freq=30)
+
+                # Get the indexes
                 start = data.info['meas_date']
                 times = [(t_s.replace(tzinfo=start.tzinfo), t_e.replace(tzinfo=start.tzinfo))  for (t_s, t_e) in times]
                 time_diff = [ ((t_s - start).total_seconds(), (t_e - start).total_seconds()) for (t_s, t_e) in times]
@@ -99,18 +106,32 @@ class PhysioNet():
                 index_s = data.time_as_index(t_s)
                 index_e = data.time_as_index(t_e)
 
+                # Split the data 
                 seq = np.array([data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e <= len(data)])
                 labels = np.array([[l] for l, e in zip(labels, index_e) if e <= len(data)])
 
-                seq = np.transpose(seq, (0,2,1))
+                # Add data to container
+                env_data = np.zeros((0, 19, 3840))
+                env_labels = np.zeros((0, 1))
                 env_data = np.append(env_data, seq, axis=0)
                 env_labels = np.append(env_labels, labels, axis=0)
-        
-            with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
-                g = hf.create_group('Machine' + str(i))
-                g.create_dataset('data', data=env_data.astype('float32'), dtype='float32')
-                g.create_dataset('labels', data=env_labels.astype('float32'), dtype='int_')
 
+
+                # Reshape and scale the data
+                sc = mne.decoding.Scaler(scalings='mean')
+                env_data = sc.fit_transform(env_data)
+                env_data = np.transpose(env_data, (0,2,1))
+
+                with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
+                    if j == 0:
+                        g = hf.create_group('Machine' + str(i))
+                        g.create_dataset('data', data=env_data.astype('float32'), dtype='float32', maxshape=(None,3840,19))
+                        g.create_dataset('labels', data=env_labels.astype('float32'), dtype='int_', maxshape=(None,1))
+                    else:
+                        hf['Machine' + str(i)]['data'].resize((hf['Machine' + str(i)]['data'].shape[0] + env_data.shape[0]), axis = 0)
+                        hf['Machine' + str(i)]['data'][-env_data.shape[0]:,:,:] = env_data
+                        hf['Machine' + str(i)]['labels'].resize((hf['Machine' + str(i)]['labels'].shape[0] + env_labels.shape[0]), axis = 0)
+                        hf['Machine' + str(i)]['labels'][-env_labels.shape[0]:,:] = env_labels
 
     def string_2_label(self, string):
         
