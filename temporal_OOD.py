@@ -11,7 +11,7 @@ from torch import nn, optim
 from torchvision import datasets, transforms
 
 from datasets import get_dataset_class
-from models import RNN, LSTM
+from models import RNN, LSTM, ATTN_LSTM
 from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams, get_dataset_hparams
 
@@ -128,7 +128,6 @@ def train(flags, training_hparams, model, objective, dataset, device):
     all_loaders = train_loaders + val_loaders
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
-        print(step)
 
         if dataset.get_setup() == 'seq':
 
@@ -138,7 +137,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
             model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
             step_times.append(time.time() - start)
 
-            if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
+            if step % dataset.CHECKPOINT_FREQ == 0:# or (step-1)==0:
                 ## Get test accuracy and loss
                 record[str(step)] = {}
                 for name, loader in zip(all_names, all_loaders):
@@ -189,7 +188,7 @@ def get_accuracy(model, loss_fn, dataset, loader, device):
 
         if dataset.get_setup() == 'seq':
 
-            conf = np.zeros((6,6))
+            # conf = np.zeros((6,6))
             for b, (data, target) in enumerate(loader):
 
                 data, target = data.to(device), target.to(device)
@@ -200,14 +199,14 @@ def get_accuracy(model, loss_fn, dataset, loader, device):
                 for i, t in enumerate(ts):
                     loss += loss_fn(all_out[i], target[:,i])
 
-                # Get confusion matrix
-                conf += confusion_matrix(target.cpu().numpy(), pred.cpu().numpy(), labels=np.arange(6))
+                # # Get confusion matrix
+                # conf += confusion_matrix(target.cpu().numpy(), pred.cpu().numpy(), labels=np.arange(6))
 
                 nb_correct += pred.eq(target).cpu().sum()
                 nb_item += pred.numel()
                 losses.append(loss.item())
 
-            print(conf)
+            # print(conf)
 
             return nb_correct.item() / nb_item, np.mean(losses)
         
@@ -308,7 +307,7 @@ if __name__ == '__main__':
     #             dataset.get_output_size())
 
 
-    model = LSTM(dataset.get_input_size(), 
+    model = ATTN_LSTM(dataset.get_input_size(), 
                 dataset_hparams['hidden_depth'], 
                 dataset_hparams['hidden_width'], 
                 dataset_hparams['recurrent_layers'], 
