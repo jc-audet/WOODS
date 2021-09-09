@@ -17,7 +17,7 @@ from hyperparams import get_objective_hparams, get_training_hparams, get_dataset
 
 from prettytable import PrettyTable
 from utils import setup_pretty_table, get_job_json
-from sklearn.metrics import confusion_matrix
+# from sklearn.metrics import confusion_matrix
 
 import matplotlib.pyplot as plt
 
