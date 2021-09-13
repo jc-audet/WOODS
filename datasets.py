@@ -170,7 +170,7 @@ class Multi_Domain_Dataset:
         n_labels = torch.zeros(self.OUTPUT_SIZE)
 
         for env_loader in train_loaders:
-            labels = env_loader.dataset.targets[:]
+            labels = env_loader.dataset.tensors[1][:]
             for i in range(self.OUTPUT_SIZE):
                 n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
 
@@ -720,5 +720,34 @@ class PhysioNet(Multi_Domain_Dataset):
             self.in_loaders.append(in_loader)
             out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=True)
             self.out_loaders.append(out_loader)
+    
+    def get_class_weight(self):
+
+        _, train_loaders = self.get_train_loaders()
+
+        n_labels = torch.zeros(self.OUTPUT_SIZE)
+
+        for env_loader in train_loaders:
+            labels = env_loader.dataset.targets[:]
+            for i in range(self.OUTPUT_SIZE):
+                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+
+        weights = 1. / (n_labels*self.OUTPUT_SIZE)
+
+        # Lab = ['W','S1','S2','S3','S4','R']
+        # L = np.arange(6)
+        # fig = plt.figure()
+        # # plt.bar(L, n_labels, label='Count', width=0.15)
+        # plt.bar(L, weights, label='Weights', width=0.15)
+        # # plt.bar(L+0.15, n_labels[1,:], label='Env 2', width=0.15)
+        # # plt.bar(L+0.3, n_labels[2,:], label='Env 3', width=0.15)
+        # # plt.bar(L+0.45, n_labels[3,:], label='Env 4', width=0.15)
+        # # plt.bar(L+0.6, n_labels[4,:], label='Env 5', width=0.15)
+        # plt.gca().set_xticks(L)
+        # plt.gca().set_xticklabels(Lab)
+        # plt.legend()
+        # plt.show()
+
+        return weights
 
         

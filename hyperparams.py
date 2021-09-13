@@ -24,6 +24,7 @@ def get_training_hparams(seed, sample=False):
 
     return hparams
 
+## TODO: maybe the dataset hparams should be a part of the dataset object?
 def get_dataset_hparams(dataset_name, seed, sample=False):
 
     """Return the dataset class with the given name."""
@@ -44,12 +45,14 @@ def Spurious_Fourier_hyper(sample):
 
     if sample:
         return {
+            'model': lambda r: 'RNN',
             'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
             'hidden_width': lambda r: int(2**r.uniform(5, 7)),
             'state_size': lambda r: 10
         }
     else:
         return {
+            'model': lambda r: 'RNN',
             'hidden_depth': lambda r: 0,
             'hidden_width': lambda r: 20,
             'state_size': lambda r: 10
@@ -59,12 +62,14 @@ def TCMNIST_seq_hyper(sample):
 
     if sample:
         return {
+            'model': lambda r: 'RNN',
             'hidden_depth': lambda r: int(r.choice([2, 3, 4])),
             'hidden_width': lambda r: int(2**r.uniform(5, 9)),
             'state_size': lambda r: 10
         }
     else:
         return {
+            'model': lambda r: 'RNN',
             'hidden_depth': lambda r: 2, 
             'hidden_width': lambda r: 20,
             'state_size': lambda r: 10
@@ -74,12 +79,14 @@ def TCMNIST_step_hyper(sample):
 
     if sample:
         return {
+            'model': lambda r: 'RNN',
             'hidden_depth': lambda r: r.choice([2, 3, 4]),
             'hidden_width': lambda r: int(2**r.uniform(5, 9)),
             'state_size': lambda r: 10
         }
     else:
         return {
+            'model': lambda r: 'RNN',
             'hidden_depth': lambda r: 2, 
             'hidden_width': lambda r: 20,
             'state_size': lambda r: 10
@@ -89,6 +96,7 @@ def PhysioNet_hyper(sample):
 
     if sample:
         return {
+            'model': lambda r: 'ATTN_LSTM',
             'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
             'hidden_width': lambda r: int(2**r.uniform(7, 10)),
             'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
@@ -96,6 +104,7 @@ def PhysioNet_hyper(sample):
         }
     else:
         return {
+            'model': lambda r: 'ATTN_LSTM',
             'hidden_depth': lambda r: 2,
             'hidden_width': lambda r: 256,
             'recurrent_layers': lambda r: 2,

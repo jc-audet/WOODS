@@ -11,13 +11,12 @@ from torch import nn, optim
 from torchvision import datasets, transforms
 
 from datasets import get_dataset_class
-from models import RNN, LSTM, ATTN_LSTM
+from models import get_model
 from objectives import get_objective_class, OBJECTIVES
 from hyperparams import get_objective_hparams, get_training_hparams, get_dataset_hparams
 
 from prettytable import PrettyTable
 from utils import setup_pretty_table, get_job_json
-# from sklearn.metrics import confusion_matrix
 
 import matplotlib.pyplot as plt
 
@@ -137,7 +136,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
             model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
             step_times.append(time.time() - start)
 
-            if step % dataset.CHECKPOINT_FREQ == 0:# or (step-1)==0:
+            if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
                 ## Get test accuracy and loss
                 record[str(step)] = {}
                 for name, loader in zip(all_names, all_loaders):
@@ -299,20 +298,8 @@ if __name__ == '__main__':
     np.random.seed(flags.trial_seed)
     torch.manual_seed(flags.trial_seed)
 
-    ## Initialize some RNN
-    # model = RNN(dataset.get_input_size(), 
-    #             dataset_hparams['hidden_depth'], 
-    #             dataset_hparams['hidden_width'], 
-    #             dataset_hparams['state_size'], 
-    #             dataset.get_output_size())
-
-
-    model = ATTN_LSTM(dataset.get_input_size(), 
-                dataset_hparams['hidden_depth'], 
-                dataset_hparams['hidden_width'], 
-                dataset_hparams['recurrent_layers'], 
-                dataset_hparams['state_size'], 
-                dataset.get_output_size())
+    ## Initialize a model to train
+    model = get_model(dataset, dataset_hparams)
 
     ## Initialize some Objective
     objective_class = get_objective_class(flags.objective)
