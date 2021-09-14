@@ -25,14 +25,14 @@ def get_training_hparams(seed, sample=False):
     return hparams
 
 ## TODO: maybe the dataset hparams should be a part of the dataset object?
-def get_dataset_hparams(dataset_name, seed, sample=False):
+def get_model_hparams(dataset_name, seed, sample=False):
 
     """Return the dataset class with the given name."""
-    dataset_hyper = dataset_name+'_hyper'
-    if dataset_hyper not in globals():
+    dataset_model = dataset_name + '_model'
+    if dataset_model not in globals():
         raise NotImplementedError("dataset not found: {}".format(dataset_name))
     else:
-        hyper_function = globals()[dataset_hyper]
+        hyper_function = globals()[dataset_model]
 
     hparams = hyper_function(sample)
 
@@ -41,7 +41,7 @@ def get_dataset_hparams(dataset_name, seed, sample=False):
     
     return hparams
 
-def Spurious_Fourier_hyper(sample):
+def Spurious_Fourier_model(sample):
 
     if sample:
         return {
@@ -58,7 +58,7 @@ def Spurious_Fourier_hyper(sample):
             'state_size': lambda r: 10
         }
 
-def TCMNIST_seq_hyper(sample):
+def TCMNIST_seq_model(sample):
 
     if sample:
         return {
@@ -75,7 +75,7 @@ def TCMNIST_seq_hyper(sample):
             'state_size': lambda r: 10
         }
 
-def TCMNIST_step_hyper(sample):
+def TCMNIST_step_model(sample):
 
     if sample:
         return {
@@ -92,7 +92,7 @@ def TCMNIST_step_hyper(sample):
             'state_size': lambda r: 10
         }
 
-def PhysioNet_hyper(sample):
+def PhysioNet_model(sample):
 
     if sample:
         return {

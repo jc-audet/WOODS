@@ -141,7 +141,6 @@ class LSTM(nn.Module):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
-
 class ATTN_LSTM(nn.Module):
     def __init__(self, input_size, output_size, model_hparams):
         super(ATTN_LSTM, self).__init__()
