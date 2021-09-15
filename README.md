@@ -16,8 +16,7 @@ To launch a sweep, use the following script. Define a collection of Objective an
 
 ```sh
 python3 -m temporal_OOD.scripts.hparams_sweep \
-        --dataset TCMNIST_step \
-        --test_step 2\
+        --dataset Spurious_Fourier \
         --objective ERM IRM \
         --save_path ./results \
         --launcher local
@@ -26,7 +25,7 @@ python3 -m temporal_OOD.scripts.hparams_sweep \
 To change the number of seeds investigated, you can call the `--n_hparams` and `--n_trials` argument.
 
 ```sh
-python3 hparams_sweep.py \
+python3 -m temporal_OOD.scripts.hparams_sweep \
         --dataset Spurious_Fourier TCMNIST_seq \
         --objective ERM \
         --save_path ./results \
@@ -38,7 +37,7 @@ python3 hparams_sweep.py \
 You can also specify which test environment you want to investigate using the `--unique_test_env` argument
 
 ```sh
-python3 hparams_sweep.py \
+python3 -m temporal_OOD.scripts.hparams_sweep \
         --dataset Spurious_Fourier TCMNIST_seq \
         --objective ERM IRM \
         --save_path ./results \
@@ -46,10 +45,21 @@ python3 hparams_sweep.py \
         --unique_test_env 0
 ```
 
-When the sweep is complete you can compile the results in neat tables
+If you want to sweep a dataset with the 'step' environment setup, you must give the test_step you want the dataset to have
 
 ```sh
-python3 compile_results.py \
+python3 -m temporal_OOD.scripts.hparams_sweep \
+        --dataset TCMNIST_step \
+        --test_step 2\
+        --objective ERM IRM \
+        --save_path ./results \
+        --launcher local
+```
+
+When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents (with the **** package)
+
+```sh
+python3 -m temporal_OOD.scripts.compile_results \
         --results_dir /hdd/Results/temporal_OOD/Spurious_Fourier/1 \
         --latex
 ```
