@@ -59,37 +59,6 @@ if __name__ == '__main__':
     parser.add_argument('--save_path', type=str, default='./results/')
     flags = parser.parse_args()
 
-    # train_args_list = []
-    # for obj in flags.objective:
-    #     for dataset in flags.dataset:
-    #         for i_hparam in range(flags.n_hparams):
-    #             for j_trial in range(flags.n_trials):
-    #                 if flags.unique_test_env is not None:
-    #                     test_envs = flags.unique_test_env
-    #                 else:
-    #                     test_envs = range(num_environments(dataset))
-    #                 for test_env in test_envs:
-    #                     train_args = {}
-    #                     train_args['objective'] = obj
-    #                     train_args['dataset'] = dataset
-    #                     train_args['test_env'] = test_env
-    #                     train_args['data_path'] = flags.data_path
-    #                     train_args['save_path'] = flags.save_path
-    #                     train_args['hparams_seed'] = i_hparam
-    #                     train_args['trial_seed'] = j_trial
-    #                     train_args_list.append(train_args)
-
-    # command_list = []
-    # for train_args in train_args_list:  
-    #     command = ['python3', 'temporal_OOD.py', '--sample_hparams']
-    #     for k, v in sorted(train_args.items()):
-    #         if isinstance(v, list):
-    #             v = ' '.join([str(v_) for v_ in v])
-    #         elif isinstance(v, str):
-    #             v = shlex.quote(v)
-    #         command.append(f'--{k} {v}')
-    #     command_list.append(' '.join(command))
-
     command_list, train_args = get_train_args(flags)
 
     flags_dict = vars(flags)

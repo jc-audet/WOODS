@@ -599,7 +599,7 @@ class TCMNIST_seq(TCMNIST):
 class TCMNIST_step(TCMNIST):
 
     SETUP = 'step'
-    ENVS = [0.9, 0.8, 0.1]  # Environment is a function of correlation
+    ENVS = [0.1, 0.8, 0.9]  # Environment is a function of correlation
 
     # Dataset parameters
     label_noise = 0.25      # Label noise
@@ -609,16 +609,21 @@ class TCMNIST_step(TCMNIST):
 
         ## Save stuff
         assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        assert flags.test_step != None, "The Step setup needs a test step definition"
+        assert flags.test_step in list(range(len(self.PRED_TIME))), "Chosen test_step not a Prediction Time"
         self.test_env = flags.test_env
+        self.test_step = flags.test_step
         self.class_balance = training_hparams['class_balance']
 
         # Define array of training environment dataloaders
         self.in_loaders, self.out_loaders = [], []          
 
+        # Permute env/steps
+        self.ENVS[self.test_step], self.ENVS[self.test_env] = self.ENVS[self.test_env], self.ENVS[self.test_step]
+
         ## Make the color datasets
         # Stack a second color channel
         colored_images = torch.stack([self.TCMNIST_images, self.TCMNIST_images], dim=2)
-
         for i, e in enumerate(self.ENVS):
             # Color i-th frame subset
             colored_images, colored_labels = self.color_dataset(colored_images, self.TCMNIST_labels, i, e, self.label_noise)

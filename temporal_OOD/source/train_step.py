@@ -45,7 +45,7 @@ def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, d
     all_out, pred = model(all_x, ts)
 
     # Get train loss for train environment
-    train_env = [i for i, t in enumerate(ts) if i != flags.test_env]
+    train_env = [i for i, t in enumerate(ts) if i != dataset.test_step]
     env_losses = torch.zeros(len(train_env))
     for i, e in enumerate(train_env):
         env_out = all_out[e]
@@ -68,7 +68,7 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
     record = {}
 
     step_times = []
-    t = setup_pretty_table(flags, training_hparams, dataset)
+    t = utils.setup_pretty_table(flags, training_hparams, dataset)
 
     train_names, train_loaders = dataset.get_train_loaders()
     val_names, val_loaders = dataset.get_val_loaders()

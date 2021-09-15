@@ -21,7 +21,7 @@ if __name__ == "__main__":
     flags = parser.parse_args()
 
     ## Check if all run are there
-    # utils.check_file_integrity(flags.results_dir)
+    utils.check_file_integrity(flags.results_dir)
 
     ## Load records
     records = {}

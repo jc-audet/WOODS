@@ -35,7 +35,10 @@ def setup_pretty_table(flags, hparams, dataset):
 
     env_name = dataset.get_envs()
 
-    t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
+    if dataset.get_setup() == 'seq':
+        t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
+    if dataset.get_setup() == 'step':
+        t.field_names = ['Env'] + [str(e) if i != flags.test_step else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
 
     max_width = {}
     min_width = {}

@@ -162,7 +162,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train MLPs')
     # Dataset arguments
     parser.add_argument('--test_env', type=int, required=True)
-    parser.add_argument('--test_step', type=int, default = None)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--holdout_fraction', type=float, default=0.2)
     # Setup arguments
@@ -174,6 +173,8 @@ if __name__ == '__main__':
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
+    # Step Setup specific argument
+    parser.add_argument('--test_step', type=int, default = None)
     flags = parser.parse_args()
 
     print('Flags:')
