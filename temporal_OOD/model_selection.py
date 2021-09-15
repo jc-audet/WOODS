@@ -10,8 +10,8 @@ import numpy as np
 import tqdm
 
 from prettytable import PrettyTable
-from datasets import get_environments
-from utils import get_latex_table
+from temporal_OOD import datasets
+from temporal_OOD import utils
 
 def ensure_dict_path(dict, key):
 
@@ -53,7 +53,7 @@ def train_domain_validation(records):
     for t_seed, t_dict in records_copy.items():
         hparams = t_dict.pop('hparams')
         flags = t_dict.pop('flags')
-        env_name = get_environments(flags['dataset'])
+        env_name = datasets.get_environments(flags['dataset'])
 
         val_keys = [str(e)+'_in_acc' for i,e in enumerate(env_name) if i != flags['test_env']]
         test_keys = [str(env_name[flags['test_env']])+'_'+split+'_acc' for split in ['in', 'out']]
@@ -87,7 +87,7 @@ def test_domain_validation(records):
     for t_seed, t_dict in records_copy.items():
         hparams = t_dict.pop('hparams')
         flags = t_dict.pop('flags')
-        env_name = get_environments(flags['dataset'])
+        env_name = datasets.get_environments(flags['dataset'])
 
         val_keys = [str(env_name[flags['test_env']])+'_in_acc']
         test_keys = [str(env_name[flags['test_env']])+'_out_acc']

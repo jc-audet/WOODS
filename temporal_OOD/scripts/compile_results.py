@@ -9,9 +9,9 @@ import numpy as np
 import tqdm
 from prettytable import PrettyTable
 
-from datasets import get_environments
-from model_selection import ensure_dict_path, get_best_hparams
-from utils import get_latex_table, check_file_integrity
+from temporal_OOD import datasets
+from temporal_OOD import model_selection
+from temporal_OOD import utils
 
 if __name__ == "__main__":
 
@@ -20,7 +20,8 @@ if __name__ == "__main__":
     parser.add_argument("--latex", action='store_true')
     flags = parser.parse_args()
 
-    check_file_integrity(flags.results_dir)
+    ## Check if all run are there
+    # utils.check_file_integrity(flags.results_dir)
 
     ## Load records
     records = {}
@@ -30,10 +31,10 @@ if __name__ == "__main__":
             with open(results_path, "r") as f:
                 run_results = json.load(f)
 
-                sub_records = ensure_dict_path(records, run_results['flags']['dataset'])
-                sub_records = ensure_dict_path(sub_records, run_results['flags']['objective'])
-                sub_records = ensure_dict_path(sub_records, run_results['flags']['test_env'])
-                sub_records = ensure_dict_path(sub_records, run_results['flags']['hparams_seed'])
+                sub_records = model_selection.ensure_dict_path(records, run_results['flags']['dataset'])
+                sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['objective'])
+                sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['test_env'])
+                sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['hparams_seed'])
                 sub_records.update({run_results['flags']['trial_seed']: run_results})
         except KeyError:
             pass
@@ -44,18 +45,18 @@ if __name__ == "__main__":
     model_selection_methods = ['train_domain_validation',
                                'test_domain_validation']
 
-    for model_selection in model_selection_methods:
+    for ms_method in model_selection_methods:
 
         for dataset, dat_dict in records.items():
 
             t = PrettyTable()
-            envs = get_environments(dataset)
+            envs = datasets.get_environments(dataset)
             t.field_names = ['Objective'] + envs
 
             for obj, obj_dict in dat_dict.items():
                 obj_results = [obj]
                 for i, e in enumerate(envs):
-                    val_acc, val_var, test_acc, test_var = get_best_hparams(obj_dict[i], model_selection)
+                    val_acc, val_var, test_acc, test_var = model_selection.get_best_hparams(obj_dict[i], ms_method)
 
                     if flags.latex:
                         obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=test_acc*100, var=test_var*100))
@@ -74,9 +75,9 @@ if __name__ == "__main__":
             t.float_format = '.3'
             
             if flags.latex:
-                print(get_latex_table(t))
+                print(utils.get_latex_table(t))
             else:
-                print(t.get_string(title=model_selection + ' Results for ' + dataset))
+                print(t.get_string(title=ms_method + ' Results for ' + dataset))
 
 
 
