@@ -4,7 +4,7 @@ import shlex
 import json
 
 from temporal_OOD import command_launchers
-from temporal_OOD.objectives import OBJECTIVES
+from temporal_OOD import objectives
 from temporal_OOD import datasets
 
 def get_train_args(flags):
@@ -17,7 +17,7 @@ def get_train_args(flags):
                     if flags.unique_test_env is not None:
                         test_envs = flags.unique_test_env
                     else:
-                        test_envs = range(num_environments(dataset))
+                        test_envs = range(datasets.num_environments(dataset))
                     for test_env in test_envs:
                         train_args = {}
                         train_args['objective'] = obj
@@ -33,7 +33,7 @@ def get_train_args(flags):
 
     command_list = []
     for train_args in train_args_list:  
-        command = ['python3', 'temporal_OOD.py', '--sample_hparams']
+        command = ['python3', '-m temporal_OOD.scripts.train', '--sample_hparams']
         for k, v in sorted(train_args.items()):
             if isinstance(v, list):
                 v = ' '.join([str(v_) for v_ in v])
@@ -48,8 +48,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Sweep across seeds')
     # Setup arguments
-    parser.add_argument('--objective', nargs='+', type=str, choices=OBJECTIVES)
-    parser.add_argument('--dataset', nargs='+', type=str, choices=DATASETS)
+    parser.add_argument('--objective', nargs='+', type=str, choices=objectives.OBJECTIVES)
+    parser.add_argument('--dataset', nargs='+', type=str, choices=datasets.DATASETS)
     parser.add_argument('--unique_test_env', nargs='+', type=int)
     # Hyperparameters argument
     parser.add_argument('--n_hparams', type=int, default=20)
