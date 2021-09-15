@@ -3,9 +3,9 @@ import argparse
 import shlex
 import json
 
-import command_launchers
-from objectives import OBJECTIVES
-from datasets import DATASETS, num_environments
+from temporal_OOD import command_launchers
+from temporal_OOD.objectives import OBJECTIVES
+from temporal_OOD import datasets
 
 def get_train_args(flags):
 

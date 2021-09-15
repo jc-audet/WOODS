@@ -1,11 +1,11 @@
 import os
 import json
 import tqdm
+import math
 from argparse import Namespace
 from prettytable import PrettyTable
-import math
 
-from hparams_sweep import get_train_args
+from temporal_OOD.scripts import hparams_sweep
 
 def get_job_json(flags):
 

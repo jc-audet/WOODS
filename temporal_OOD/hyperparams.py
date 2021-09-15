@@ -1,6 +1,6 @@
 import numpy as np
 
-from objectives import OBJECTIVES
+from temporal_OOD.objectives import OBJECTIVES
 
 def get_training_hparams(seed, sample=False):
 
