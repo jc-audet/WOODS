@@ -9,10 +9,12 @@ from temporal_OOD.scripts import hparams_sweep
 
 def get_job_json(flags):
 
-    job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
-    job_json = job_id + '.json'
+    if flags.test_step is not None:
+        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed) + '_S' + str(flags.test_step)
+    else:
+        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
 
-    return job_json
+    return job_id + '.json'
 
 def check_file_integrity(results_dir):
 

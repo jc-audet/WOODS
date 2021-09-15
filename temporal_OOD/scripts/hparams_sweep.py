@@ -27,6 +27,8 @@ def get_train_args(flags):
                         train_args['save_path'] = flags.save_path
                         train_args['hparams_seed'] = i_hparam
                         train_args['trial_seed'] = j_trial
+                        if flags.test_step is not None:
+                            train_args['test_step'] = flags.test_step
                         train_args_list.append(train_args)
 
     command_list = []
@@ -57,6 +59,8 @@ if __name__ == '__main__':
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
+    # Step Setup
+    parser.add_argument('--test_step', type=int, default = None)
     flags = parser.parse_args()
 
     command_list, train_args = get_train_args(flags)
