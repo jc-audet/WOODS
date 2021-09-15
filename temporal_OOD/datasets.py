@@ -1,26 +1,15 @@
 import os
 import copy
-import argparse
-import numpy as np
-import psutil
-
-import re
-import datetime
-import glob
 import h5py
+
+import scipy.io
+from scipy import fft
+import matplotlib.pyplot as plt
 
 import torch
 from torch import nn, optim
-from torch.utils.data import Dataset, DataLoader
-import torch.nn.functional as F
-from torchvision import datasets, transforms
-
-from scipy import fft
-import scipy.io
-import mne
-import pyedflib
-
-import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 DATASETS = [
     # 1D datasets

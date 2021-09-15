@@ -1,17 +1,12 @@
-import json
 import os
-import random
-import sys
+import json
 import argparse
-import copy
-import abc
-import numpy as np
 import tqdm
 from prettytable import PrettyTable
 
 from temporal_OOD import datasets
 from temporal_OOD import model_selection
-from temporal_OOD import utils
+from temporal_OOD.utils import utils
 
 if __name__ == "__main__":
 

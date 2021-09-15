@@ -1,7 +1,6 @@
 import os
 import json
 import tqdm
-import math
 from argparse import Namespace
 from prettytable import PrettyTable
 
@@ -21,13 +20,19 @@ def check_file_integrity(results_dir):
     with open(os.path.join(results_dir,'sweep_config.json'), 'r') as fp:
         flags = json.load(fp)
     
+    # Recall sweep config
     flags = Namespace(**flags)
+    _, train_args = hparams_sweep.get_train_args(flags)
 
-    _, train_args = get_train_args(flags)
+    # Check for sweep output files
+    missing_files = 0
     for args in tqdm.tqdm(train_args, desc="Checking file integrity"):
         name = get_job_json(Namespace(**args))
+        
+        if not os.path.exists(os.path.join(results_dir, name)):
+            missing_files += 1
 
-        assert os.path.exists(os.path.join(results_dir, name)), "Some sweep results are missing from the results directory"
+    assert missing_files == 0, str(missing_files) + " sweep results are missing from the results directory"
 
 def setup_pretty_table(flags, hparams, dataset):
 

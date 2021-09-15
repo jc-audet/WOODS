@@ -2,11 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd as autograd
-from torch.autograd import Variable
-
-import copy
-import numpy as np
-from collections import defaultdict
 
 OBJECTIVES = [
     'ERM',
@@ -24,7 +19,7 @@ def get_objective_class(objective_name):
     return globals()[objective_name]
 
 
-class Objective(torch.nn.Module):
+class Objective(nn.Module):
     """
     A subclass of Objective implements a domain generalization Gradients.
     Subclasses should implement the following:

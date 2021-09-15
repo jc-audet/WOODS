@@ -3,7 +3,6 @@ import copy
 import argparse
 import numpy as np
 
-import re
 import datetime
 import glob
 import h5py
@@ -12,11 +11,7 @@ import subprocess
 import mne
 import pyedflib
 
-from datasets import DATASETS
-
-import matplotlib.pyplot as plt
-from scipy.fft import fft, fftfreq
-
+from temporal_OOD.datasets import DATASETS
 
 class PhysioNet():
     '''
@@ -67,6 +62,7 @@ class PhysioNet():
             'physionet.org/files/capslpdb/1.0.0/nfle17']
     ]
 
+    # TODO Seperate the download from the processing
     def __init__(self, flags):
         super(PhysioNet, self).__init__()
 

@@ -1,11 +1,5 @@
-import os
-import argparse
-import numpy as np
-
 import torch
-import torch.nn.functional as F
-from torch import nn, optim
-from torchvision import datasets, transforms
+from torch import nn
 
 def get_model(dataset, dataset_hparams):
     """Return the dataset class with the given name."""

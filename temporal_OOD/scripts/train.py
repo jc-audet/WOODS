@@ -6,9 +6,7 @@ import json
 import time
 
 import torch
-import torch.nn.functional as F
 from torch import nn, optim
-from torchvision import datasets, transforms
 
 from temporal_OOD import datasets
 from temporal_OOD import models
@@ -17,10 +15,6 @@ from temporal_OOD import hyperparams
 from temporal_OOD.utils import utils
 from temporal_OOD.source.train_seq import train_seq_setup
 from temporal_OOD.source.train_step import train_step_setup
-
-from prettytable import PrettyTable
-
-import matplotlib.pyplot as plt
 
 ## Train function
 def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, device):
@@ -212,8 +206,6 @@ if __name__ == '__main__':
     _, in_loaders = dataset.get_train_loaders()
 
     # Make some checks about the dataset
-    if dataset.get_setup() == 'step':
-        assert flags.test_step != None, "The Step setup needs a test step definition"
     if len(in_loaders) == 1:
         assert flags.objective == 'ERM', "Dataset has only one environment, cannot compute multi-environment penalties"
 

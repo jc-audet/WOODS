@@ -1,24 +1,13 @@
-import os
-import argparse
-import numpy as np
-import random
-import json
 import time
 
 import torch
-import torch.nn.functional as F
 from torch import nn, optim
-from torchvision import datasets, transforms
 
 from temporal_OOD import datasets
 from temporal_OOD import models
 from temporal_OOD import objectives
 from temporal_OOD import hyperparams
 from temporal_OOD.utils import utils
-
-from prettytable import PrettyTable
-
-import matplotlib.pyplot as plt
 
 ## Train function
 def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, device):

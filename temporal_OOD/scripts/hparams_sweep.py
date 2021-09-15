@@ -60,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
     # Step Setup
-    parser.add_argument('--test_step', type=int, default = None)
+    parser.add_argument('--test_step', type=int, default=None)
     flags = parser.parse_args()
 
     command_list, train_args = get_train_args(flags)

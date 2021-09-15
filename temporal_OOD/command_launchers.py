@@ -1,9 +1,7 @@
-
 import os
+import time
 import subprocess
 from multiprocessing import Pool
-import time
-import torch
 
 def dummy_launcher(commands):
     """
