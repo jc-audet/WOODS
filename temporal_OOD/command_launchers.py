@@ -4,36 +4,48 @@ import subprocess
 from multiprocessing import Pool
 
 def dummy_launcher(commands):
-    """
-    Doesn't run anything; instead, prints each command.
-    Useful for testing.
+    """Doesn't launch any scripts in commands, it only prints the commands. Useful for testing.
+    Taken from: https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/command_launchers.py#L18
+
+    Args:
+        commands (List): List of list of string that consists of a python script call
     """
     for cmd in commands:
         print(f'Dummy launcher: {cmd}')
         
 def local_launcher(commands):
-    """Launch commands serially on the local machine."""
+    """Launch all of the scripts in commands on the local machine serially. If GPU is available it is gonna use it.
+    Taken from: https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/command_launchers.py#L13
+
+    Args:
+        commands (List): List of list of string that consists of a python script call
+    """
     for cmd in commands:
         subprocess.call(cmd, shell=True)
 
         
 def slurm_launcher(commands):
-    """
-    Parallel job launcher for computationnal cluster using SLURM workload manager.
-    An example of SBATCH options:
+    """Parallel job launcher for computationnal cluster using the SLURM workload manager. 
+    Launches all the jobs in commands in parallel according to the number of tasks in the slurm allocation.
 
-        #!/bin/bash
-        #SBATCH --job-name=<job_name>
-        #SBATCH --output=<job_name>.out
-        #SBATCH --error=<job_name>_error.out
-        #SBATCH --ntasks=4
-        #SBATCH --cpus-per-task=8
-        #SBATCH --gres=gpu:4
-        #SBATCH --time=1-00:00:00
-        #SBATCH --mem=81Gb
+    Example:
+        An example of SBATCH options:
 
-    Note: --cpus-per-task should match the N_WORKERS defined in datasets.py (default 8)
-    Note: there should be equal number of --ntasks and --gres
+            #!/bin/bash
+            #SBATCH --job-name=<job_name>
+            #SBATCH --output=<job_name>.out
+            #SBATCH --error=<job_name>_error.out
+            #SBATCH --ntasks=4
+            #SBATCH --cpus-per-task=8
+            #SBATCH --gres=gpu:4
+            #SBATCH --time=1-00:00:00
+            #SBATCH --mem=81Gb
+
+        Note: --cpus-per-task should match the N_WORKERS defined in datasets.py (default 8)
+        Note: there should be equal number of --ntasks and --gres
+
+    Args:
+        commands (List): List of list of string that consists of a python script call
     """
 
     with Pool(processes=int(os.environ["SLURM_NTASKS"])) as pool:

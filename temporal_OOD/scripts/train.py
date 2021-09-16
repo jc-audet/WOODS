@@ -153,9 +153,9 @@ if __name__ == '__main__':
     else:
         device = torch.device("cpu")
 
-    parser = argparse.ArgumentParser(description='Train MLPs')
+    parser = argparse.ArgumentParser(description='Train models')
     # Dataset arguments
-    parser.add_argument('--test_env', type=int, required=True)
+    parser.add_argument('--test_env', type=int, default = None)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--holdout_fraction', type=float, default=0.2)
     # Setup arguments
@@ -178,6 +178,7 @@ if __name__ == '__main__':
     ## Making job ID and checking if done
     job_json = utils.get_job_json(flags)
 
+    assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
     assert not os.path.isfile(os.path.join(flags.save_path, job_json)), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams

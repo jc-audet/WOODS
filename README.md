@@ -3,10 +3,17 @@ Repository aiming to benchmark OOD performance of temporal data.
 
 ## Quick Start
 
+To download the datasets, call
+
+```sh
+python3 -m temporal_OOD.scripts.download \
+        --data_path ./data
+```
+
 Train a single model using one objective on one dataset with one test environment
 
 ```sh
-python3 -m temporal_OOD.scipts.train \
+python3 -m temporal_OOD.scripts.train \
         --dataset Spurious_Fourier \
         --objective ERM \
         --test_env 0

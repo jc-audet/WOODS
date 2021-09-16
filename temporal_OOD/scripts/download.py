@@ -1,13 +1,11 @@
 import os
 import copy
 import argparse
-import numpy as np
-
 import datetime
+import numpy as np
 import glob
 import h5py
 import subprocess
-
 import mne
 import pyedflib
 
@@ -62,13 +60,13 @@ class PhysioNet():
             'physionet.org/files/capslpdb/1.0.0/nfle17']
     ]
 
-    # TODO Seperate the download from the processing
     def __init__(self, flags):
         super(PhysioNet, self).__init__()
 
         ## Download 
-        #subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/capslpdb/1.0.0/', '-P', flags.data_path])
-
+        download_process = subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/capslpdb/1.0.0/', '-P', flags.data_path])
+        download_process.wait()
+        
         ## Process data into machines
         common_channels = self.gather_EEG(flags)
 
@@ -91,7 +89,7 @@ class PhysioNet():
                 labels = self.string_2_label(labels)
 
                 # Sample and filter
-                data.resample(128)
+                data.resample(100)
                 data.filter(l_freq=0.3, h_freq=30)
 
                 # Get the indexes
@@ -107,7 +105,7 @@ class PhysioNet():
                 labels = np.array([[l] for l, e in zip(labels, index_e) if e <= len(data)])
 
                 # Add data to container
-                env_data = np.zeros((0, 19, 3840))
+                env_data = np.zeros((0, 19, 3000))
                 env_labels = np.zeros((0, 1))
                 env_data = np.append(env_data, seq, axis=0)
                 env_labels = np.append(env_labels, labels, axis=0)
@@ -121,7 +119,7 @@ class PhysioNet():
                 with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
                     if j == 0:
                         g = hf.create_group('Machine' + str(i))
-                        g.create_dataset('data', data=env_data.astype('float32'), dtype='float32', maxshape=(None,3840,19))
+                        g.create_dataset('data', data=env_data.astype('float32'), dtype='float32', maxshape=(None, 3000, 19))
                         g.create_dataset('labels', data=env_labels.astype('float32'), dtype='int_', maxshape=(None,1))
                     else:
                         hf['Machine' + str(i)]['data'].resize((hf['Machine' + str(i)]['data'].shape[0] + env_data.shape[0]), axis = 0)

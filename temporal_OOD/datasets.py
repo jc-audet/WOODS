@@ -1,15 +1,17 @@
 import os
 import copy
 import h5py
+import warnings
 
 import scipy.io
+import numpy as np
 from scipy import fft
 import matplotlib.pyplot as plt
 
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader
-from torchvision import transforms
+from torch.utils.data import Dataset, DataLoader
+from torchvision import datasets, transforms
 
 DATASETS = [
     # 1D datasets
@@ -32,38 +34,60 @@ TODO Make test_env = None as thing where there are no test environment
 '''
 
 def get_dataset_class(dataset_name):
-    """Return the dataset class with the given name."""
-    if dataset_name not in globals():
+    """Return the dataset class with the given name.
+    Taken from : https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/datasets.py#L36
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the function of. (Must be a part of the DATASETS list)
+    
+    Returns: 
+        The __init__ function of the desired dataset that takes as input (  flags: parser arguments of the train.py script, 
+                                                                            training_hparams: set of training hparams from hparams.py )
+
+    Raises:
+        NotImplementedError: Dataset name not found
+    """
+    if dataset_name not in globals() or dataset_name not in DATASETS:
         raise NotImplementedError("Dataset not found: {}".format(dataset_name))
+
     return globals()[dataset_name]
 
 def num_environments(dataset_name):
+    """Returns the number of environments of a dataset"""
     return len(get_dataset_class(dataset_name).ENVS)
 
 def get_environments(dataset_name):
+    """Returns the environments of a dataset"""
     return get_dataset_class(dataset_name).ENVS
 
-def biggest_multiple(multiple_of, input_number):
-    return input_number - input_number % multiple_of
-
 def XOR(a, b):
+    """Returns a XOR b (the 'Exclusive or' gate)"""
     return ( a - b ).abs()
 
 def bernoulli(p, size):
+    """Returns a tensor of 1. (True) or 0. (False) resulting from the outcome of a bernoulli random variable of parameter p.
+    
+    Args:
+        p (float): Parameter p of the Bernoulli distribution
+        size (int...): A sequence of integers defining hte shape of the output tensor
+    """
     return ( torch.rand(size) < p ).float()
 
 def make_split(dataset, holdout_fraction, seed=0, sort=False):
+    """Split a Torch TensorDataset into (1-holdout_fraction) / holdout_fraction.
 
-    split = int(len(dataset)*holdout_fraction)
+    Args:
+        dataset (TensorDataset): Tensor dataset that has 2 tensors -> data, targets
+        holdout_fraction (float): Fraction of the dataset that is gonna be in the validation set
+        seed (int, optional): seed used for the shuffling of the data before splitting. Defaults to 0.
+        sort (bool, optional): If ''True'' the dataset is gonna be sorted after splitting. Defaults to False.
 
-    keys = list(range(len(dataset)))
-    np.random.RandomState(seed).shuffle(keys)
-    
-    in_keys = keys[split:]
-    out_keys = keys[:split]
-    if sort:
-        in_keys.sort()
-        out_keys.sort()
+    Returns:
+        in_split_dataset (TensorDataset): 1-holdout_fraction part of the split
+        out_split_dataset (TensorDataset): holdout_fractoin part of the split
+    """
+
+    in_keys, out_keys = get_split(dataset, holdout_fraction, seed=seed, sort=sort)
 
     in_split = dataset[in_keys]
     out_split = dataset[out_keys]
@@ -71,6 +95,18 @@ def make_split(dataset, holdout_fraction, seed=0, sort=False):
     return torch.utils.data.TensorDataset(*in_split), torch.utils.data.TensorDataset(*out_split)
 
 def get_split(dataset, holdout_fraction, seed=0, sort=False):
+    """Generates the keys that are used to split a Torch TensorDataset into (1-holdout_fraction) / holdout_fraction.
+
+    Args:
+        dataset (TensorDataset): TensorDataset to be split
+        holdout_fraction (float): Fraction of the dataset that is gonna be in the out (validation) set
+        seed (int, optional): seed used for the shuffling of the data before splitting. Defaults to 0.
+        sort (bool, optional): If ''True'' the dataset is gonna be sorted after splitting. Defaults to False.
+
+    Returns:
+        in_keys (List): in (1-holdout_fraction) keys of the split
+        out_keys (List): out (holdout_fraction) keys of the split
+    """
 
     split = int(len(dataset)*holdout_fraction)
 
@@ -85,45 +121,46 @@ def get_split(dataset, holdout_fraction, seed=0, sort=False):
 
     return in_keys, out_keys
 
-class Single_Domain_Dataset:
-    N_STEPS = 5001
-    CHECKPOINT_FREQ = 50
-    SETUP = None
-    PRED_TIME = [None]
-    ENVS = [None]
-    INPUT_SIZE = None
-    OUTPUT_SIZE = None
-
-    def __init__(self):
-        pass
-
-    def get_setup(self):
-        return self.SETUP
-
-    def get_input_size(self):
-        return self.INPUT_SIZE
-
-    def get_output_size(self):
-        return self.OUTPUT_SIZE
-
-    def get_envs(self):
-        return self.ENVS
-
-    def get_pred_time(self):
-        return self.PRED_TIME
-
-    def get_class_weight(self):
-        return torch.ones(self.OUTPUT_SIZE)
-
-    def get_train_loaders(self):
-        loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS)]
-        loaders = [l for i, l in enumerate(self.in_loaders)] 
-        return loaders_ID, loaders
+# class Single_Domain_Dataset:
     
-    def get_val_loaders(self):
-        loaders_ID = [str(env)+'_out' for env in self.ENVS]
-        loaders = self.out_loaders
-        return loaders_ID, loaders
+#     N_STEPS = 5001
+#     CHECKPOINT_FREQ = 50
+#     SETUP = None
+#     PRED_TIME = [None]
+#     ENVS = [None]
+#     INPUT_SIZE = None
+#     OUTPUT_SIZE = None
+
+#     def __init__(self):
+#         pass
+
+#     def get_setup(self):
+#         return self.SETUP
+
+#     def get_input_size(self):
+#         return self.INPUT_SIZE
+
+#     def get_output_size(self):
+#         return self.OUTPUT_SIZE
+
+#     def get_envs(self):
+#         return self.ENVS
+
+#     def get_pred_time(self):
+#         return self.PRED_TIME
+
+#     def get_class_weight(self):
+#         return torch.ones(self.OUTPUT_SIZE)
+
+#     def get_train_loaders(self):
+#         loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS)]
+#         loaders = [l for i, l in enumerate(self.in_loaders)] 
+#         return loaders_ID, loaders
+    
+#     def get_val_loaders(self):
+#         loaders_ID = [str(env)+'_out' for env in self.ENVS]
+#         loaders = self.out_loaders
+#         return loaders_ID, loaders
 
 class Multi_Domain_Dataset:
     N_STEPS = 5001
@@ -187,11 +224,11 @@ class Multi_Domain_Dataset:
         return loaders_ID, loaders
     
     def get_val_loaders(self):
-        loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(self.ENVS[self.test_env])+'_in']
-        loaders = self.out_loaders + [self.in_loaders[self.test_env]]
+        loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(env)+'_in' for i, env in enumerate(self.ENVS) if i == self.test_env]
+        loaders = self.out_loaders + [l for i, l in enumerate(self.in_loaders) if i == self.test_env]
         return loaders_ID, loaders
 
-class Fourier_basic(Single_Domain_Dataset):
+class Fourier_basic(Multi_Domain_Dataset):
     SETUP = 'seq'
     PRED_TIME = [49]
     ENVS = ['no_spur']
@@ -200,6 +237,8 @@ class Fourier_basic(Single_Domain_Dataset):
 
     def __init__(self, flags, training_hparams):
         super(Fourier_basic, self).__init__()
+
+        assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         ## Define label 0 and 1 Fourier spectrum
         self.fourier_0 = np.zeros(1000)
@@ -246,8 +285,12 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super(Spurious_Fourier, self).__init__()
 
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
         ## Save stuff
-        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
 
@@ -371,7 +414,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             plt.savefig('./figure/fourier_cheat_signal_1.pdf')
 
 
-class TMNIST(Single_Domain_Dataset):
+class TMNIST(Multi_Domain_Dataset):
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [1, 2, 3]
@@ -384,6 +427,8 @@ class TMNIST(Single_Domain_Dataset):
 
     def __init__(self, flags, training_hparams):
         super(TMNIST, self).__init__()
+
+        assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         ## Import original MNIST data
         MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
@@ -539,8 +584,12 @@ class TCMNIST_seq(TCMNIST):
     def __init__(self, flags, training_hparams):
         super(TCMNIST_seq, self).__init__(flags)
 
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
         # Save stuff
-        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
 
@@ -596,10 +645,14 @@ class TCMNIST_step(TCMNIST):
     def __init__(self, flags, training_hparams):
         super(TCMNIST_step, self).__init__(flags)
 
-        ## Save stuff
-        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
         assert flags.test_step != None, "The Step setup needs a test step definition"
         assert flags.test_step in list(range(len(self.PRED_TIME))), "Chosen test_step not a Prediction Time"
+
+        ## Save stuff
         self.test_env = flags.test_env
         self.test_step = flags.test_step
         self.class_balance = training_hparams['class_balance']
@@ -696,8 +749,12 @@ class PhysioNet(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super(PhysioNet, self).__init__()
 
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
         ## Save stuff
-        assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
 
