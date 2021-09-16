@@ -34,7 +34,7 @@ def get_dataset_class(dataset_name):
         dataset_name (str): Name of the dataset to get the function of. (Must be a part of the DATASETS list)
     
     Returns: 
-        The __init__ function of the desired dataset that takes as input (  flags: parser arguments of the train.py script, 
+        function: The __init__ function of the desired dataset that takes as input (  flags: parser arguments of the train.py script, 
                                                                             training_hparams: set of training hparams from hparams.py )
 
     Raises:
@@ -76,8 +76,8 @@ def make_split(dataset, holdout_fraction, seed=0, sort=False):
         sort (bool, optional): If ''True'' the dataset is gonna be sorted after splitting. Defaults to False.
 
     Returns:
-        in_split_dataset (TensorDataset): 1-holdout_fraction part of the split
-        out_split_dataset (TensorDataset): holdout_fractoin part of the split
+        TensorDataset: 1-holdout_fraction part of the split
+        TensorDataset: holdout_fractoin part of the split
     """
 
     in_keys, out_keys = get_split(dataset, holdout_fraction, seed=seed, sort=sort)
@@ -97,8 +97,8 @@ def get_split(dataset, holdout_fraction, seed=0, sort=False):
         sort (bool, optional): If ''True'' the dataset is gonna be sorted after splitting. Defaults to False.
 
     Returns:
-        in_keys (List): in (1-holdout_fraction) keys of the split
-        out_keys (List): out (holdout_fraction) keys of the split
+        list: in (1-holdout_fraction) keys of the split
+        list: out (holdout_fraction) keys of the split
     """
 
     split = int(len(dataset)*holdout_fraction)
@@ -153,9 +153,8 @@ class Multi_Domain_Dataset:
         """Compute class weight for class balanced training
 
         Returns:
-            weights (list): list of weights of length OUTPUT_SIZE
+            list: list of weights of length OUTPUT_SIZE
         """
-
         _, train_loaders = self.get_train_loaders()
 
         n_labels = torch.zeros(self.OUTPUT_SIZE)
@@ -173,8 +172,8 @@ class Multi_Domain_Dataset:
         """Fetch all training dataloaders and their ID 
 
         Returns:
-            loaders_ID (list): list of string names of the data splits used for training
-            loaders (list): list of dataloaders of the data splits used for training
+            list: list of string names of the data splits used for training
+            list: list of dataloaders of the data splits used for training
         """
         loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS) if i != self.test_env]
         loaders = [l for i, l in enumerate(self.in_loaders) if i != self.test_env] 
@@ -185,8 +184,8 @@ class Multi_Domain_Dataset:
         """Fetch all validation/test dataloaders and their ID 
 
         Returns:
-            loaders_ID (list): list of string names of the data splits used for validation and test
-            loaders (list): list of dataloaders of the data splits used for validation and test
+            list: list of string names of the data splits used for validation and test
+            list: list of dataloaders of the data splits used for validation and test
         """
         loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(env)+'_in' for i, env in enumerate(self.ENVS) if i == self.test_env]
         loaders = self.out_loaders + [l for i, l in enumerate(self.in_loaders) if i == self.test_env]
@@ -800,7 +799,7 @@ class PhysioNet(Multi_Domain_Dataset):
         """Compute class weight for class balanced training
 
         Returns:
-            weights (list): list of weights of length OUTPUT_SIZE
+            list: list of weights of length OUTPUT_SIZE
         """
         _, train_loaders = self.get_train_loaders()
 

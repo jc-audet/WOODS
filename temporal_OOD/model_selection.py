@@ -5,7 +5,17 @@ from temporal_OOD import datasets
 from temporal_OOD import utils
 
 def ensure_dict_path(dict, key):
+    """Ensure that a path of a nested dictionnary exists. 
+    
+    If it does, return the nested dictionnary within. If it does not, create a nested dictionnary and return it.
 
+    Args:
+        dict (dict): Nested dictionnary to ensure a path
+        key (str): Key to ensure has a dictionnary in 
+
+    Returns:
+        dict: nested dictionnary
+    """
     if key not in dict.keys():
         dict[key] = {}
 

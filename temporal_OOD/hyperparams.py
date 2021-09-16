@@ -10,7 +10,7 @@ def get_training_hparams(seed, sample=False):
         sample (bool, optional): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
 
     Returns:
-        hparams (dict): Dictionnary with hyper parameters values
+        dict: Dictionnary with hyper parameters values
     
     TODO:
         * This should be defined as a function of the dataset used.
@@ -49,7 +49,7 @@ def get_model_hparams(dataset_name, seed, sample=False):
         NotImplementedError: Dataset name not found
 
     Returns:
-        hparams (dict): Dictionnary with hyper parameters values
+        dict: Dictionnary with hyper parameters values
     """
     dataset_model = dataset_name + '_model'
     if dataset_model not in globals():
@@ -149,7 +149,7 @@ def get_objective_hparams(objective_name, seed, sample=False):
         NotImplementedError: Objective name not found
 
     Returns:
-        hparams (dict): Dictionnary with hyper parameters values
+        dict: Dictionnary with hyper parameters values
     """
     # Return the objective class with the given name
     objective_hyper = objective_name+'_hyper'
