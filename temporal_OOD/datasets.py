@@ -27,14 +27,11 @@ DATASETS = [
 ]
 
 '''
-TODO Make a note the says that you need the 'time_pred' and 'setup' variable for every new dataset added
-TODO Make a package test that checks if every class has 'time_pred' and 'setup'
 TODO Notify users that datasets need to be (batch, time, dimensions...)
-TODO Make test_env = None as thing where there are no test environment
 '''
 
 def get_dataset_class(dataset_name):
-    """Return the dataset class with the given name.
+    """ Return the dataset class with the given name.
     Taken from : https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/datasets.py#L36
     
     Args:
@@ -53,19 +50,19 @@ def get_dataset_class(dataset_name):
     return globals()[dataset_name]
 
 def num_environments(dataset_name):
-    """Returns the number of environments of a dataset"""
+    """ Returns the number of environments of a dataset"""
     return len(get_dataset_class(dataset_name).ENVS)
 
 def get_environments(dataset_name):
-    """Returns the environments of a dataset"""
+    """ Returns the environments of a dataset"""
     return get_dataset_class(dataset_name).ENVS
 
 def XOR(a, b):
-    """Returns a XOR b (the 'Exclusive or' gate)"""
+    """ Returns a XOR b (the 'Exclusive or' gate)"""
     return ( a - b ).abs()
 
 def bernoulli(p, size):
-    """Returns a tensor of 1. (True) or 0. (False) resulting from the outcome of a bernoulli random variable of parameter p.
+    """ Returns a tensor of 1. (True) or 0. (False) resulting from the outcome of a bernoulli random variable of parameter p.
     
     Args:
         p (float): Parameter p of the Bernoulli distribution
@@ -74,7 +71,7 @@ def bernoulli(p, size):
     return ( torch.rand(size) < p ).float()
 
 def make_split(dataset, holdout_fraction, seed=0, sort=False):
-    """Split a Torch TensorDataset into (1-holdout_fraction) / holdout_fraction.
+    """ Split a Torch TensorDataset into (1-holdout_fraction) / holdout_fraction.
 
     Args:
         dataset (TensorDataset): Tensor dataset that has 2 tensors -> data, targets
@@ -95,7 +92,7 @@ def make_split(dataset, holdout_fraction, seed=0, sort=False):
     return torch.utils.data.TensorDataset(*in_split), torch.utils.data.TensorDataset(*out_split)
 
 def get_split(dataset, holdout_fraction, seed=0, sort=False):
-    """Generates the keys that are used to split a Torch TensorDataset into (1-holdout_fraction) / holdout_fraction.
+    """ Generates the keys that are used to split a Torch TensorDataset into (1-holdout_fraction) / holdout_fraction.
 
     Args:
         dataset (TensorDataset): TensorDataset to be split
@@ -121,50 +118,19 @@ def get_split(dataset, holdout_fraction, seed=0, sort=False):
 
     return in_keys, out_keys
 
-# class Single_Domain_Dataset:
-    
-#     N_STEPS = 5001
-#     CHECKPOINT_FREQ = 50
-#     SETUP = None
-#     PRED_TIME = [None]
-#     ENVS = [None]
-#     INPUT_SIZE = None
-#     OUTPUT_SIZE = None
-
-#     def __init__(self):
-#         pass
-
-#     def get_setup(self):
-#         return self.SETUP
-
-#     def get_input_size(self):
-#         return self.INPUT_SIZE
-
-#     def get_output_size(self):
-#         return self.OUTPUT_SIZE
-
-#     def get_envs(self):
-#         return self.ENVS
-
-#     def get_pred_time(self):
-#         return self.PRED_TIME
-
-#     def get_class_weight(self):
-#         return torch.ones(self.OUTPUT_SIZE)
-
-#     def get_train_loaders(self):
-#         loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS)]
-#         loaders = [l for i, l in enumerate(self.in_loaders)] 
-#         return loaders_ID, loaders
-    
-#     def get_val_loaders(self):
-#         loaders_ID = [str(env)+'_out' for env in self.ENVS]
-#         loaders = self.out_loaders
-#         return loaders_ID, loaders
-
 class Multi_Domain_Dataset:
+    """ Abstract class of a multi domain dataset for OOD generalization.
+
+    Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SIZE, OUTPUT_SIZE
+
+    The data dimension needs to be (batch, time, *features_dim)
+
+    TODO:
+        * Make a package test that checks if every class has 'time_pred' and 'setup'
+        * Notify users that datasets need to be (batch, time, dimensions...)
+    """
     N_STEPS = 5001
-    CHECKPOINT_FREQ = 50
+    CHECKPOINT_FREQ = 100
     SETUP = None
     PRED_TIME = [None]
     ENVS = [None]
@@ -190,6 +156,11 @@ class Multi_Domain_Dataset:
         return self.PRED_TIME
 
     def get_class_weight(self):
+        """Compute class weight for class balanced training
+
+        Returns:
+            weights (list): list of weights of length OUTPUT_SIZE
+        """
 
         _, train_loaders = self.get_train_loaders()
 
@@ -202,33 +173,38 @@ class Multi_Domain_Dataset:
 
         weights = 1. / (n_labels*self.OUTPUT_SIZE)
 
-        # Lab = ['W','S1','S2','S3','S4','R']
-        # L = np.arange(6)
-        # fig = plt.figure()
-        # # plt.bar(L, n_labels, label='Count', width=0.15)
-        # plt.bar(L, weights, label='Weights', width=0.15)
-        # # plt.bar(L+0.15, n_labels[1,:], label='Env 2', width=0.15)
-        # # plt.bar(L+0.3, n_labels[2,:], label='Env 3', width=0.15)
-        # # plt.bar(L+0.45, n_labels[3,:], label='Env 4', width=0.15)
-        # # plt.bar(L+0.6, n_labels[4,:], label='Env 5', width=0.15)
-        # plt.gca().set_xticks(L)
-        # plt.gca().set_xticklabels(Lab)
-        # plt.legend()
-        # plt.show()
-
         return weights
 
     def get_train_loaders(self):
+        """Fetch all training dataloaders and their ID 
+
+        Returns:
+            loaders_ID (list): list of string names of the data splits used for training
+            loaders (list): list of dataloaders of the data splits used for training
+        """
         loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS) if i != self.test_env]
         loaders = [l for i, l in enumerate(self.in_loaders) if i != self.test_env] 
+
         return loaders_ID, loaders
     
     def get_val_loaders(self):
+        """Fetch all validation/test dataloaders and their ID 
+
+        Returns:
+            loaders_ID (list): list of string names of the data splits used for validation and test
+            loaders (list): list of dataloaders of the data splits used for validation and test
+        """
         loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(env)+'_in' for i, env in enumerate(self.ENVS) if i == self.test_env]
         loaders = self.out_loaders + [l for i, l in enumerate(self.in_loaders) if i == self.test_env]
+
         return loaders_ID, loaders
 
 class Fourier_basic(Multi_Domain_Dataset):
+    """ Fourier_basic dataset
+
+    A dataset of 1D sinusoid signal to classify according to their Fourier spectrum.
+    No download is required as it is purely synthetic
+    """
     SETUP = 'seq'
     PRED_TIME = [49]
     ENVS = ['no_spur']
@@ -238,6 +214,7 @@ class Fourier_basic(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super(Fourier_basic, self).__init__()
 
+        # Make important checks
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         ## Define label 0 and 1 Fourier spectrum
@@ -275,6 +252,13 @@ class Fourier_basic(Multi_Domain_Dataset):
             self.out_loaders.append(out_loader)
 
 class Spurious_Fourier(Multi_Domain_Dataset):
+    """ Spurious_Fourier dataset
+
+    A dataset of 1D sinusoid signal to classify according to their Fourier spectrum.
+    Peaks in the fourier spectrum are added to the signal that are spuriously correlated to the label.
+    Different environment have different correlation rates between the labels and the spurious peaks in the spectrum.
+    No download is required as it is purely synthetic
+    """
     SETUP = 'seq'
     INPUT_SIZE = 1
     OUTPUT_SIZE = 2
@@ -415,6 +399,13 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
 
 class TMNIST(Multi_Domain_Dataset):
+    """ Temporal MNIST dataset
+
+    Each sample is a sequence of 4 MNIST digits.
+    The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
+
+    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    """
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [1, 2, 3]
@@ -501,7 +492,15 @@ class TMNIST(Multi_Domain_Dataset):
 
 
 class TCMNIST(Multi_Domain_Dataset):
+    """ Abstract class for Temporal Colored MNIST
 
+    Each sample is a sequence of 4 MNIST digits.
+    The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
+    Color is added to the digits that is correlated with the label of the current step.
+    The formulation of which is defined in the child of this class, either sequences-wise of step-wise
+
+    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    """
     N_STEPS = 5001
     PRED_TIME = [1, 2, 3]
     INPUT_SIZE = 2 * 28 * 28
@@ -574,7 +573,16 @@ class TCMNIST(Multi_Domain_Dataset):
         plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
 
 class TCMNIST_seq(TCMNIST):
+    """ Temporal Colored MNIST Sequence
 
+    Each sample is a sequence of 4 MNIST digits.
+    The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
+    Color is added to the digits that is correlated with the label of the current step.
+
+    The correlation of the color to the label is constant across sequences and whole sequences are sampled from an environmnent definition
+
+    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    """
     SETUP = 'seq'
     ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
 
@@ -635,7 +643,18 @@ class TCMNIST_seq(TCMNIST):
         return self.train_loaders, self.test_loader
 
 class TCMNIST_step(TCMNIST):
+    """ Temporal Colored MNIST Step
 
+    Each sample is a sequence of 4 MNIST digits.
+    The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
+    Color is added to the digits that is correlated with the label of the current step.
+
+    The correlation of the color to the label is varying across sequences and time steps are sampled from an environmnent definition
+
+    This dataset has the ''test_step'' variable that discts which time step is hidden during training
+
+    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    """
     SETUP = 'step'
     ENVS = [0.1, 0.8, 0.9]  # Environment is a function of correlation
 
@@ -706,7 +725,12 @@ class TCMNIST_step(TCMNIST):
         return loaders_ID, loaders
 
 class HDF5_dataset(Dataset):
+    """ HDF5 dataset
 
+    Container for data coming from an hdf5 file. 
+    
+    Good thing about this is that it imports data only when it needs to and thus saves ram space
+    """
     def __init__(self, h5_path, env_id, split=None):
         self.h5_path = h5_path
         self.env_id = env_id
@@ -735,9 +759,13 @@ class HDF5_dataset(Dataset):
         self.hdf.close()
 
 class PhysioNet(Multi_Domain_Dataset):
-    '''
-    PhysioNet Sleep stage dataset
-    '''
+    """ PhysioNet Sleep stage dataset
+
+    The task is to classify the sleep stage from EEG and other modalities of signals.
+    The data is seperated in 5, according to which machine it was taken with
+
+    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    """
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [3839]
@@ -773,7 +801,11 @@ class PhysioNet(Multi_Domain_Dataset):
             self.out_loaders.append(out_loader)
     
     def get_class_weight(self):
+        """Compute class weight for class balanced training
 
+        Returns:
+            weights (list): list of weights of length OUTPUT_SIZE
+        """
         _, train_loaders = self.get_train_loaders()
 
         n_labels = torch.zeros(self.OUTPUT_SIZE)
@@ -784,20 +816,6 @@ class PhysioNet(Multi_Domain_Dataset):
                 n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
 
         weights = 1. / (n_labels*self.OUTPUT_SIZE)
-
-        # Lab = ['W','S1','S2','S3','S4','R']
-        # L = np.arange(6)
-        # fig = plt.figure()
-        # # plt.bar(L, n_labels, label='Count', width=0.15)
-        # plt.bar(L, weights, label='Weights', width=0.15)
-        # # plt.bar(L+0.15, n_labels[1,:], label='Env 2', width=0.15)
-        # # plt.bar(L+0.3, n_labels[2,:], label='Env 3', width=0.15)
-        # # plt.bar(L+0.45, n_labels[3,:], label='Env 4', width=0.15)
-        # # plt.bar(L+0.6, n_labels[4,:], label='Env 5', width=0.15)
-        # plt.gca().set_xticks(L)
-        # plt.gca().set_xticklabels(Lab)
-        # plt.legend()
-        # plt.show()
 
         return weights
 
