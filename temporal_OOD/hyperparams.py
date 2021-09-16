@@ -3,7 +3,18 @@ import numpy as np
 from temporal_OOD.objectives import OBJECTIVES
 
 def get_training_hparams(seed, sample=False):
+    """ Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)
 
+    Args:
+        seed (int): seed used if hyper parameter is sampled
+        sample (bool, optional): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+
+    Returns:
+        hparams (dict): Dictionnary with hyper parameters values
+    
+    TODO:
+        * This should be defined as a function of the dataset used.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -24,10 +35,22 @@ def get_training_hparams(seed, sample=False):
 
     return hparams
 
-## TODO: maybe the dataset hparams should be a part of the dataset object?
 def get_model_hparams(dataset_name, seed, sample=False):
+    """ Get the model related hyper parameters
 
-    """Return the dataset class with the given name."""
+    Each dataset has their own model hyper parameters definition
+
+    Args:
+        dataset_name (str): dataset that is gonna be trained on for the run
+        seed (int): seed used if hyper parameter is sampled
+        sample (bool, optional): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+
+    Raises:
+        NotImplementedError: Dataset name not found
+
+    Returns:
+        hparams (dict): Dictionnary with hyper parameters values
+    """
     dataset_model = dataset_name + '_model'
     if dataset_model not in globals():
         raise NotImplementedError("dataset not found: {}".format(dataset_name))
@@ -42,7 +65,7 @@ def get_model_hparams(dataset_name, seed, sample=False):
     return hparams
 
 def Spurious_Fourier_model(sample):
-
+    """ Spurious Fourier model hparam definition """
     if sample:
         return {
             'model': lambda r: 'RNN',
@@ -59,7 +82,7 @@ def Spurious_Fourier_model(sample):
         }
 
 def TCMNIST_seq_model(sample):
-
+    """ TCMNIST_seq model hparam definition """
     if sample:
         return {
             'model': lambda r: 'RNN',
@@ -76,7 +99,7 @@ def TCMNIST_seq_model(sample):
         }
 
 def TCMNIST_step_model(sample):
-
+    """ TCMNIST_step model hparam definition """
     if sample:
         return {
             'model': lambda r: 'RNN',
@@ -93,7 +116,7 @@ def TCMNIST_step_model(sample):
         }
 
 def PhysioNet_model(sample):
-
+    """ PhysioNet model hparam definition """
     if sample:
         return {
             'model': lambda r: 'ATTN_LSTM',
@@ -113,8 +136,22 @@ def PhysioNet_model(sample):
 
 
 def get_objective_hparams(objective_name, seed, sample=False):
+    """ Get the objective related hyper parameters
 
-    """Return the objective class with the given name."""
+    Each objective has their own model hyper parameters definitions
+
+    Args:
+        objective_name (str): objective that is gonna be trained on for the run
+        seed (int): seed used if hyper parameter is sampled
+        sample (bool, optional): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+
+    Raises:
+        NotImplementedError: Objective name not found
+
+    Returns:
+        hparams (dict): Dictionnary with hyper parameters values
+    """
+    # Return the objective class with the given name
     objective_hyper = objective_name+'_hyper'
     if objective_hyper not in globals():
         raise NotImplementedError("objective not found: {}".format(objective_name))
@@ -129,11 +166,11 @@ def get_objective_hparams(objective_name, seed, sample=False):
     return hparams
 
 def ERM_hyper(sample):
-
+    """ ERM objective hparam definition """
     return {}
 
 def IRM_hyper(sample):
-
+    """ IRM objective hparam definition """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5),
@@ -146,7 +183,7 @@ def IRM_hyper(sample):
         }
 
 def VREx_hyper(sample):
-
+    """ VREx objective hparam definition """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5),
@@ -159,7 +196,7 @@ def VREx_hyper(sample):
         }
 
 def SD_hyper(sample):
-
+    """ SD objective hparam definition """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-2,2)
@@ -170,7 +207,7 @@ def SD_hyper(sample):
         }
         
 def IGA_hyper(sample):
-
+    """ IGA objective hparam definition """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5)
@@ -181,7 +218,7 @@ def IGA_hyper(sample):
         }
 
 def ANDMask_hyper(sample):
-
+    """ ANDMask objective hparam definition """
     if sample:
         return {
             'tau': lambda r: r.uniform(0,1)

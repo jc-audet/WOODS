@@ -26,10 +26,6 @@ DATASETS = [
     "PhysioNet",
 ]
 
-'''
-TODO Notify users that datasets need to be (batch, time, dimensions...)
-'''
-
 def get_dataset_class(dataset_name):
     """ Return the dataset class with the given name.
     Taken from : https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/datasets.py#L36
@@ -50,15 +46,15 @@ def get_dataset_class(dataset_name):
     return globals()[dataset_name]
 
 def num_environments(dataset_name):
-    """ Returns the number of environments of a dataset"""
+    """ Returns the number of environments of a dataset """
     return len(get_dataset_class(dataset_name).ENVS)
 
 def get_environments(dataset_name):
-    """ Returns the environments of a dataset"""
+    """ Returns the environments of a dataset """
     return get_dataset_class(dataset_name).ENVS
 
 def XOR(a, b):
-    """ Returns a XOR b (the 'Exclusive or' gate)"""
+    """ Returns a XOR b (the 'Exclusive or' gate) """
     return ( a - b ).abs()
 
 def bernoulli(p, size):
@@ -122,12 +118,10 @@ class Multi_Domain_Dataset:
     """ Abstract class of a multi domain dataset for OOD generalization.
 
     Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SIZE, OUTPUT_SIZE
-
     The data dimension needs to be (batch, time, *features_dim)
 
     TODO:
         * Make a package test that checks if every class has 'time_pred' and 'setup'
-        * Notify users that datasets need to be (batch, time, dimensions...)
     """
     N_STEPS = 5001
     CHECKPOINT_FREQ = 100
@@ -203,6 +197,7 @@ class Fourier_basic(Multi_Domain_Dataset):
     """ Fourier_basic dataset
 
     A dataset of 1D sinusoid signal to classify according to their Fourier spectrum.
+
     No download is required as it is purely synthetic
     """
     SETUP = 'seq'
@@ -257,6 +252,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     A dataset of 1D sinusoid signal to classify according to their Fourier spectrum.
     Peaks in the fourier spectrum are added to the signal that are spuriously correlated to the label.
     Different environment have different correlation rates between the labels and the spurious peaks in the spectrum.
+
     No download is required as it is purely synthetic
     """
     SETUP = 'seq'
@@ -404,7 +400,7 @@ class TMNIST(Multi_Domain_Dataset):
     Each sample is a sequence of 4 MNIST digits.
     The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
 
-    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     N_STEPS = 5001
     SETUP = 'seq'
@@ -499,7 +495,7 @@ class TCMNIST(Multi_Domain_Dataset):
     Color is added to the digits that is correlated with the label of the current step.
     The formulation of which is defined in the child of this class, either sequences-wise of step-wise
 
-    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     N_STEPS = 5001
     PRED_TIME = [1, 2, 3]
@@ -581,7 +577,7 @@ class TCMNIST_seq(TCMNIST):
 
     The correlation of the color to the label is constant across sequences and whole sequences are sampled from an environmnent definition
 
-    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     SETUP = 'seq'
     ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
@@ -653,7 +649,7 @@ class TCMNIST_step(TCMNIST):
 
     This dataset has the ''test_step'' variable that discts which time step is hidden during training
 
-    The MNIST dataset needs to be downloaded, this can be done with the download.py script
+    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     SETUP = 'step'
     ENVS = [0.1, 0.8, 0.9]  # Environment is a function of correlation
@@ -768,7 +764,7 @@ class PhysioNet(Multi_Domain_Dataset):
     """
     N_STEPS = 5001
     SETUP = 'seq'
-    PRED_TIME = [3839]
+    PRED_TIME = [3000]
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
