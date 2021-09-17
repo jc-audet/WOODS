@@ -765,9 +765,10 @@ class PhysioNet(Multi_Domain_Dataset):
     SETUP = 'seq'
     PRED_TIME = [3000]
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
+    ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
-    CHECKPOINT_FREQ = 100
+    CHECKPOINT_FREQ = 500
 
     def __init__(self, flags, training_hparams):
         super(PhysioNet, self).__init__()
