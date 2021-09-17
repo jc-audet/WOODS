@@ -80,7 +80,6 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
     all_loaders = train_loaders + val_loaders
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
-
         train_loaders_iter = zip(*train_loaders)
         ## Make training step and report accuracies and losses
         start = time.time()

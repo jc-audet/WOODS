@@ -792,7 +792,7 @@ class PhysioNet(Multi_Domain_Dataset):
             out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
             in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=True)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=4096, shuffle=False)
             self.out_loaders.append(out_loader)
     
     def get_class_weight(self):

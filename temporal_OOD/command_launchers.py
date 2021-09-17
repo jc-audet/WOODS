@@ -54,7 +54,7 @@ def slurm_launcher(commands):
         for command in commands:
             process = pool.apply_async(
                 subprocess.run, 
-                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem=20G --gres=gpu:1 --exclusive {command}'], 
+                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem=30G --gres=gpu:1 --exclusive {command}'], 
                 {"shell": True}
                 )
             processes.append(process)
