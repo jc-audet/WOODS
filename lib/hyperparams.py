@@ -1,6 +1,8 @@
 import numpy as np
 
-from temporal_OOD.objectives import OBJECTIVES
+from lib.objectives import OBJECTIVES
+
+# TODO : Check config files
 
 def get_training_hparams(seed, sample=False):
     """ Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)
@@ -27,7 +29,7 @@ def get_training_hparams(seed, sample=False):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 1e-3,
-            'batch_size': lambda r: 32
+            'batch_size': lambda r: 6#32
         }
     
     for k in hparams.keys():
@@ -115,23 +117,37 @@ def TCMNIST_step_model(sample):
             'state_size': lambda r: 10
         }
 
+# def PhysioNet_model(sample):
+#     """ PhysioNet model hparam definition """
+#     if sample:
+#         return {
+#             'model': lambda r: 'ATTN_LSTM',
+#             'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
+#             'hidden_width': lambda r: int(2**r.uniform(7, 10)),
+#             'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
+#             'state_size': lambda r: int(2**r.uniform(7, 11))
+#         }
+#     else:
+#         return {
+#             'model': lambda r: 'ATTN_LSTM',
+#             'hidden_depth': lambda r: 2,
+#             'hidden_width': lambda r: 256,
+#             'recurrent_layers': lambda r: 2,
+#             'state_size': lambda r: 256
+#         }
+
 def PhysioNet_model(sample):
     """ PhysioNet model hparam definition """
     if sample:
         return {
-            'model': lambda r: 'ATTN_LSTM',
-            'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
-            'hidden_width': lambda r: int(2**r.uniform(7, 10)),
-            'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
-            'state_size': lambda r: int(2**r.uniform(7, 11))
+            'model': lambda r: 'Transformer'
         }
     else:
         return {
-            'model': lambda r: 'ATTN_LSTM',
-            'hidden_depth': lambda r: 2,
-            'hidden_width': lambda r: 256,
-            'recurrent_layers': lambda r: 2,
-            'state_size': lambda r: 256
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 2,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 20
         }
 
 

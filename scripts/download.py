@@ -9,12 +9,16 @@ import subprocess
 import mne
 import pyedflib
 
-from temporal_OOD.datasets import DATASETS
+from lib.datasets import DATASETS
 
 class PhysioNet():
     '''
     PhysioNet Sleep stage dataset
     Download: wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
+
+    TODO:
+        * Remove useless data from machine after making the h5 file
+        * check if something is already done in the download and if it does, don't do it
     '''
     files = [
         [   'physionet.org/files/capslpdb/1.0.0/nfle29',
@@ -263,6 +267,4 @@ if __name__ == '__main__':
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
 
-    # TODO check if something is already done in the download and if it does, don't do it
-    # TODO Seperate the download from the preprocess
     physionet = PhysioNet(flags)

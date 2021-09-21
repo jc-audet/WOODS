@@ -760,12 +760,14 @@ class PhysioNet(Multi_Domain_Dataset):
     The data is seperated in 5, according to which machine it was taken with
 
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+
+    TODO:
+        * Describe how the machines are chosen and how only half of the nights are used
     """
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [3000]
-    # ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
-    ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine4']
+    ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
     CHECKPOINT_FREQ = 500
@@ -793,7 +795,8 @@ class PhysioNet(Multi_Domain_Dataset):
             out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
             in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=4096, shuffle=False)
+            # out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=4096, shuffle=False)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=128, shuffle=False)
             self.out_loaders.append(out_loader)
     
     def get_class_weight(self):

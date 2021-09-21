@@ -3,11 +3,19 @@ import argparse
 import shlex
 import json
 
-from temporal_OOD import command_launchers
-from temporal_OOD import objectives
-from temporal_OOD import datasets
+from lib import command_launchers
+from lib import objectives
+from lib import datasets
 
 def get_train_args(flags):
+    """copy pasted from domainbed
+
+    Args:
+        flags ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
 
     train_args_list = []
     for obj in flags.objective:

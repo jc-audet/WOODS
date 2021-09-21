@@ -1,20 +1,20 @@
 import os
-import argparse
-import numpy as np
-import random
 import json
 import time
+import random
+import argparse
+import numpy as np
 
 import torch
 from torch import nn, optim
 
-from temporal_OOD import datasets
-from temporal_OOD import models
-from temporal_OOD import objectives
-from temporal_OOD import hyperparams
-from temporal_OOD.utils import utils
-from temporal_OOD.source.train_seq import train_seq_setup
-from temporal_OOD.source.train_step import train_step_setup
+from lib import datasets
+from lib import models
+from lib import objectives
+from lib import hyperparams
+from lib import utils
+from lib.train_seq import train_seq_setup
+from lib.train_step import train_step_setup
 
 if __name__ == '__main__':
 
@@ -25,6 +25,8 @@ if __name__ == '__main__':
         device = torch.device("cpu")
 
     parser = argparse.ArgumentParser(description='Train models')
+    # Main mode
+    parser.add_argument('mode', choices=['train', 'eval'])
     # Dataset arguments
     parser.add_argument('--test_env', type=int, default = None)
     parser.add_argument('--dataset', type=str)
@@ -88,21 +90,30 @@ if __name__ == '__main__':
 
     ## Initialize a model to train
     model = models.get_model(dataset, model_hparams)
+    print("Number of parameters = ", sum(p.numel() for p in model.parameters()))
 
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)
     objective = objective_class(model, objective_hparams)
 
-    ## Train it
+    ## Do the thing
     model.to(device)
-    if dataset.get_setup() == 'seq':
-        record = train_seq_setup(flags, training_hparams, model, objective, dataset, device)
-    elif dataset.get_setup() == 'step':
-        record = train_step_setup(flags, training_hparams, model, objective, dataset, device)
-    elif dataset.get_setup() == 'language':
-        pass
-    else:
-        print("Setup undefined")
+    if flags.mode == 'train':
+        if dataset.get_setup() == 'seq':
+            record = train_seq_setup(flags, training_hparams, model, objective, dataset, device)
+        elif dataset.get_setup() == 'step':
+            record = train_step_setup(flags, training_hparams, model, objective, dataset, device)
+        elif dataset.get_setup() == 'language':
+            pass
+        else:
+            print("Setup undefined")
+    elif flags.mode == 'eval':
+        """eval mode : -- download the weights of something -- evaluate it with get_accuracy of the right setup
+
+        Raises:
+            NotImplementedError: [description]
+        """
+        raise NotImplementedError("Something")
 
     ## Save record
     hparams = {}

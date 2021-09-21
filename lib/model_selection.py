@@ -1,8 +1,8 @@
 import copy
 import numpy as np
 
-from temporal_OOD import datasets
-from temporal_OOD import utils
+from lib import datasets
+from lib import utils
 
 def ensure_dict_path(dict, key):
     """Ensure that a path of a nested dictionnary exists. 

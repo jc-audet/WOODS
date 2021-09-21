@@ -4,7 +4,7 @@ import tqdm
 from argparse import Namespace
 from prettytable import PrettyTable
 
-from temporal_OOD.scripts import hparams_sweep
+from scripts import hparams_sweep
 
 def get_job_json(flags):
 

@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 
@@ -189,15 +191,16 @@ class ATTN_LSTM(nn.Module):
         # Forward propagate LSTM
         out, hidden = self.lstm(input, hidden)
 
-        attn_scores = torch.zeros_like(out)        
-        for i in range(out.shape[1]):
-            attn_scores[:,i,:] = self.attn(out[:,i,:])
+        # attn_scores = torch.zeros_like(out)        
+        # for i in range(out.shape[1]):
+        #     attn_scores[:,i,:] = self.attn(out[:,i,:])
+        attn_scores = self.attn(out)
         attn_scores = self.sm(attn_scores)
 
         out = torch.mul(out, attn_scores).sum(dim=1)
 
         # Make prediction with fully connected
-        output = self.classifier(out[:,:])
+        output = self.classifier(out)
         all_out.append(output)
         pred = torch.cat((pred, output.argmax(1, keepdim=True)), dim=1)
         
@@ -206,3 +209,96 @@ class ATTN_LSTM(nn.Module):
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
+
+class PositionalEncoding(nn.Module):
+    """ Positional Encoding class
+
+    https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+    """
+
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term[0::2])
+        pe[:, 1::2] = torch.cos(position * div_term[1::2])
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        """ Apply positional embedding to incoming Torch Tensor
+        Args:
+            x: Tensor, shape [batch_size, seq_len, embedding_dim]
+        """
+        x = x + self.pe[:x.size(1), :]
+        return self.dropout(x)
+
+class Transformer(nn.Module):
+
+    def __init__(self, input_size, output_size, model_hparams):
+        super(Transformer, self).__init__()
+
+        # Save stuff
+        self.input_size = input_size
+        self.embedding_size = model_hparams['embedding_size']
+
+        # Define encoding layers
+        self.embedding = nn.Linear(input_size, self.embedding_size)
+        self.pos_encoder = PositionalEncoding(self.embedding_size)
+        enc_layer = nn.TransformerEncoderLayer(d_model=self.embedding_size, nhead=model_hparams['nheads_enc'])
+        self.enc_layers = nn.TransformerEncoder(encoder_layer=enc_layer, num_layers=model_hparams['nlayers_enc'])
+
+        # Classifier        
+        n_conv_chs = 8
+        time_conv_size = 50
+        max_pool_size = 12
+        pad_size = 25
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(
+                1, n_conv_chs, (time_conv_size, 1), padding=(pad_size, 0)),
+            nn.BatchNorm2d(n_conv_chs),
+            nn.ReLU(),
+            nn.MaxPool2d((max_pool_size, 1)),
+            nn.Conv2d(
+                n_conv_chs, n_conv_chs, (time_conv_size, 1),
+                padding=(pad_size, 0)),
+            nn.BatchNorm2d(n_conv_chs),
+            nn.ReLU(),
+            nn.MaxPool2d((max_pool_size, 1))
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(3200, 512),
+            nn.ReLU(),
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_size),
+            nn.LogSoftmax(dim=1)
+        )
+
+    def forward(self, input, time_pred):
+
+        # Pass through attention heads
+        out = self.embedding(input) * math.sqrt(self.embedding_size)
+        out = self.pos_encoder(out)
+        out = self.enc_layers(out)
+        out = out.unsqueeze(1)
+        out = self.feature_extractor(out)
+        out = out.view(out.shape[0], -1)
+        out = self.classifier(out)
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(input[0,:100,:].cpu().detach().numpy())
+        # plt.figure()
+        # plt.imshow(out[0,:100,:].cpu().detach().numpy())
+        # plt.show()
+
+
+        all_out = []
+        all_out.append(out)
+        pred = torch.zeros(input.shape[0], 0).to(input.device)
+        pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+
+        return all_out, pred

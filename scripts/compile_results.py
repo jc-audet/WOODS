@@ -4,9 +4,9 @@ import argparse
 import tqdm
 from prettytable import PrettyTable
 
-from temporal_OOD import datasets
-from temporal_OOD import model_selection
-from temporal_OOD.utils import utils
+from lib import datasets
+from lib import model_selection
+from lib import utils
 
 if __name__ == "__main__":
 
