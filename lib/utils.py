@@ -1,12 +1,106 @@
 import os
 import json
 import tqdm
+import numpy as np
 from argparse import Namespace
 from prettytable import PrettyTable
+import matplotlib.pyplot as plt
 
 from scripts import hparams_sweep
+from lib import datasets
 
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    return plt.cm.get_cmap(name, n)
+
+def plot_results(results_path):
+    
+    with open(results_path, 'r') as fp:
+        results = json.load(fp)
+    
+    results_arrs = {}
+    steps = [ key for key in results.keys() if key not in ['hparams', 'flags']]
+    for s in steps:
+        for split in results[s].keys():
+            try:
+                results_arrs[split].append(results[s][split])
+            except KeyError:
+                results_arrs[split] = []
+                results_arrs[split].append(results[s][split])
+    
+    loss_keys = []
+    acc_keys = []
+    steps = [int(s) for s in steps]
+    for k in results_arrs.keys():
+        if 'loss' in k:
+            loss_keys.append(k)
+        if 'acc' in k:
+            acc_keys.append(k)
+
+    envs = datasets.get_environments(results['flags']['dataset'])
+    test_env = envs[results['flags']['test_env']]
+    env_color = get_cmap(len(envs), name='jet')
+
+    plt.figure()
+    for i, e in enumerate(envs):
+        if e == test_env:
+            linewidth = 2
+            label = e + '(test)'
+        else:
+            linewidth = 1
+            label = e
+
+        plt.plot(steps, results_arrs[e+'_in_loss'], color = env_color(i), linestyle='-', label=label, linewidth=linewidth)
+        plt.plot(steps, results_arrs[e+'_out_loss'], color = env_color(i), linestyle='--', linewidth=linewidth)
+    plt.legend()
+
+    plt.figure()
+    for i, e in enumerate(envs):
+        if e == test_env:
+            linewidth = 2
+        else:
+            linewidth = 1
+
+        plt.plot(steps, results_arrs[e+'_in_acc'], color = env_color(i), linestyle='-', label=label, linewidth=linewidth)
+        plt.plot(steps, results_arrs[e+'_out_acc'], color = env_color(i), linestyle='--', linewidth=linewidth)
+    plt.legend()
+    plt.show()
+
+def print_results(results_path):
+
+    with open(results_path, 'r') as fp:
+        results = json.load(fp)
+
+    t = setup_pretty_table(Namespace(**results['flags']))
+    envs = datasets.get_environments(results['flags']['dataset'])
+    test_env = envs[results['flags']['test_env']]
+    
+    steps = [ key for key in results.keys() if key not in ['hparams', 'flags']]
+    for s in steps:
+        train_names = [k for k in results[s].keys() if ('_in_' in k) and ('loss' in k) and not (test_env in k)]
+        t.add_row([s] 
+                + ["{:.2f} :: {:.2f}".format(results[s][str(e)+'_in_acc'], results[s][str(e)+'_out_acc']) for e in envs] 
+                + ["{:.2f}".format(np.average([results[s][str(e)] for e in train_names]))] 
+                + ["{}".format('.')]
+                + ["{}".format('.')] )
+
+        print("\n".join(t.get_string().splitlines()[-2:-1]))
+    
 def get_job_json(flags):
+    """ Generates the name of the output file for a training run as a function of the config
+
+    Seq setup:
+    <objective>_<dataset>_<test_env>_H<hparams_seed>_T<trial_seed>.json
+    Step setup:
+    <objective>_<dataset>_<test_env>_H<hparams_seed>_T<trial_seed>_S<test_step>.json
+
+    Args:
+        flags (dict): dictionnary of the config for a training run
+
+    Returns:
+        str: name of the output json file of the training run 
+    """
 
     if flags.test_step is not None:
         job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed) + '_S' + str(flags.test_step)
@@ -16,13 +110,20 @@ def get_job_json(flags):
     return job_id + '.json'
 
 def check_file_integrity(results_dir):
+    """ Check for integrity of files from a hyper parameter sweep
+
+    Args:
+        results_dir (str): directory where sweep results are stored
+
+    Raises:
+        AssertionError: If there is a sweep file missing
+    """
 
     with open(os.path.join(results_dir,'sweep_config.json'), 'r') as fp:
         flags = json.load(fp)
     
     # Recall sweep config
-    flags = Namespace(**flags)
-    _, train_args = hparams_sweep.get_train_args(flags)
+    _, train_args = hparams_sweep.make_args_list(flags)
 
     # Check for sweep output files
     missing_files = 0
@@ -34,17 +135,27 @@ def check_file_integrity(results_dir):
 
     assert missing_files == 0, str(missing_files) + " sweep results are missing from the results directory"
 
-def setup_pretty_table(flags, hparams, dataset):
+def setup_pretty_table(flags):
+    """ Setup the printed table that show the results at each checkpoints
+
+    Args:
+        flags (Namespace): Namespace of the argparser containing the config of the training run
+        dataset (Multi_Domain_Dataset): Dataset Object
+
+    Returns:
+        PrettyTable: an instance of prettytable.PrettyTable
+    """
 
     job_id = 'Training ' + flags.objective  + ' on ' + flags.dataset + ' (H=' + str(flags.hparams_seed) + ', T=' + str(flags.trial_seed) + ')'
 
     t = PrettyTable()
 
-    env_name = dataset.get_envs()
+    env_name = datasets.get_environments(flags.dataset)
+    setup = datasets.get_setup(flags.dataset)
 
-    if dataset.get_setup() == 'seq':
+    if setup == 'seq':
         t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
-    if dataset.get_setup() == 'step':
+    if setup == 'step':
         t.field_names = ['Env'] + [str(e) if i != flags.test_step else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
 
     max_width = {}
@@ -62,16 +173,18 @@ def setup_pretty_table(flags, hparams, dataset):
 
 def get_latex_table(table, caption=None, label=None):
     """Construct and export a LaTeX table from a PrettyTable.
-    latexTableExporter(table,**kwargs)
+
     Inspired from : https://github.com/adasilva/prettytable
-    Required argument:
-    -----------------
-    table - an instance of prettytable.PrettyTable
-    Optional keyword arguments:
-    --------------------------
-    caption - string - a caption for the table
-    label - string - the latex reference ID
+
+    Args:
+        table (PrettyTable); an instance of prettytable.PrettyTable
+        caption (str, optional): a caption for the table. Defaults to None.
+        label (str, optional): a latex reference tag. Defaults to None.
+
+    Returns:
+        str: printable latex string
     """
+
     s = r'\begin{table}' + '\n'
     s = s + r'\centering' + '\n'
     s = s + r'\caption{%s}\label{%s}' %(caption, label)
