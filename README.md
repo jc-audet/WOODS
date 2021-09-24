@@ -1,16 +1,11 @@
 # Temporal_OOD
 Repository aiming to benchmark OOD performance of temporal data.
 
-## TODO
-
-[] Mention that this is required for the PhysioNet dataset (~2h). Downloads the full 50G dataset, preprocess and keep only ~10G of data in h5 format
-[] get a license
-
 ## Quick Start
 
 ### Download
 
-To download the datasets, call 
+Some datasets require downloads before running any training scripts notably the PhysioNet dataset which requires a download (~50G) and preprocessing (~1h30)
 
 ```sh
 python3 -m scripts.download \
@@ -77,8 +72,8 @@ python3 -m scripts.hparams_sweep \
 When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents (with the **** package)
 
 ```sh
-python3 -m temporal_OOD.scripts.compile_results \
-        --results_dir /hdd/Results/temporal_OOD/Spurious_Fourier/1 \
+python3 -m scripts.compile_results \
+        --results_dir ./results \
         --latex
 ```
 
