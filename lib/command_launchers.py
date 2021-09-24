@@ -47,14 +47,14 @@ def slurm_launcher(commands):
     Args:
         commands (List): List of list of string that consists of a python script call
     """
-
+    mem_per_run = int(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS"])
     with Pool(processes=int(os.environ["SLURM_NTASKS"])) as pool:
 
         processes = []
         for command in commands:
             process = pool.apply_async(
                 subprocess.run, 
-                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem=30G --gres=gpu:1 --exclusive {command}'], 
+                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem={mem_per_run}G --gres=gpu:1 --exclusive {command}'], 
                 {"shell": True}
                 )
             processes.append(process)
@@ -63,7 +63,7 @@ def slurm_launcher(commands):
         for i, process in enumerate(processes):
             process.wait()
             print("//////////////////////////////")
-            print("//// Completed ", i , " / ", len(commands), "////")
+            print("//// Completed ", i+1 , " / ", len(commands), "////")
             print("//////////////////////////////")
 
 

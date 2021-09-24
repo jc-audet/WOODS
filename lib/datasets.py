@@ -53,6 +53,10 @@ def get_environments(dataset_name):
     """ Returns the environments of a dataset """
     return get_dataset_class(dataset_name).ENVS
 
+def get_setup(dataset_name):
+    """ Returns the setup of a dataset """
+    return get_dataset_class(dataset_name).SETUP
+
 def XOR(a, b):
     """ Returns a XOR b (the 'Exclusive or' gate) """
     return ( a - b ).abs()
@@ -757,12 +761,16 @@ class PhysioNet(Multi_Domain_Dataset):
     """ PhysioNet Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
-    The data is seperated in 5, according to which machine it was taken with
+    The raw data comes from the CAP Sleep Database hosted on Physionet.org:  
+        https://physionet.org/content/capslpdb/1.0.0/
+    This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
+    We use the 5 most commonly used machines in the database to create the 5 seperate environment to train on.
+    The machines that were used were infered by grouping together the recording that had the same channels, and the 
+    final preprocessed data only include the channels that were in common between those 5 machines.
+
+    You can read more on the data itself and it's provenance on Physionet.org
 
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
-
-    TODO:
-        * Describe how the machines are chosen and how only half of the nights are used
     """
     N_STEPS = 5001
     SETUP = 'seq'
@@ -770,7 +778,7 @@ class PhysioNet(Multi_Domain_Dataset):
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
-    CHECKPOINT_FREQ = 500
+    CHECKPOINT_FREQ = 100
 
     def __init__(self, flags, training_hparams):
         super(PhysioNet, self).__init__()
@@ -796,7 +804,7 @@ class PhysioNet(Multi_Domain_Dataset):
             in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
             # out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=4096, shuffle=False)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=128, shuffle=False)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
             self.out_loaders.append(out_loader)
     
     def get_class_weight(self):

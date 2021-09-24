@@ -254,17 +254,14 @@ class PhysioNet():
 
 if __name__ == '__main__':
 
-
     parser = argparse.ArgumentParser(description='Download datasets')
-    parser.add_argument('--dataset', type=str)
+    parser.add_argument('dataset', nargs='*', type=str, default=DATASETS)
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     flags = parser.parse_args()
-
-    if flags.dataset == None:
-        flags.dataset = DATASETS
 
     print('Flags:')
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
 
-    physionet = PhysioNet(flags)
+    if 'PhysioNet' in flags.dataset:
+        physionet = PhysioNet(flags)

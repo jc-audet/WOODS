@@ -55,15 +55,13 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
 
     loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
+    
     record = {}
-
     step_times = []
-    t = utils.setup_pretty_table(flags, training_hparams, dataset)
+    
+    t = utils.setup_pretty_table(flags)
 
     train_names, train_loaders = dataset.get_train_loaders()
-    val_names, val_loaders = dataset.get_val_loaders()
-    all_names = train_names + val_names
-    all_loaders = train_loaders + val_loaders
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
 
@@ -74,14 +72,11 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
         step_times.append(time.time() - start)
 
         if step % dataset.CHECKPOINT_FREQ == 0 or (step-1) == 0:
-            ## Get test accuracy and loss
-            record[str(step)] = {}
-            for name, loader in zip(all_names, all_loaders):
-                accuracies, losses = get_accuracy(model, loss_fn, dataset, loader, device)
 
-                for i, e in enumerate(name):
-                    record[str(step)].update({e+'_acc': accuracies[i],
-                                                e+'_loss': losses[i]})
+            checkpoint_record = get_accuracies_step(model, loss_fn, dataset, device)
+
+            record[str(step)] = checkpoint_record
+
             t.add_row([step] 
                     + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()]
                     + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names[0]]))] 
@@ -91,7 +86,26 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
 
     return record
 
-def get_accuracy(model, loss_fn, dataset, loader, device):
+def get_accuracies_step(model, loss_fn, dataset, device):
+
+    # Get loaders and their names
+    train_names, train_loaders = dataset.get_train_loaders()
+    val_names, val_loaders = dataset.get_val_loaders()
+    all_names = train_names + val_names
+    all_loaders = train_loaders + val_loaders
+
+    ## Get test accuracy and loss
+    record = {}
+    for name, loader in zip(all_names, all_loaders):
+        accuracies, losses = get_split_accuracy(model, loss_fn, dataset, loader, device)
+
+        for i, e in enumerate(name):
+            record.update({ e+'_acc': accuracies[i],
+                            e+'_loss': losses[i]})
+    
+    return record
+
+def get_split_accuracy(model, loss_fn, dataset, loader, device):
 
     model.eval()
     losses = []
