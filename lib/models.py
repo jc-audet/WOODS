@@ -3,6 +3,8 @@ import math
 import torch
 from torch import nn
 
+from einops import rearrange
+
 def get_model(dataset, dataset_hparams):
     """Return the dataset class with the given name."""
     if dataset_hparams['model'] not in globals():
@@ -220,11 +222,11 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model) * (-math.log(10000.0) / d_model))
+        position = torch.arange(0.0, max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0.0, d_model, 2) * (-math.log(10000.0) / d_model))
         pe = torch.zeros(max_len, d_model)
-        pe[:, 0::2] = torch.sin(position * div_term[0::2])
-        pe[:, 1::2] = torch.cos(position * div_term[1::2])
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
         self.register_buffer('pe', pe)
 
     def forward(self, x):
@@ -232,10 +234,11 @@ class PositionalEncoding(nn.Module):
         Args:
             x: Tensor, shape [batch_size, seq_len, embedding_dim]
         """
-        x = x + self.pe[:x.size(1), :]
+        x = x + self.pe[:x.size(1), :].detach()
         return self.dropout(x)
 
 class Transformer(nn.Module):
+    # Do this : https://assets.amazon.science/11/88/6e046cba4241a06e536cc50584b2/gated-transformer-for-decoding-human-brain-eeg-signals.pdf
 
     def __init__(self, input_size, output_size, model_hparams):
         super(Transformer, self).__init__()
@@ -245,34 +248,43 @@ class Transformer(nn.Module):
         self.embedding_size = model_hparams['embedding_size']
 
         # Define encoding layers
-        self.embedding = nn.Linear(input_size, self.embedding_size)
-        self.pos_encoder = PositionalEncoding(self.embedding_size)
-        enc_layer = nn.TransformerEncoderLayer(d_model=self.embedding_size, nhead=model_hparams['nheads_enc'])
+        self.pos_encoder = PositionalEncoding(model_hparams['embedding_size'])
+        enc_layer = GatedTransformerEncoderLayer(d_model=model_hparams['embedding_size'], nhead=model_hparams['nheads_enc'])
         self.enc_layers = nn.TransformerEncoder(encoder_layer=enc_layer, num_layers=model_hparams['nlayers_enc'])
 
-        # Classifier        
-        n_conv_chs = 8
+        # Classifier
+        n_conv_chs = 16
         time_conv_size = 50
         max_pool_size = 12
         pad_size = 25
+        # spatial conv
+        self.spatial_conv = nn.Sequential(
+            nn.Conv2d(1, model_hparams['embedding_size'], (1, self.input_size))
+        )
         self.feature_extractor = nn.Sequential(
-            nn.Conv2d(
-                1, n_conv_chs, (time_conv_size, 1), padding=(pad_size, 0)),
+            # temporal conv 1
+            nn.Conv2d(1, n_conv_chs, (time_conv_size, 1), padding=(pad_size, 0)),
             nn.BatchNorm2d(n_conv_chs),
-            nn.ReLU(),
+            nn.GELU(),
             nn.MaxPool2d((max_pool_size, 1)),
+            # temporal conv 2
             nn.Conv2d(
-                n_conv_chs, n_conv_chs, (time_conv_size, 1),
+                n_conv_chs, n_conv_chs*2, (time_conv_size, 1),
                 padding=(pad_size, 0)),
-            nn.BatchNorm2d(n_conv_chs),
-            nn.ReLU(),
+            nn.BatchNorm2d(n_conv_chs*2),
+            nn.GELU(),
+            nn.MaxPool2d((max_pool_size, 1)),
+            # temporal conv 2
+            nn.Conv2d(
+                n_conv_chs*2, n_conv_chs*4, (time_conv_size, 1),
+                padding=(pad_size, 0)),
+            nn.BatchNorm2d(n_conv_chs*4),
+            nn.GELU(),
             nn.MaxPool2d((max_pool_size, 1))
         )
         self.classifier = nn.Sequential(
-            nn.Linear(3200, 512),
-            nn.ReLU(),
-            nn.Linear(512, 128),
-            nn.ReLU(),
+            nn.Linear(2048, 128),
+            nn.GELU(),
             nn.Linear(128, output_size),
             nn.LogSoftmax(dim=1)
         )
@@ -280,7 +292,10 @@ class Transformer(nn.Module):
     def forward(self, input, time_pred):
 
         # Pass through attention heads
-        out = self.embedding(input) * math.sqrt(self.embedding_size)
+        # out = self.embedding(input)
+        out = input.unsqueeze(1)
+        out = self.spatial_conv(out)
+        out = out.transpose(1,3).squeeze()
         out = self.pos_encoder(out)
         out = self.enc_layers(out)
         out = out.unsqueeze(1)
@@ -288,17 +303,82 @@ class Transformer(nn.Module):
         out = out.view(out.shape[0], -1)
         out = self.classifier(out)
 
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(input[0,:100,:].cpu().detach().numpy())
-        # plt.figure()
-        # plt.imshow(out[0,:100,:].cpu().detach().numpy())
-        # plt.show()
+        return [out], out.argmax(1, keepdim=True)
 
+class GatedTransformerEncoderLayer(nn.Module):
+    r"""TransformerEncoderLayer is made up of self-attn and feedforward network.
+    This standard encoder layer is based on the paper "Attention Is All You Need".
+    Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
+    Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Advances in
+    Neural Information Processing Systems, pages 6000-6010. Users may modify or implement
+    in a different way during application.
 
-        all_out = []
-        all_out.append(out)
-        pred = torch.zeros(input.shape[0], 0).to(input.device)
-        pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+    Args:
+        d_model: the number of expected features in the input (required).
+        nhead: the number of heads in the multiheadattention models (required).
+        dim_feedforward: the dimension of the feedforward network model (default=2048).
+        dropout: the dropout value (default=0.1).
+        activation: the activation function of intermediate layer, relu or gelu (default=relu).
 
-        return all_out, pred
+    Examples::
+        >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8)
+        >>> src = torch.rand(10, 32, 512)
+        >>> out = encoder_layer(src)
+    """
+
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
+        super(GatedTransformerEncoderLayer, self).__init__()
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        # Implementation of Feedforward model
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+
+        self.gate1 = nn.GRUCell(d_model, d_model)
+        self.gate2 = nn.GRUCell(d_model, d_model)
+
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+
+        self.activation = nn.functional.relu # maybe gelu?
+
+    def __setstate__(self, state):
+        if 'activation' not in state:
+            state['activation'] = F.relu
+        super(GatedTransformerEncoderLayer, self).__setstate__(state)
+
+    def forward(self, src, src_mask=None, src_key_padding_mask=None):
+        r"""Pass the input through the encoder layer.
+
+        Args:
+            src: the sequence to the encoder layer (required).
+            src_mask: the mask for the src sequence (optional).
+            src_key_padding_mask: the mask for the src keys per batch (optional).
+
+        Shape:
+            see the docs in Transformer class.
+        """
+        # First part
+        src2 = self.norm1(src)
+        src2 = self.self_attn(src2, src2, src2, attn_mask=src_mask,
+                              key_padding_mask=src_key_padding_mask)[0]
+        src = src + self.dropout1(src2)
+        # src = self.gate1(
+        #     rearrange(src, 'b n d -> (b n) d'),
+        #     rearrange(src2, 'b n d -> (b n) d'),
+        # )
+        # src = rearrange(src, '(b n) d -> b n d', b = src2.shape[0])
+
+        # Second part
+        src2 = self.norm2(src)
+        src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
+        src = src + self.dropout2(src2)
+        # src = self.gate2(
+        #     rearrange(src, 'b n d -> (b n) d'),
+        #     rearrange(src2, 'b n d -> (b n) d'),
+        # )
+        # src = rearrange(src, '(b n) d -> b n d', b = src2.shape[0])
+
+        return src

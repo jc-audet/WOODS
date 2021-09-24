@@ -13,18 +13,19 @@ from lib import models
 from lib import objectives
 from lib import hyperparams
 from lib import utils
-from lib.train_seq import train_seq_setup
+from lib.train_seq import train_seq_setup, get_accuracies_seq
 from lib.train_step import train_step_setup
 
 if __name__ == '__main__':
 
-    ## Args
+    # Device definition
     if torch.cuda.is_available():
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
 
-    parser = argparse.ArgumentParser(description='Train models')
+    ## Args
+    parser = argparse.ArgumentParser(description='Train a model on a dataset with an objective and test on a test_env')
     # Main mode
     parser.add_argument('mode', choices=['train', 'eval'])
     # Dataset arguments
@@ -104,16 +105,26 @@ if __name__ == '__main__':
         elif dataset.get_setup() == 'step':
             record = train_step_setup(flags, training_hparams, model, objective, dataset, device)
         elif dataset.get_setup() == 'language':
-            pass
-        else:
-            print("Setup undefined")
+            raise NotImplementedError("Language benchmarks and models aren't implemented yet")
+
     elif flags.mode == 'eval':
         """eval mode : -- download the weights of something -- evaluate it with get_accuracy of the right setup
 
         Raises:
             NotImplementedError: [description]
         """
-        raise NotImplementedError("Something")
+        # Load the weights
+        print("loading weights ...")
+
+        # Get accuracies
+        loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
+        if dataset.get_setup() == 'seq':
+            record = get_accuracies_seq(model, loss_fn, dataset, device)
+        elif dataset.get_setup() == 'step':
+            pass
+        elif dataset.get_setup() == 'language':
+            raise NotImplementedError("Language benchmarks and models aren't implemented yet")
+        print(record)
 
     ## Save record
     hparams = {}
