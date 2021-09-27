@@ -28,8 +28,8 @@ def get_training_hparams(seed, sample=False):
         hparams = {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
-            'lr': lambda r: 5e-4,
-            'batch_size': lambda r: 6#32
+            'lr': lambda r: 10**-4.5,
+            'batch_size': lambda r: 32
         }
     
     for k in hparams.keys():
@@ -146,7 +146,7 @@ def PhysioNet_model(sample):
         return {
             'model': lambda r: 'Transformer',
             'nheads_enc': lambda r: 8,
-            'nlayers_enc': lambda r: 3,
+            'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32
         }
 
