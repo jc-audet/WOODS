@@ -3,7 +3,7 @@ import math
 import torch
 from torch import nn
 
-from einops import rearrange
+#from einops import rearrange
 
 def get_model(dataset, dataset_hparams):
     """Return the dataset class with the given name."""
