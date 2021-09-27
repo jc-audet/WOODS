@@ -88,6 +88,14 @@ def print_results(results_path):
     with open(results_path, 'r') as fp:
         results = json.load(fp)
 
+    print('Flags:')
+    for k, v in sorted(results['flags'].items()):
+        print('\t{}: {}'.format(k, v))
+    print('HParams:')
+    for k, v in sorted(results['hparams'].items()):
+        print('\t{}: {}'.format(k, v))
+
+
     # Setup the PrettyTable from printing
     t = setup_pretty_table(Namespace(**results['flags']))
 
