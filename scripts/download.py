@@ -19,6 +19,7 @@ class PhysioNet():
     TODO:
         * Remove useless data from machine after making the h5 file
         * check if something is already done in the download and if it does, don't do it
+        * Make it so we don't need the files attribute with the gather_EEG function
     '''
     files = [
         [   'physionet.org/files/capslpdb/1.0.0/nfle29',

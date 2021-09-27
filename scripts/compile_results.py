@@ -36,10 +36,11 @@ if __name__ == "__main__":
         except IOError:
             pass
         
-
+    # Choose model selection under study
     model_selection_methods = ['train_domain_validation',
                                'test_domain_validation']
 
+    # Perform model selection onto the checkpoints from results
     for ms_method in model_selection_methods:
 
         for dataset, dat_dict in records.items():
