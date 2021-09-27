@@ -15,10 +15,17 @@ def get_cmap(n, name='hsv'):
     return plt.cm.get_cmap(name, n)
 
 def plot_results(results_path):
+    """ Plot results - accuracy and loss - w.r.t. training step
+
+    Args:
+        results_path (str): path to a results json file coming from a training run
+    """
     
+    # Fetch data
     with open(results_path, 'r') as fp:
         results = json.load(fp)
     
+    # Aggregate results
     results_arrs = {}
     steps = [ key for key in results.keys() if key not in ['hparams', 'flags']]
     for s in steps:
@@ -29,6 +36,7 @@ def plot_results(results_path):
                 results_arrs[split] = []
                 results_arrs[split].append(results[s][split])
     
+    # Get keys
     loss_keys = []
     acc_keys = []
     steps = [int(s) for s in steps]
@@ -38,10 +46,12 @@ def plot_results(results_path):
         if 'acc' in k:
             acc_keys.append(k)
 
+    # Get environment names
     envs = datasets.get_environments(results['flags']['dataset'])
     test_env = envs[results['flags']['test_env']]
     env_color = get_cmap(len(envs), name='jet')
 
+    # Plot loss
     plt.figure()
     for i, e in enumerate(envs):
         if e == test_env:
@@ -55,6 +65,7 @@ def plot_results(results_path):
         plt.plot(steps, results_arrs[e+'_out_loss'], color = env_color(i), linestyle='--', linewidth=linewidth)
     plt.legend()
 
+    # Plot accuracy
     plt.figure()
     for i, e in enumerate(envs):
         if e == test_env:
@@ -68,14 +79,23 @@ def plot_results(results_path):
     plt.show()
 
 def print_results(results_path):
+    """ Print results from a results json file
+    Args:
+        results_path (str): path to a results json file coming from a training run
+    """
 
+    # Fetch the data
     with open(results_path, 'r') as fp:
         results = json.load(fp)
 
+    # Setup the PrettyTable from printing
     t = setup_pretty_table(Namespace(**results['flags']))
+
+    # Get env names
     envs = datasets.get_environments(results['flags']['dataset'])
     test_env = envs[results['flags']['test_env']]
     
+    # Go through checkpoint step by checkpoint step and append to the table
     steps = [ key for key in results.keys() if key not in ['hparams', 'flags']]
     for s in steps:
         train_names = [k for k in results[s].keys() if ('_in_' in k) and ('loss' in k) and not (test_env in k)]

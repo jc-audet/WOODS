@@ -12,11 +12,19 @@ from lib import utils
 
 ## Train function
 def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, device):
-    """
-    :param model: nn model defined in a models.py
-    :param train_loader: training dataloader(s)
-    :param optimizer: optimizer of the model defined in train(...)
-    :param device: device on which we are training
+    """ Make a single training step for a model on a dataset of the step setup with an objective
+
+    Args:
+        model (nn.Module): Model to train
+        loss_fn (fn): pytorch nn loss function
+        objective (Objective): Instance of an Objective object from lib.objectives
+        dataset (Multi_Domain_Dataset): Instance of a Multi_Domain_Dataset object from lib.datasets
+        in_loaders_iter (Iterable): Iterable that generates tuples of dataloaders coming from each environment (usually gotten by a zip() call)
+        optimizer (torch.optim): Instance of a torch.optim optimizer
+        device (str): device on which the training happens
+
+    Returns:
+        nn.Module: returns the model updated from a training step
     """
     model.train()
 
@@ -52,6 +60,19 @@ def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, d
 
 
 def train_step_setup(flags, training_hparams, model, objective, dataset, device):
+    """ Train a model on a dataset of the step setup with an objective
+
+    Args:
+        flags (Namespace): training arguments
+        training_hparams (dict): training related hyperparameters (lr, weight decay, batchsize, etc.)
+        model (nn.Module): Model to be trained
+        objective (Objective): Instance of an Objective object from lib.objectives
+        dataset (Multi_Domain_Dataset): Instance of a Multi_Domain_Dataset object from lib.datasets
+        device (str): device on which the training happens
+
+    Returns:
+        dict: records from training of the model
+    """
 
     loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
@@ -63,9 +84,12 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
 
     train_names, train_loaders = dataset.get_train_loaders()
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
+
+    ## Is this in the loop or not?
+    train_loaders_iter = zip(*train_loaders)
+
     for step in range(1, dataset.N_STEPS + 1):
 
-        train_loaders_iter = zip(*train_loaders)
         ## Make training step and report accuracies and losses
         start = time.time()
         model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
