@@ -140,7 +140,10 @@ def PhysioNet_model(sample):
     """ PhysioNet model hparam definition """
     if sample:
         return {
-            'model': lambda r: 'Transformer'
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
         }
     else:
         return {
