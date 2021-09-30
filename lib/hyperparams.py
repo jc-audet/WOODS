@@ -22,7 +22,7 @@ def get_training_hparams(seed, sample=False):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
-            'batch_size': lambda r: int(2**r.uniform(3, 7))
+            'batch_size': lambda r: int(2**r.uniform(3, 5))
         }
     else:
         hparams = {

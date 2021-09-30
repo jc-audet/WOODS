@@ -84,7 +84,7 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
         model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
         step_times.append(time.time() - step_start)
 
-        if step % dataset.CHECKPOINT_FREQ == 0:# or (step-1)==0:
+        if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
 
             val_start = time.time()
             checkpoint_record = get_accuracies_seq(model, loss_fn, dataset, device)
@@ -113,7 +113,7 @@ def get_accuracies_seq(model, loss_fn, dataset, device):
     record = {}
     for name, loader in zip(val_names, val_loaders):
         accuracy, loss = get_split_accuracy(model, loss_fn, dataset, loader, device)
-
+    
         record.update({name+'_acc': accuracy,
                                 name+'_loss': loss})
     
