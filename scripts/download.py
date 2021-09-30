@@ -121,7 +121,7 @@ class PhysioNet():
                 env_data = sc.fit_transform(env_data)
                 env_data = np.transpose(env_data, (0,2,1))
 
-                with h5py.File(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), 'a') as hf:
+                with h5py.File(os.path.join(flags.data_path, 'physionet.org/data.h5'), 'a') as hf:
                     if j == 0:
                         g = hf.create_group('Machine' + str(i))
                         g.create_dataset('data', data=env_data.astype('float32'), dtype='float32', maxshape=(None, 3000, 19))
@@ -131,6 +131,15 @@ class PhysioNet():
                         hf['Machine' + str(i)]['data'][-env_data.shape[0]:,:,:] = env_data
                         hf['Machine' + str(i)]['labels'].resize((hf['Machine' + str(i)]['labels'].shape[0] + env_labels.shape[0]), axis = 0)
                         hf['Machine' + str(i)]['labels'][-env_labels.shape[0]:,:] = env_labels
+        
+        # Remove useless files
+        self.remove_useless(flags)
+
+    def remove_useless(self, flags):
+
+        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/')):
+            print("Removing: ", file)
+            # os.remove(file)
 
     def string_2_label(self, string):
         

@@ -129,6 +129,7 @@ class Multi_Domain_Dataset:
     """
     N_STEPS = 5001
     CHECKPOINT_FREQ = 100
+    N_WORKERS = 8
     SETUP = None
     PRED_TIME = [None]
     ENVS = [None]
@@ -179,10 +180,10 @@ class Multi_Domain_Dataset:
             list: list of string names of the data splits used for training
             list: list of dataloaders of the data splits used for training
         """
-        loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS) if i != self.test_env]
-        loaders = [l for i, l in enumerate(self.in_loaders) if i != self.test_env] 
+        # loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS) if i != self.test_env]
+        # loaders = [l for i, l in enumerate(self.in_loaders) if i != self.test_env] 
 
-        return loaders_ID, loaders
+        return self.train_names, self.train_loaders
     
     def get_val_loaders(self):
         """Fetch all validation/test dataloaders and their ID 
@@ -191,10 +192,10 @@ class Multi_Domain_Dataset:
             list: list of string names of the data splits used for validation and test
             list: list of dataloaders of the data splits used for validation and test
         """
-        loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(env)+'_in' for i, env in enumerate(self.ENVS) if i == self.test_env]
-        loaders = self.out_loaders + [l for i, l in enumerate(self.in_loaders) if i == self.test_env]
+        # loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(env)+'_in' for i, env in enumerate(self.ENVS) if i == self.test_env]
+        # loaders = self.out_loaders + [l for i, l in enumerate(self.in_loaders) if i == self.test_env]
 
-        return loaders_ID, loaders
+        return self.val_names, self.val_loaders
 
 class Fourier_basic(Multi_Domain_Dataset):
     """ Fourier_basic dataset
@@ -793,19 +794,38 @@ class PhysioNet(Multi_Domain_Dataset):
         self.class_balance = training_hparams['class_balance']
 
         ## Create tensor dataset and dataloader
-        self.in_loaders, self.out_loaders = [], []
+        self.val_names, self.val_loaders = [], []
+        self.train_names, self.train_loaders = [], []
         for j, e in enumerate(self.ENVS):
-            full_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e)
 
+            # Get full environment dataset and define in/out split
+            full_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
             full_dataset.close()
-            in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=in_split)
-            out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-            self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=False)
-            # out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-            self.out_loaders.append(out_loader)
+
+            # Get in/out hdf5 dataset
+            out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=out_split)
+
+            # Make training dataset/loader and append it to training containers
+            if j != flags.test_env:
+                in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=in_split)
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                self.train_names.append(e + '_in')
+                self.train_loaders.append(in_loader)
+            
+            # Make validation loaders
+            fast_in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=in_split)
+            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=1024, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=out_split)
+            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=1024, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+
+            # Append to val containers
+            self.val_names.append(e + '_in')
+            self.val_loaders.append(fast_in_loader)
+            self.val_names.append(e + '_out')
+            self.val_loaders.append(fast_out_loader)
     
     def get_class_weight(self):
         """Compute class weight for class balanced training

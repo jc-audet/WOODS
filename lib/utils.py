@@ -182,9 +182,9 @@ def setup_pretty_table(flags):
     setup = datasets.get_setup(flags.dataset)
 
     if setup == 'seq':
-        t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
+        t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
     if setup == 'step':
-        t.field_names = ['Env'] + [str(e) if i != flags.test_step else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ']
+        t.field_names = ['Env'] + [str(e) if i != flags.test_step else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
 
     max_width = {}
     min_width = {}
@@ -193,7 +193,7 @@ def setup_pretty_table(flags):
         min_width.update({n: 15})
     t._min_width = min_width
     t._max_width = max_width
-    t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Loss', 'Epoch', 'Step Time'])
+    t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Loss', 'Epoch', 'Step Time', 'Val Time'])
     print(t.get_string(title=job_id, border=True, hrule=0))
     t.del_row(0)
     

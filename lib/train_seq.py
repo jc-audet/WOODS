@@ -77,15 +77,18 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
     train_names, train_loaders = dataset.get_train_loaders()
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
+        
         train_loaders_iter = zip(*train_loaders)
         ## Make training step and report accuracies and losses
-        start = time.time()
+        step_start = time.time()
         model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
-        step_times.append(time.time() - start)
+        step_times.append(time.time() - step_start)
 
         if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
 
+            val_start = time.time()
             checkpoint_record = get_accuracies_seq(model, loss_fn, dataset, device)
+            val_time = time.time() - val_start
 
             record[str(step)] = checkpoint_record
 
@@ -93,7 +96,8 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
                     + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()] 
                     + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
                     + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
-                    + ["{:.2f}".format(np.mean(step_times))] )
+                    + ["{:.2f}".format(np.mean(step_times))] 
+                    + ["{:.2f}".format(val_time)])
 
             step_times = [] 
             print("\n".join(t.get_string().splitlines()[-2:-1]))
@@ -103,14 +107,11 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
 def get_accuracies_seq(model, loss_fn, dataset, device):
 
     # Get loaders and their names
-    train_names, train_loaders = dataset.get_train_loaders()
     val_names, val_loaders = dataset.get_val_loaders()
-    all_names = train_names + val_names
-    all_loaders = train_loaders + val_loaders
 
     ## Get test accuracy and loss
     record = {}
-    for name, loader in zip(all_names, all_loaders):
+    for name, loader in zip(val_names, val_loaders):
         accuracy, loss = get_split_accuracy(model, loss_fn, dataset, loader, device)
     
         record.update({name+'_acc': accuracy,
@@ -120,12 +121,14 @@ def get_accuracies_seq(model, loss_fn, dataset, device):
 
 def get_split_accuracy(model, loss_fn, dataset, loader, device):
 
-    model.eval()
-    losses = []
+    n_batch = 0
+    losses = 0
     nb_correct = 0
     nb_item = 0
 
     ts = torch.tensor(dataset.get_pred_time()).to(device)
+
+    model.eval()
     with torch.no_grad():
 
         for b, (data, target) in enumerate(loader):
@@ -138,8 +141,9 @@ def get_split_accuracy(model, loss_fn, dataset, loader, device):
             for i, t in enumerate(ts):
                 loss += loss_fn(all_out[i], target[:,i])
 
-            nb_correct += pred.eq(target).cpu().sum()
+            nb_correct += pred.eq(target).sum()
             nb_item += pred.numel()
-            losses.append(loss.item())
+            losses += loss
+            n_batch += 1
 
-        return nb_correct.item() / nb_item, np.mean(losses)
+    return nb_correct.item() / nb_item, losses.item() / n_batch
