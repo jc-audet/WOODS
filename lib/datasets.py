@@ -129,7 +129,7 @@ class Multi_Domain_Dataset:
     """
     N_STEPS = 5001
     CHECKPOINT_FREQ = 100
-    N_WORKERS = 8
+    N_WORKERS = 4
     SETUP = None
     PRED_TIME = [None]
     ENVS = [None]
@@ -815,11 +815,11 @@ class PhysioNet(Multi_Domain_Dataset):
             
             # Make validation loaders
             fast_in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=in_split)
-            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=1024, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             fast_out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=out_split)
-            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=1024, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
             # Append to val containers
             self.val_names.append(e + '_in')

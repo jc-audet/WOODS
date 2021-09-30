@@ -5,8 +5,6 @@ import random
 import argparse
 import numpy as np
 
-import wandb
-
 import torch
 from torch import nn, optim
 
@@ -19,8 +17,6 @@ from lib.train_seq import train_seq_setup, get_accuracies_seq
 from lib.train_step import train_step_setup
 
 if __name__ == '__main__':
-
-    # wandb.init()
 
     # Device definition
     if torch.cuda.is_available():
@@ -48,7 +44,7 @@ if __name__ == '__main__':
     # Step Setup specific argument
     parser.add_argument('--test_step', default = None)
     # Model evaluation arguments
-    parser.add_argument('--save_model', action='story_true')
+    parser.add_argument('--save_model', action='store_true')
     parser.add_argument('--model_path', type=str, default=None)
     flags = parser.parse_args()
 
