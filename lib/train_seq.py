@@ -77,14 +77,13 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
     train_names, train_loaders = dataset.get_train_loaders()
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
-
         train_loaders_iter = zip(*train_loaders)
         ## Make training step and report accuracies and losses
         start = time.time()
         model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
         step_times.append(time.time() - start)
 
-        if step % dataset.CHECKPOINT_FREQ == 0:# or (step-1)==0:
+        if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
 
             checkpoint_record = get_accuracies_seq(model, loss_fn, dataset, device)
 
@@ -113,7 +112,7 @@ def get_accuracies_seq(model, loss_fn, dataset, device):
     record = {}
     for name, loader in zip(all_names, all_loaders):
         accuracy, loss = get_split_accuracy(model, loss_fn, dataset, loader, device)
-
+    
         record.update({name+'_acc': accuracy,
                                 name+'_loss': loss})
     

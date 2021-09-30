@@ -778,7 +778,7 @@ class PhysioNet(Multi_Domain_Dataset):
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SIZE = 19
     OUTPUT_SIZE = 6
-    CHECKPOINT_FREQ = 100
+    CHECKPOINT_FREQ = 500
 
     def __init__(self, flags, training_hparams):
         super(PhysioNet, self).__init__()
@@ -803,7 +803,7 @@ class PhysioNet(Multi_Domain_Dataset):
             out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/data.h5'), e, split=out_split)
             in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
             self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=1024, shuffle=False)
+            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=256, shuffle=False)
             # out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
             self.out_loaders.append(out_loader)
     
