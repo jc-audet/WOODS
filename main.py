@@ -5,6 +5,8 @@ import random
 import argparse
 import numpy as np
 
+import wandb
+
 import torch
 from torch import nn, optim
 
@@ -17,6 +19,8 @@ from lib.train_seq import train_seq_setup, get_accuracies_seq
 from lib.train_step import train_step_setup
 
 if __name__ == '__main__':
+
+    # wandb.init()
 
     # Device definition
     if torch.cuda.is_available():

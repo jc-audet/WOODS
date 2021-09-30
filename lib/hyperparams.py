@@ -29,7 +29,7 @@ def get_training_hparams(seed, sample=False):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 32
+            'batch_size': lambda r: 8
         }
     
     for k in hparams.keys():
