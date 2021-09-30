@@ -137,9 +137,17 @@ class PhysioNet():
 
     def remove_useless(self, flags):
 
-        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/')):
+        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/*')):
             print("Removing: ", file)
-            # os.remove(file)
+            os.remove(file)
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0'))
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/capslpdb'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/capslpdb'))
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files'))
+        print("Removing: ", os.path.join(flags.data_path, 'physionet.org/robots.txt'))
+        os.remove(os.path.join(flags.data_path, 'physionet.org/robots.txt'))
 
     def string_2_label(self, string):
         

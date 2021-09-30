@@ -115,7 +115,7 @@ def print_results(results_path):
 
         print("\n".join(t.get_string().splitlines()[-2:-1]))
     
-def get_job_json(flags):
+def get_job_name(flags):
     """ Generates the name of the output file for a training run as a function of the config
 
     Seq setup:
@@ -135,7 +135,7 @@ def get_job_json(flags):
     else:
         job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
 
-    return job_id + '.json'
+    return job_id
 
 def check_file_integrity(results_dir):
     """ Check for integrity of files from a hyper parameter sweep

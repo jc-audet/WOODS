@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--holdout_fraction', type=float, default=0.2)
     # Setup arguments
     parser.add_argument('--objective', type=str, choices=objectives.OBJECTIVES)
-    # Hyperparameters argument
+    # Hyperparameters arguments
     parser.add_argument('--sample_hparams', action='store_true')
     parser.add_argument('--hparams_seed', type=int, default=0)
     parser.add_argument('--trial_seed', type=int, default=0)
@@ -47,6 +47,9 @@ if __name__ == '__main__':
     parser.add_argument('--save_path', type=str, default='./results/')
     # Step Setup specific argument
     parser.add_argument('--test_step', default = None)
+    # Model evaluation arguments
+    parser.add_argument('--save_model', action='story_true')
+    parser.add_argument('--model_path', type=str, default=None)
     flags = parser.parse_args()
 
     print('Flags:')
@@ -54,10 +57,10 @@ if __name__ == '__main__':
         print("\t{}: {}".format(k, v))
     
     ## Making job ID and checking if done
-    job_json = utils.get_job_json(flags)
+    job_name = utils.get_job_name(flags)
 
     assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
-    assert not os.path.isfile(os.path.join(flags.save_path, job_json)), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
+    assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.hparams_seed, flags.sample_hparams)
@@ -105,11 +108,14 @@ if __name__ == '__main__':
     model.to(device)
     if flags.mode == 'train':
         if dataset.get_setup() == 'seq':
-            record = train_seq_setup(flags, training_hparams, model, objective, dataset, device)
+            model, record = train_seq_setup(flags, training_hparams, model, objective, dataset, device)
         elif dataset.get_setup() == 'step':
-            record = train_step_setup(flags, training_hparams, model, objective, dataset, device)
+            model, record = train_step_setup(flags, training_hparams, model, objective, dataset, device)
         elif dataset.get_setup() == 'language':
             raise NotImplementedError("Language benchmarks and models aren't implemented yet")
+
+        if flags.save_model:
+            torch.save(model.state_dict(), os.path.join(flags.save_path, job_name+'.pt'))
 
     elif flags.mode == 'eval':
         """eval mode : -- download the weights of something -- evaluate it with get_accuracy of the right setup
@@ -118,7 +124,8 @@ if __name__ == '__main__':
             NotImplementedError: [description]
         """
         # Load the weights
-        print("loading weights ...")
+        assert flags.model_path != None, "You must give the model_path in order to evaluate a model"
+        model.load_state_dict(torch.load(os.path.join(flags.model_path)))
 
         # Get accuracies
         loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
@@ -137,5 +144,5 @@ if __name__ == '__main__':
     hparams.update(objective_hparams)
     record['hparams'] = hparams
     record['flags'] = vars(flags)
-    with open(os.path.join(flags.save_path, job_json), 'w') as f:
+    with open(os.path.join(flags.save_path, job_name+'.json'), 'w') as f:
         json.dump(record, f)

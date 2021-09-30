@@ -77,7 +77,6 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
     train_names, train_loaders = dataset.get_train_loaders()
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
     for step in range(1, dataset.N_STEPS + 1):
-        print(step)
 
         train_loaders_iter = zip(*train_loaders)
         ## Make training step and report accuracies and losses
@@ -103,7 +102,7 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
             step_times = [] 
             print("\n".join(t.get_string().splitlines()[-2:-1]))
 
-    return record
+    return model, record
 
 def get_accuracies_seq(model, loss_fn, dataset, device):
 
@@ -113,7 +112,6 @@ def get_accuracies_seq(model, loss_fn, dataset, device):
     ## Get test accuracy and loss
     record = {}
     for name, loader in zip(val_names, val_loaders):
-        print(name)
         accuracy, loss = get_split_accuracy(model, loss_fn, dataset, loader, device)
 
         record.update({name+'_acc': accuracy,

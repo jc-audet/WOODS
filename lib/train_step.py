@@ -108,7 +108,7 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
                     + ["{:.2f}".format(np.mean(step_times))] )
             print("\n".join(t.get_string().splitlines()[-2:-1]))
 
-    return record
+    return model, record
 
 def get_accuracies_step(model, loss_fn, dataset, device):
 
