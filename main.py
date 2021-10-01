@@ -56,7 +56,8 @@ if __name__ == '__main__':
     job_name = utils.get_job_name(flags)
 
     assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
-    assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
+    if flags.mode == 'train':
+        assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.hparams_seed, flags.sample_hparams)
@@ -103,6 +104,7 @@ if __name__ == '__main__':
     ## Do the thing
     model.to(device)
     if flags.mode == 'train':
+
         if dataset.get_setup() == 'seq':
             model, record = train_seq_setup(flags, training_hparams, model, objective, dataset, device)
         elif dataset.get_setup() == 'step':
@@ -113,7 +115,18 @@ if __name__ == '__main__':
         if flags.save_model:
             torch.save(model.state_dict(), os.path.join(flags.save_path, job_name+'.pt'))
 
+        ## Save record
+        hparams = {}
+        hparams.update(training_hparams)
+        hparams.update(model_hparams)
+        hparams.update(objective_hparams)
+        record['hparams'] = hparams
+        record['flags'] = vars(flags)
+        with open(os.path.join(flags.save_path, job_name+'.json'), 'w') as f:
+            json.dump(record, f)
+
     elif flags.mode == 'eval':
+        
         """eval mode : -- download the weights of something -- evaluate it with get_accuracy of the right setup
 
         Raises:
@@ -126,19 +139,20 @@ if __name__ == '__main__':
         # Get accuracies
         loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
         if dataset.get_setup() == 'seq':
+            val_start = time.time()
             record = get_accuracies_seq(model, loss_fn, dataset, device)
+            val_time = time.time() - val_start
         elif dataset.get_setup() == 'step':
-            pass
+            record = get_accuracies_seq(model, loss_fn, dataset, device)
         elif dataset.get_setup() == 'language':
             raise NotImplementedError("Language benchmarks and models aren't implemented yet")
-        print(record)
 
-    ## Save record
-    hparams = {}
-    hparams.update(training_hparams)
-    hparams.update(model_hparams)
-    hparams.update(objective_hparams)
-    record['hparams'] = hparams
-    record['flags'] = vars(flags)
-    with open(os.path.join(flags.save_path, job_name+'.json'), 'w') as f:
-        json.dump(record, f)
+        train_names, _ = dataset.get_train_loaders()
+        t = utils.setup_pretty_table(flags)
+        t.add_row(['Eval'] 
+                + ["{:.2f} :: {:.2f}".format(record[str(e)+'_in_acc'], record[str(e)+'_out_acc']) for e in dataset.get_envs()] 
+                + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))] 
+                + ['.']
+                + ['.'] 
+                + ["{:.2f}".format(val_time)])
+        print("\n".join(t.get_string().splitlines()[-2:]))
