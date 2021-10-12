@@ -444,14 +444,25 @@ class TMNIST(Multi_Domain_Dataset):
         TMNIST_labels = TMNIST_labels.long()
 
         ## Create tensor dataset and dataloader
-        self.in_loaders, self.out_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
         for e in self.ENVS:
+            # Make whole dataset and get splits
             dataset = torch.utils.data.TensorDataset(TMNIST_images, TMNIST_labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+
+            # Make the training loaders (No testing environment)
             in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-            self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-            self.out_loaders.append(out_loader)
+            self.train_names.append(str(e) + '_in')
+            self.train_loaders.append(in_loader)
+
+            # Make validation loaders
+            fast_in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            self.val_names.append(str(e) + '_in')
+            self.val_loaders.append(fast_in_loader)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            self.val_names.append(str(e) + '_out')
+            self.val_loaders.append(fast_out_loader)
 
         def plot_samples(TMNIST_images, TMNIST_labels):
             fig, axs = plt.subplots(3,4)
@@ -602,7 +613,8 @@ class TCMNIST_seq(TCMNIST):
         self.class_balance = training_hparams['class_balance']
 
         # Make the color datasets
-        self.in_loaders, self.out_loaders = [], []          # array of training environment dataloaders
+        self.train_names, self.train_loaders = [], [] 
+        self.val_names, self.val_loaders = [], [] 
         for i, e in enumerate(self.ENVS):
 
             # Choose data subset
@@ -612,14 +624,21 @@ class TCMNIST_seq(TCMNIST):
             # Color subset
             colored_images, colored_labels = self.color_dataset(images, labels, i, e, self.label_noise)
 
-            # Make Tensor dataset
+            # Make Tensor dataset and the split
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)
-
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-            self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-            self.out_loaders.append(out_loader)
+
+            if i != self.test_env:
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                self.train_names.append(str(e) + '_in')
+                self.train_loaders.append(in_loader)
+            
+            fast_in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            self.val_names.append(str(e) + '_in')
+            self.val_loaders.append(fast_in_loader)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            self.val_names.append(str(e) + '_out')
+            self.val_loaders.append(fast_out_loader)
 
     def color_dataset(self, images, labels, env_id, p, d):
 

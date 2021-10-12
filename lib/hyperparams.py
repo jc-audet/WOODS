@@ -83,6 +83,23 @@ def Spurious_Fourier_model(sample):
             'state_size': lambda r: 10
         }
 
+def TMNIST_model(sample):
+    """ TCMNIST_seq model hparam definition """
+    if sample:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: int(r.choice([2, 3, 4])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 9)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: 2, 
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
 def TCMNIST_seq_model(sample):
     """ TCMNIST_seq model hparam definition """
     if sample:
@@ -117,25 +134,6 @@ def TCMNIST_step_model(sample):
             'state_size': lambda r: 10
         }
 
-# def PhysioNet_model(sample):
-#     """ PhysioNet model hparam definition """
-#     if sample:
-#         return {
-#             'model': lambda r: 'ATTN_LSTM',
-#             'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
-#             'hidden_width': lambda r: int(2**r.uniform(7, 10)),
-#             'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
-#             'state_size': lambda r: int(2**r.uniform(7, 11))
-#         }
-#     else:
-#         return {
-#             'model': lambda r: 'ATTN_LSTM',
-#             'hidden_depth': lambda r: 2,
-#             'hidden_width': lambda r: 256,
-#             'recurrent_layers': lambda r: 2,
-#             'state_size': lambda r: 256
-#         }
-
 def PhysioNet_model(sample):
     """ PhysioNet model hparam definition """
     if sample:
@@ -144,6 +142,11 @@ def PhysioNet_model(sample):
             'nheads_enc': lambda r: 8,
             'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32
+#             'model': lambda r: 'ATTN_LSTM',
+#             'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
+#             'hidden_width': lambda r: int(2**r.uniform(7, 10)),
+#             'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
+#             'state_size': lambda r: int(2**r.uniform(7, 11))
         }
     else:
         return {
@@ -151,6 +154,11 @@ def PhysioNet_model(sample):
             'nheads_enc': lambda r: 8,
             'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32
+#             'model': lambda r: 'ATTN_LSTM',
+#             'hidden_depth': lambda r: 2,
+#             'hidden_width': lambda r: 256,
+#             'recurrent_layers': lambda r: 2,
+#             'state_size': lambda r: 256
         }
 
 

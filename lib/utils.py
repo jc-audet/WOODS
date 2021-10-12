@@ -103,13 +103,15 @@ def print_results(results_path):
     envs = datasets.get_environments(results['flags']['dataset'])
     test_env = envs[results['flags']['test_env']]
     
+    train_names = [str(env)+"_in_loss" for i, env in enumerate(envs) if i != results['flags']['test_env']]
+    
     # Go through checkpoint step by checkpoint step and append to the table
     steps = [ key for key in results.keys() if key not in ['hparams', 'flags']]
     for s in steps:
-        train_names = [k for k in results[s].keys() if ('_in_' in k) and ('loss' in k) and not (test_env in k)]
         t.add_row([s] 
                 + ["{:.2f} :: {:.2f}".format(results[s][str(e)+'_in_acc'], results[s][str(e)+'_out_acc']) for e in envs] 
                 + ["{:.2f}".format(np.average([results[s][str(e)] for e in train_names]))] 
+                + ["{}".format('.')]
                 + ["{}".format('.')]
                 + ["{}".format('.')] )
 
@@ -130,10 +132,10 @@ def get_job_name(flags):
         str: name of the output json file of the training run 
     """
 
-    if flags.test_step is not None:
-        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed) + '_S' + str(flags.test_step)
+    if flags['test_step'] is not None:
+        job_id = flags['objective'] + '_' + flags['dataset'] + '_' + str(flags['test_env']) + '_H' + str(flags['hparams_seed']) + '_T' + str(flags['trial_seed']) + '_S' + str(flags['test_step'])
     else:
-        job_id = flags.objective + '_' + flags.dataset + '_' + str(flags.test_env) + '_H' + str(flags.hparams_seed) + '_T' + str(flags.trial_seed)
+        job_id = flags['objective'] + '_' + flags['dataset'] + '_' + str(flags['test_env']) + '_H' + str(flags['hparams_seed']) + '_T' + str(flags['trial_seed'])
 
     return job_id
 
@@ -156,7 +158,7 @@ def check_file_integrity(results_dir):
     # Check for sweep output files
     missing_files = 0
     for args in tqdm.tqdm(train_args, desc="Checking file integrity"):
-        name = get_job_json(Namespace(**args))
+        name = get_job_name(args) + '.json'
         
         if not os.path.exists(os.path.join(results_dir, name)):
             missing_files += 1

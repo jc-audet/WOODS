@@ -18,7 +18,7 @@ Train a single model using one objective on one dataset with one test environmen
 
 ```sh
 python3 -m main train \
-        --dataset Spurious_Fourier \
+        --dataset TCMNIST_seq \
         --objective ERM \
         --test_env 0
 ```

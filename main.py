@@ -53,7 +53,7 @@ if __name__ == '__main__':
         print("\t{}: {}".format(k, v))
     
     ## Making job ID and checking if done
-    job_name = utils.get_job_name(flags)
+    job_name = utils.get_job_name(vars(flags))
 
     assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
     if flags.mode == 'train':
