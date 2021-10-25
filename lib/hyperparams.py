@@ -2,27 +2,138 @@ import numpy as np
 
 from lib.objectives import OBJECTIVES
 
-# TODO : Check config files
-
-def get_training_hparams(seed, sample=False):
+def get_training_hparams(dataset_name, seed, sample=False):
     """ Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)
 
     Args:
+        dataset_name (str): dataset that is gonna be trained on for the run
         seed (int): seed used if hyper parameter is sampled
         sample (bool, optional): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
 
+    Raises:
+        NotImplementedError: Dataset name not found
+
     Returns:
         dict: Dictionnary with hyper parameters values
-    
-    TODO:
-        * This should be defined as a function of the dataset used.
     """
+
+    dataset_train = dataset_name + '_train'
+    if dataset_train not in globals():
+        raise NotImplementedError("dataset not found: {}".format(dataset_name))
+    else:
+        hyper_function = globals()[dataset_train]
+
+    hparams = hyper_function(sample)
+    
+    for k in hparams.keys():
+        hparams[k] = hparams[k](np.random.RandomState(seed))
+
+    return hparams
+
+
+def Fourier_basic_train(sample):
+    """ Spurious Fourier model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-4.5, -2.5),
+            'batch_size': lambda r: int(2**r.uniform(3, 9))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 1e-3,
+            'batch_size': lambda r: 64
+        }
+
+    return hparams
+    
+def Spurious_Fourier_train(sample):
+    """ Spurious Fourier model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-4.5, -2.5),
+            'batch_size': lambda r: int(2**r.uniform(3, 9))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 1e-3,
+            'batch_size': lambda r: 64
+        }
+
+    return hparams
+
+def TMNIST_train(sample):
+    """ TMNIST model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-4.5, -2.5),
+            'batch_size': lambda r: int(2**r.uniform(3, 9))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 1e-3,
+            'batch_size': lambda r: 64
+        }
+
+    return hparams
+
+def TCMNIST_seq_train(sample):
+    """ TCMNIST_seq model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-4.5, -2.5),
+            'batch_size': lambda r: int(2**r.uniform(3, 9))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 1e-3,
+            'batch_size': lambda r: 64
+        }
+
+    return hparams
+
+def TCMNIST_step_train(sample):
+    """ TCMNIST_step model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-4.5, -2.5),
+            'batch_size': lambda r: int(2**r.uniform(3, 9))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 1e-3,
+            'batch_size': lambda r: 64
+        }
+
+    return hparams
+
+def CAP_DB_train(sample):
+    """ PhysioNet model hparam definition """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
-            'batch_size': lambda r: int(2**r.uniform(3, 5))
+            'batch_size': lambda r: int(2**r.uniform(3, 4))
         }
     else:
         hparams = {
@@ -31,9 +142,44 @@ def get_training_hparams(seed, sample=False):
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 8
         }
-    
-    for k in hparams.keys():
-        hparams[k] = hparams[k](np.random.RandomState(seed))
+
+    return hparams
+
+def SEDFx_DB_train(sample):
+    """ PhysioNet model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 4))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 10**-4,
+            'batch_size': lambda r: 8
+        }
+
+    return hparams
+
+def HAR_train(sample):
+    """ PhysioNet model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 4))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 10**-4,
+            'batch_size': lambda r: 8
+        }
 
     return hparams
 
@@ -66,6 +212,23 @@ def get_model_hparams(dataset_name, seed, sample=False):
     
     return hparams
 
+def Fourier_basic_model(sample):
+    """ Spurious Fourier model hparam definition """
+    if sample:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: 0,
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
 def Spurious_Fourier_model(sample):
     """ Spurious Fourier model hparam definition """
     if sample:
@@ -84,57 +247,63 @@ def Spurious_Fourier_model(sample):
         }
 
 def TMNIST_model(sample):
-    """ TCMNIST_seq model hparam definition """
+    """ TMNIST model hparam definition """
     if sample:
         return {
-            'model': lambda r: 'RNN',
-            'hidden_depth': lambda r: int(r.choice([2, 3, 4])),
-            'hidden_width': lambda r: int(2**r.uniform(5, 9)),
-            'state_size': lambda r: 10
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
         }
     else:
         return {
-            'model': lambda r: 'RNN',
-            'hidden_depth': lambda r: 2, 
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
             'hidden_width': lambda r: 20,
-            'state_size': lambda r: 10
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
         }
 
 def TCMNIST_seq_model(sample):
     """ TCMNIST_seq model hparam definition """
     if sample:
         return {
-            'model': lambda r: 'RNN',
-            'hidden_depth': lambda r: int(r.choice([2, 3, 4])),
-            'hidden_width': lambda r: int(2**r.uniform(5, 9)),
-            'state_size': lambda r: 10
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
         }
     else:
         return {
-            'model': lambda r: 'RNN',
-            'hidden_depth': lambda r: 2, 
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
             'hidden_width': lambda r: 20,
-            'state_size': lambda r: 10
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
         }
 
 def TCMNIST_step_model(sample):
     """ TCMNIST_step model hparam definition """
     if sample:
         return {
-            'model': lambda r: 'RNN',
-            'hidden_depth': lambda r: r.choice([2, 3, 4]),
-            'hidden_width': lambda r: int(2**r.uniform(5, 9)),
-            'state_size': lambda r: 10
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
         }
     else:
         return {
-            'model': lambda r: 'RNN',
-            'hidden_depth': lambda r: 2, 
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
             'hidden_width': lambda r: 20,
-            'state_size': lambda r: 10
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
         }
 
-def PhysioNet_model(sample):
+def CAP_DB_model(sample):
     """ PhysioNet model hparam definition """
     if sample:
         return {
@@ -142,11 +311,6 @@ def PhysioNet_model(sample):
             'nheads_enc': lambda r: 8,
             'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32
-#             'model': lambda r: 'ATTN_LSTM',
-#             'hidden_depth': lambda r: int(r.choice([2, 3, 5])),
-#             'hidden_width': lambda r: int(2**r.uniform(7, 10)),
-#             'recurrent_layers': lambda r: int(r.choice([2, 3, 5])),
-#             'state_size': lambda r: int(2**r.uniform(7, 11))
         }
     else:
         return {
@@ -154,11 +318,41 @@ def PhysioNet_model(sample):
             'nheads_enc': lambda r: 8,
             'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32
-#             'model': lambda r: 'ATTN_LSTM',
-#             'hidden_depth': lambda r: 2,
-#             'hidden_width': lambda r: 256,
-#             'recurrent_layers': lambda r: 2,
-#             'state_size': lambda r: 256
+        }
+
+def SEDFx_DB_model(sample):
+    """ PhysioNet model hparam definition """
+    if sample:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+    else:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+
+
+def HAR_model(sample):
+    """ PhysioNet model hparam definition """
+    if sample:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+    else:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
         }
 
 

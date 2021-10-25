@@ -18,9 +18,10 @@ Train a single model using one objective on one dataset with one test environmen
 
 ```sh
 python3 -m main train \
-        --dataset TCMNIST_seq \
+        --dataset Spurious_Fourier \
         --objective ERM \
-        --test_env 0
+        --test_env 0 \
+        --data_path /hdd/data
 ```
 
 From a training run results, you can also visualiza the results with the following script

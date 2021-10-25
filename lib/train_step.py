@@ -31,7 +31,14 @@ def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, d
     ts = torch.tensor(dataset.get_pred_time()).to(device)
 
     # Get next batch of training data
-    batch_loaders = next(in_loaders_iter)
+    # TODO: Fix that awful patch with infinite
+    try:
+        batch_loaders = next(in_loaders_iter)
+    except StopIteration:
+        _, loaders = dataset.get_train_loaders()
+        in_loaders_iter = zip(*loaders)
+        batch_loaders = next(in_loaders_iter)
+
     minibatches_device = [(x, y) for x,y in batch_loaders]
 
     ## Group all inputs and send to device
@@ -43,7 +50,7 @@ def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, d
     all_out, pred = model(all_x, ts)
 
     # Get train loss for train environment
-    train_env = [i for i, t in enumerate(ts) if i != dataset.test_step]
+    train_env = [i for i, t in enumerate(ts) if i != len(ts)-1]
     env_losses = torch.zeros(len(train_env))
     for i, e in enumerate(train_env):
         env_out = all_out[e]
@@ -97,7 +104,9 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
 
         if step % dataset.CHECKPOINT_FREQ == 0 or (step-1) == 0:
 
+            val_start = time.time()
             checkpoint_record = get_accuracies_step(model, loss_fn, dataset, device)
+            val_time = time.time() - val_start
 
             record[str(step)] = checkpoint_record
 
@@ -105,7 +114,8 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
                     + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()]
                     + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names[0]]))] 
                     + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
-                    + ["{:.2f}".format(np.mean(step_times))] )
+                    + ["{:.2f}".format(np.mean(step_times))]  
+                    + ["{:.2f}".format(val_time)])
             print("\n".join(t.get_string().splitlines()[-2:-1]))
 
     return model, record
@@ -113,16 +123,14 @@ def train_step_setup(flags, training_hparams, model, objective, dataset, device)
 def get_accuracies_step(model, loss_fn, dataset, device):
 
     # Get loaders and their names
-    train_names, train_loaders = dataset.get_train_loaders()
     val_names, val_loaders = dataset.get_val_loaders()
-    all_names = train_names + val_names
-    all_loaders = train_loaders + val_loaders
-
+    train_names, train_loaders = dataset.get_train_loaders()
+    all_names = val_names + train_names
+    all_loaders = val_loaders + train_loaders
     ## Get test accuracy and loss
     record = {}
     for name, loader in zip(all_names, all_loaders):
         accuracies, losses = get_split_accuracy(model, loss_fn, dataset, loader, device)
-
         for i, e in enumerate(name):
             record.update({ e+'_acc': accuracies[i],
                             e+'_loss': losses[i]})

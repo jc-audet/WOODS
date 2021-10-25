@@ -22,8 +22,14 @@ def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, d
 
     ts = torch.tensor(dataset.get_pred_time()).to(device)
         
-    # Get next batch of training data
-    batch_loaders = next(in_loaders_iter)
+    # Get next batch of training data 
+    # TODO: Fix that awful patch
+    try:
+        batch_loaders = next(in_loaders_iter)
+    except StopIteration:
+        _, loaders = dataset.get_train_loaders()
+        in_loaders_iter = zip(*loaders)
+        batch_loaders = next(in_loaders_iter)
 
     # Send everything in an array
     minibatches_device = [(x, y) for x,y in batch_loaders]
@@ -76,9 +82,9 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
 
     train_names, train_loaders = dataset.get_train_loaders()
     n_batches = np.sum([len(train_l) for train_l in train_loaders])
+    train_loaders_iter = zip(*train_loaders)
     for step in range(1, dataset.N_STEPS + 1):
 
-        train_loaders_iter = zip(*train_loaders)
         ## Make training step and report accuracies and losses
         step_start = time.time()
         model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)

@@ -13,6 +13,12 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
+# might need to move
+import json
+import csv
+import glob
+from scipy.signal import resample
+
 DATASETS = [
     # 1D datasets
     'Fourier_basic',
@@ -23,7 +29,12 @@ DATASETS = [
     "TCMNIST_seq",
     "TCMNIST_step",
     ## EEG Dataset
-    "PhysioNet",
+    "CAP_DB",
+    "SEDFx_DB",
+    ## Activity Recognition
+    "HAR",
+    ## Sign Recognition
+    "LSA64"
 ]
 
 def get_dataset_class(dataset_name):
@@ -180,9 +191,6 @@ class Multi_Domain_Dataset:
             list: list of string names of the data splits used for training
             list: list of dataloaders of the data splits used for training
         """
-        # loaders_ID = [str(env)+'_in' for i, env in enumerate(self.ENVS) if i != self.test_env]
-        # loaders = [l for i, l in enumerate(self.in_loaders) if i != self.test_env] 
-
         return self.train_names, self.train_loaders
     
     def get_val_loaders(self):
@@ -192,9 +200,6 @@ class Multi_Domain_Dataset:
             list: list of string names of the data splits used for validation and test
             list: list of dataloaders of the data splits used for validation and test
         """
-        # loaders_ID = [str(env)+'_out' for env in self.ENVS] + [str(env)+'_in' for i, env in enumerate(self.ENVS) if i == self.test_env]
-        # loaders = self.out_loaders + [l for i, l in enumerate(self.in_loaders) if i == self.test_env]
-
         return self.val_names, self.val_loaders
 
 class Fourier_basic(Multi_Domain_Dataset):
@@ -211,10 +216,19 @@ class Fourier_basic(Multi_Domain_Dataset):
     OUTPUT_SIZE = 2
 
     def __init__(self, flags, training_hparams):
-        super(Fourier_basic, self).__init__()
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
 
         # Make important checks
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
+
+        # Save stuff
+        self.class_balance = training_hparams['class_balance']
 
         ## Define label 0 and 1 Fourier spectrum
         self.fourier_0 = np.zeros(1000)
@@ -229,27 +243,28 @@ class Fourier_basic(Multi_Domain_Dataset):
         signal_1 = torch.tensor( signal_1.reshape(-1,50) ).float()
         signal = torch.cat((signal_0, signal_1))
 
-        plt.figure()
-        plt.plot(signal_0[50,:], 'r', label='Label 0')
-        plt.plot(signal_1[50,:], 'b', label='Label 1')
-        plt.legend()
-        plt.savefig('./figure/fourier_clean_signal.pdf')
-
         ## Create the labels
         labels_0 = torch.zeros((signal_0.shape[0],1)).long()
         labels_1 = torch.ones((signal_1.shape[0],1)).long()
         labels = torch.cat((labels_0, labels_1))
 
         ## Create tensor dataset and dataloader
-        self.in_loaders, self.out_loaders = [], []
-        for e in self.ENVS:
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
+        for i, e in enumerate(self.ENVS):
             dataset = torch.utils.data.TensorDataset(signal, labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-            self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-            self.out_loaders.append(out_loader)
 
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+            self.train_names.append(e+'_in')
+            self.train_loaders.append(in_loader)
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False)
+            self.val_names.append(e+'_in')
+            self.val_loaders.append(fast_in_loader)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            self.val_names.append(e+'_out')
+            self.val_loaders.append(fast_out_loader)
+        
 class Spurious_Fourier(Multi_Domain_Dataset):
     """ Spurious_Fourier dataset
 
@@ -267,7 +282,13 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
 
     def __init__(self, flags, training_hparams):
-        super(Spurious_Fourier, self).__init__()
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
 
         if flags.test_env is not None:
             assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
@@ -316,19 +337,10 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         inverse_signal_1 = inverse_signal_1[perm,:]
         inverse_signal = [inverse_signal_0, inverse_signal_1]
 
-        plt.figure()
-        plt.plot(direct_signal_0[50,:], 'r')
-        plt.plot(inverse_signal_0[50,:], 'b')
-        plt.savefig('./figure/fourier_cheat_signal_0.pdf')
-
-        plt.figure()
-        plt.plot(direct_signal_1[50,:], 'r')
-        plt.plot(inverse_signal_1[50,:], 'b')
-        plt.savefig('./figure/fourier_cheat_signal_1.pdf')
-
         ## Create the environments with different correlations
         env_size = 150
-        self.in_loaders, self.out_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
         for i, e in enumerate(self.ENVS):
 
             ## Create set of labels
@@ -364,39 +376,16 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             dataset = torch.utils.data.TensorDataset(env_signal, env_labels)
 
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-            self.in_loaders.append(in_loader)
-            out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-            self.out_loaders.append(out_loader)
-
-        def plot_samples(direct_signal_0, inverse_signal_0, direct_signal_1, inverse_signal_1):
-
-            plt.figure()
-            plt.plot(self.fourier_0, 'r', label='Label 0')
-            plt.plot(self.fourier_1, 'b', label='Label 1')
-            plt.legend()
-            plt.savefig('./figure/fourier_clean_task.pdf')
-
-            plt.figure()
-            plt.plot(self.direct_fourier_0, 'r')
-            plt.plot(self.inverse_fourier_0, 'b')
-            plt.savefig('./figure/fourier_cheat_0.pdf')
-            
-            plt.figure()
-            plt.plot(self.direct_fourier_1, 'r')
-            plt.plot(self.inverse_fourier_1, 'b')
-            plt.savefig('./figure/fourier_cheat_1.pdf')
-
-            plt.figure()
-            plt.plot(direct_signal_0[50,:], 'r')
-            plt.plot(inverse_signal_0[50,:], 'b')
-            plt.savefig('./figure/fourier_cheat_signal_0.pdf')
-
-            plt.figure()
-            plt.plot(direct_signal_1[50,:], 'r')
-            plt.plot(inverse_signal_1[50,:], 'b')
-            plt.savefig('./figure/fourier_cheat_signal_1.pdf')
-
+            if i != self.test_env:
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                self.train_names.append(str(e) + '_in')
+                self.train_loaders.append(in_loader)
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False)
+            self.val_names.append(str(e) + '_in')
+            self.val_loaders.append(fast_in_loader)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            self.val_names.append(str(e) + '_out')
+            self.val_loaders.append(fast_out_loader)
 
 class TMNIST(Multi_Domain_Dataset):
     """ Temporal MNIST dataset
@@ -412,12 +401,16 @@ class TMNIST(Multi_Domain_Dataset):
     INPUT_SIZE = 28*28
     OUTPUT_SIZE = 2
     ENVS = ['grey']
-
-    # Dataset parameters
     SEQ_LEN = 4
 
     def __init__(self, flags, training_hparams):
-        super(TMNIST, self).__init__()
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
 
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
@@ -429,11 +422,11 @@ class TMNIST(Multi_Domain_Dataset):
         test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
 
         # Concatenate all data and labels
-        MNIST_images = torch.cat((train_ds.data, test_ds.data))
+        MNIST_images = torch.cat((train_ds.data.float(), test_ds.data.float()))
         MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
         # Create sequences of 3 digits
-        TMNIST_images = MNIST_images.reshape(-1,self.SEQ_LEN,28,28)
+        TMNIST_images = MNIST_images.reshape(-1,self.SEQ_LEN,1,28,28)
 
         # With their corresponding label
         TMNIST_labels = MNIST_labels.reshape(-1,self.SEQ_LEN)
@@ -501,7 +494,6 @@ class TMNIST(Multi_Domain_Dataset):
             plt.tight_layout()
             plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
 
-
 class TCMNIST(Multi_Domain_Dataset):
     """ Abstract class for Temporal Colored MNIST
 
@@ -519,7 +511,7 @@ class TCMNIST(Multi_Domain_Dataset):
     SEQ_LEN = 4
 
     def __init__(self, flags):
-        super(TCMNIST, self).__init__()
+        super().__init__()
 
         ## Import original MNIST data
         MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
@@ -529,7 +521,10 @@ class TCMNIST(Multi_Domain_Dataset):
         test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
 
         # Concatenate all data and labels
-        MNIST_images = torch.cat((train_ds.data, test_ds.data))
+        # print(train_ds[0])
+        # train_data = [data[0] for data in train_ds]
+        # print(len(train_data))
+        MNIST_images = torch.cat((train_ds.data.float(), test_ds.data.float()))
         MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
         # Create sequences of 3 digits
@@ -581,7 +576,8 @@ class TCMNIST(Multi_Domain_Dataset):
                 ax.set_xticks([]) 
                 ax.set_yticks([]) 
         plt.tight_layout()
-        plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
+        # plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
+        plt.show()
 
 class TCMNIST_seq(TCMNIST):
     """ Temporal Colored MNIST Sequence
@@ -601,7 +597,13 @@ class TCMNIST_seq(TCMNIST):
     label_noise = 0.25                    # Label noise
 
     def __init__(self, flags, training_hparams):
-        super(TCMNIST_seq, self).__init__(flags)
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__(flags)
 
         if flags.test_env is not None:
             assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
@@ -663,19 +665,16 @@ class TCMNIST_seq(TCMNIST):
 
 class TCMNIST_step(TCMNIST):
     """ Temporal Colored MNIST Step
-
     Each sample is a sequence of 4 MNIST digits.
     The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
     Color is added to the digits that is correlated with the label of the current step.
-
     The correlation of the color to the label is varying across sequences and time steps are sampled from an environmnent definition
-
     This dataset has the ''test_step'' variable that discts which time step is hidden during training
-
     The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
+    N_STEPS = 15000
     SETUP = 'step'
-    ENVS = [0.1, 0.8, 0.9]  # Environment is a function of correlation
+    ENVS = [0.9, 0.8, 0.1]  # Environment is a function of correlation
 
     # Dataset parameters
     label_noise = 0.25      # Label noise
@@ -687,37 +686,40 @@ class TCMNIST_step(TCMNIST):
             assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         else:
             warnings.warn("You don't have any test environment")
-        assert flags.test_step != None, "The Step setup needs a test step definition"
-        assert flags.test_step in list(range(len(self.PRED_TIME))), "Chosen test_step not a Prediction Time"
 
         ## Save stuff
         self.test_env = flags.test_env
-        self.test_step = flags.test_step
+        # self.test_step = flags.test_step
         self.class_balance = training_hparams['class_balance']
 
         # Define array of training environment dataloaders
-        self.in_loaders, self.out_loaders = [], []          
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
 
         # Permute env/steps
-        self.ENVS[self.test_step], self.ENVS[self.test_env] = self.ENVS[self.test_env], self.ENVS[self.test_step]
+        self.ENVS[-1], self.ENVS[self.test_env] = self.ENVS[self.test_env], self.ENVS[-1]
 
         ## Make the color datasets
         # Stack a second color channel
+        colored_labels = self.TCMNIST_labels
         colored_images = torch.stack([self.TCMNIST_images, self.TCMNIST_images], dim=2)
         for i, e in enumerate(self.ENVS):
             # Color i-th frame subset
-            colored_images, colored_labels = self.color_dataset(colored_images, self.TCMNIST_labels, i, e, self.label_noise)
+            colored_images, colored_labels = self.color_dataset(colored_images, colored_labels, i, e, self.label_noise)
 
         # Make Tensor dataset and dataloader
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
 
-        self.plot_samples(colored_images, colored_labels)
-
         in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
         in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-        self.in_loaders.append(in_loader)
-        out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
-        self.out_loaders.append(out_loader)
+        self.train_names.append([str(e)+'_in' for e in self.ENVS])
+        self.train_loaders.append(in_loader)
+        fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=252, shuffle=False)
+        self.val_names.append([str(e)+'_in' for e in self.ENVS])
+        self.val_loaders.append(fast_in_loader)
+        fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=252, shuffle=False)
+        self.val_names.append([str(e)+'_out' for e in self.ENVS])
+        self.val_loaders.append(fast_out_loader)
 
     def color_dataset(self, images, labels, env_id, p, d):
 
@@ -732,16 +734,6 @@ class TCMNIST_step(TCMNIST):
             images[sample,env_id+1,colors[sample].long(),:,:] *= 0 
 
         return images, labels
-
-    def get_train_loaders(self):
-        loaders_ID = [[str(env)+'_in' for i, env in enumerate(self.ENVS)]]
-        loaders = self.in_loaders
-        return loaders_ID, loaders
-    
-    def get_val_loaders(self):
-        loaders_ID = [[str(env)+'_out' for env in self.ENVS]]
-        loaders = self.out_loaders
-        return loaders_ID, loaders
 
 class HDF5_dataset(Dataset):
     """ HDF5 dataset
@@ -777,31 +769,25 @@ class HDF5_dataset(Dataset):
     def close(self):
         self.hdf.close()
 
-class PhysioNet(Multi_Domain_Dataset):
-    """ PhysioNet Sleep stage dataset
-
-    The task is to classify the sleep stage from EEG and other modalities of signals.
-    The raw data comes from the CAP Sleep Database hosted on Physionet.org:  
-        https://physionet.org/content/capslpdb/1.0.0/
-    This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
-    We use the 5 most commonly used machines in the database to create the 5 seperate environment to train on.
-    The machines that were used were infered by grouping together the recording that had the same channels, and the 
-    final preprocessed data only include the channels that were in common between those 5 machines.
-
-    You can read more on the data itself and it's provenance on Physionet.org
-
-    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+class Sleep_DB(Multi_Domain_Dataset):
+    """ Class for Physionet Sleep staging datasets
+            * CAP_DB
+            * SEDFx_DB
     """
     N_STEPS = 5001
+    CHECKPOINT_FREQ = 500
     SETUP = 'seq'
     PRED_TIME = [3000]
-    ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
-    INPUT_SIZE = 19
     OUTPUT_SIZE = 6
-    CHECKPOINT_FREQ = 500
 
     def __init__(self, flags, training_hparams):
-        super(PhysioNet, self).__init__()
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
 
         if flags.test_env is not None:
             assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
@@ -818,25 +804,25 @@ class PhysioNet(Multi_Domain_Dataset):
         for j, e in enumerate(self.ENVS):
 
             # Get full environment dataset and define in/out split
-            full_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e)
+            full_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
             full_dataset.close()
 
-            # Get in/out hdf5 dataset
-            out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=out_split)
-
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=in_split)
+                in_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
                 in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
+            # # Get in/out hdf5 dataset
+            # out_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
+
             # Make validation loaders
-            fast_in_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=in_split)
+            fast_in_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_dataset = HDF5_dataset(os.path.join(flags.data_path, 'physionet.org/data.h5'), e, split=out_split)
+            fast_out_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
             fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
@@ -865,4 +851,318 @@ class PhysioNet(Multi_Domain_Dataset):
 
         return weights
 
+
+class CAP_DB(Sleep_DB):
+    """ CAP_DB Sleep stage dataset
+
+    The task is to classify the sleep stage from EEG and other modalities of signals.
+    The raw data comes from the CAP Sleep Database hosted on Physionet.org:  
+        https://physionet.org/content/capslpdb/1.0.0/
+    This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
+    We use the 5 most commonly used machines in the database to create the 5 seperate environment to train on.
+    The machines that were used were infered by grouping together the recording that had the same channels, and the 
+    final preprocessed data only include the channels that were in common between those 5 machines.
+
+    You can read more on the data itself and it's provenance on Physionet.org
+
+    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    """
+    DATA_FILE = 'physionet.org/CAP_DB.h5'
+    ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
+    INPUT_SIZE = 19
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__(flags, training_hparams)
         
+class SEDFx_DB(Sleep_DB):
+    """ SEDFx_DB Sleep stage dataset
+
+    The task is to classify the sleep stage from EEG and other modalities of signals.
+    The raw data comes from the Sleep EDF Expanded Database hosted on Physionet.org:  
+        https://physionet.org/content/sleep-edfx/1.0.0/
+    This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
+
+    You can read more on the data itself and it's provenance on Physionet.org
+
+    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    """
+    DATA_FILE = 'physionet.org/SEDFx_DB.h5'
+    ENVS = ['Age 20-40', 'Age 40-60', 'Age 60-80','Age 80-100']
+    INPUT_SIZE = 4
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__(flags, training_hparams)
+
+class StockVolatility(Multi_Domain_Dataset):
+    """ Stock Volatility Dataset
+
+    Ressources:
+        * https://github.com/lukaszbanasiak/yahoo-finance
+        * https://medium.com/analytics-vidhya/predicting-the-volatility-of-stock-data-56f8938ab99d
+        * https://medium.com/analytics-vidhya/univariate-forecasting-for-the-volatility-of-the-stock-data-using-deep-learning-6c8a4df7edf9
+    """
+    N_STEPS = 5001
+    SETUP = 'step'
+    PRED_TIME = [3000]
+
+    # Choisir une maniere de split en [3,10] environment
+    ENVS = ['2000-2004', '2005-2009', '2010-2014', '2015-2020']
+    INPUT_SIZE = 1000000
+    OUTPUT_SIZE = 1
+    CHECKPOINT_FREQ = 500
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
+        pass
+
+        # data = [Dataloader for e in self.ENVS]
+        ## Pour tous les index 
+            # Prendre tous les donnees de l'index
+            # Faire des trucs de preprocessing si besoin
+            # split en chunk d'annnee en fonction de self.ENVS
+            ## Pour tous les chunks e
+                # env_data = split les chunks en sequence de X jours
+                # data[e].append(env_data)
+
+
+class LSA64(Multi_Domain_Dataset):
+    """ LSA64: A Dataset for Argentinian Sign Language dataset
+
+    Ressources:
+        * http://facundoq.github.io/datasets/lsa64/
+        * http://facundoq.github.io/guides/sign_language_datasets/slr
+        * https://sci-hub.mksa.top/10.1007/978-981-10-7566-7_63
+    """
+    N_STEPS = 5001
+    SETUP = 'seq'
+    PRED_TIME = [3000]
+    ENVS = ['Sub0', 'Sub1', 'Sub2', 'Sub3', 'Sub4', 'Sub5', 'Sub6', 'Sub7', 'Sub8', 'Sub9']
+    INPUT_SIZE = 1000000
+    OUTPUT_SIZE = 1
+    CHECKPOINT_FREQ = 500
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
+        pass
+
+class HAR(Multi_Domain_Dataset):
+    """ Heterogeneity Acrivity Recognition Dataset (HAR)
+
+    Ressources:
+        * https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
+        * https://dl.acm.org/doi/10.1145/2809695.2809718
+    """
+    N_STEPS = 5001
+    SETUP = 'seq'
+    PRED_TIME = [3000]
+    ENVS = ['2000-2004', '2005-2009', '2010-2014', '2015-2020']
+    INPUT_SIZE = 1000000
+    OUTPUT_SIZE = 1
+    CHECKPOINT_FREQ = 500
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
+
+        label_dict = {  'stand': 0,
+                        'sit': 1,
+                        'walk': 2,
+                        'bike': 3,
+                        'stairsup': 4,
+                        'stairsdown': 5,
+                        'null': 6}
+        
+        data_dict = {}
+        for file in ['/hdd/data/HAR/Phones_gyroscope.csv', '/hdd/data/HAR/Phones_accelerometer.csv']:#glob.glob(os.path.join(flags.data_path, 'HAR/*.csv')):
+            print(file)
+            if 'gyroscope' in file:
+                mod = 'gyro'
+            elif 'accelerometer' in file:
+                mod = 'acc'
+            with open(file) as f:
+                data = csv.reader(f)
+                next(data)
+                for row in data:
+                    if row[8] not in data_dict.keys():
+                        print(row[8])
+                        data_dict[row[8]] = {}
+                    if row[6] not in data_dict[row[8]].keys():
+                        print('\t' + row[6])
+                        data_dict[row[8]][row[6]] = {}
+                    if mod not in data_dict[row[8]][row[6]].keys():
+                        print('\t\t' + mod)
+                        data_dict[row[8]][row[6]][mod] = {}
+                        data_dict[row[8]][row[6]][mod]['n_pt'] = 0
+                    
+                    data_dict[row[8]][row[6]][mod]['n_pt'] += 1
+
+            with open(file) as f:
+                data = csv.reader(f)
+                next(data)
+                for row in data:
+                    if 'index' not in data_dict[row[8]][row[6]][mod].keys():
+                        i = 0
+                        data_dict[row[8]][row[6]][mod]['index'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
+                        data_dict[row[8]][row[6]][mod]['time'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
+                        data_dict[row[8]][row[6]][mod]['meas'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt'],3), dtype=np.float64)
+                        data_dict[row[8]][row[6]][mod]['label'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
+                    
+                    data_dict[row[8]][row[6]][mod]['index'][i] = int(row[0])
+                    data_dict[row[8]][row[6]][mod]['time'][i] = int(row[2])
+                    data_dict[row[8]][row[6]][mod]['meas'][i,:] = [float(row[3]), float(row[4]), float(row[5])]
+                    data_dict[row[8]][row[6]][mod]['label'][i] = int(label_dict[row[9]])
+
+                    i += 1
+        
+        # class NumpyEncoder(json.JSONEncoder):
+        #     """ Special json encoder for numpy types """
+        #     def default(self, obj):
+        #         if isinstance(obj, np.integer):
+        #             return int(obj)
+        #         elif isinstance(obj, np.floating):
+        #             return float(obj)
+        #         elif isinstance(obj, np.ndarray):
+        #             return obj.tolist()
+        #         return json.JSONEncoder.default(self, obj)
+
+        # dumped = json.dumps(data_dict, cls=NumpyEncoder)
+        # with open(os.path.join(flags.data_path, 'HAR/data.json'), 'w') as f:
+        #     json.dump(json.dumps(data_dict, cls=NumpyEncoder), f)
+
+        # First, delete the key if the number of datapoint is enough (e.g. gear_2 -> 'i' only has 1 point for some reason)
+        to_delete = []
+        for device in data_dict.keys():
+            for sub in data_dict[device].keys():
+                for mod in data_dict[device][sub].keys():
+                    if data_dict[device][sub][mod]['n_pt'] < 2000:
+                        to_delete.append((device, sub, mod))
+        for device, sub, mod in to_delete:
+            del data_dict[device][sub][mod]
+
+        ## Sort data
+        for device in data_dict.keys():
+            for sub in data_dict[device].keys():
+                for mod in data_dict[device][sub].keys():
+                    # Then sort by index
+                    index_sort = np.argsort(data_dict[device][sub][mod]['index'])
+                    data_dict[device][sub][mod]['index'] = np.take_along_axis(data_dict[device][sub][mod]['index'], index_sort, axis=0)
+                    data_dict[device][sub][mod]['time'] = np.take_along_axis(data_dict[device][sub][mod]['time'], index_sort, axis=0)
+                    data_dict[device][sub][mod]['meas'] = data_dict[device][sub][mod]['meas'][index_sort,:]
+                    data_dict[device][sub][mod]['label'] = np.take_along_axis(data_dict[device][sub][mod]['label'], index_sort, axis=0)
+
+                    # This is to take data that is within recording time 
+                    # (To see an example of somewhere this isn't the case, check phones_gyrscope -> nexus4_1 -> a -> index [24641, 24675])
+                    inliers = np.argwhere(  np.logical_and( data_dict[device][sub][mod]['time'][0] <= data_dict[device][sub][mod]['time'], 
+                                                            data_dict[device][sub][mod]['time'] <= data_dict[device][sub][mod]['time'][-1]))[:,0]
+                    
+                    # Sort by time value
+                    time_sort = np.argsort(data_dict[device][sub][mod]['time'][inliers])
+
+                    data_dict[device][sub][mod]['index'] = data_dict[device][sub][mod]['index'][inliers][time_sort]
+                    data_dict[device][sub][mod]['time'] = data_dict[device][sub][mod]['time'][inliers][time_sort]
+                    data_dict[device][sub][mod]['meas'] = data_dict[device][sub][mod]['meas'][inliers][time_sort,:]
+                    data_dict[device][sub][mod]['label'] = data_dict[device][sub][mod]['label'][inliers][time_sort]
+
+        to_delete = []
+        for device in data_dict.keys():
+            for sub in data_dict[device].keys():
+                if len(data_dict[device][sub].keys()) != 2:
+                    to_delete.append((device, sub))
+                else:
+                    print("..........")
+                    print(device, sub)
+                    print(len(data_dict[device][sub]['gyro']['time']), data_dict[device][sub]['gyro']['time'][0] / 1e6, data_dict[device][sub]['gyro']['time'][-1] / 1e6)
+                    print(len(data_dict[device][sub]['acc']['time']), data_dict[device][sub]['acc']['time'][0] / 1e6, data_dict[device][sub]['acc']['time'][-1] / 1e6)
+
+                    tmin = np.max([data_dict[device][sub]['gyro']['time'][0], data_dict[device][sub]['acc']['time'][0]])
+                    tmax = np.min([data_dict[device][sub]['gyro']['time'][-1], data_dict[device][sub]['acc']['time'][-1]])
+                    print(tmin, tmax)
+
+                    gyro_in = np.argwhere(  np.logical_and( tmin <= data_dict[device][sub]['gyro']['time'], 
+                                                            data_dict[device][sub]['gyro']['time'] <= tmax))[:,0]
+                    acc_in = np.argwhere(  np.logical_and( tmin <= data_dict[device][sub]['acc']['time'], 
+                                                            data_dict[device][sub]['acc']['time'] <= tmax))[:,0]
+
+                    data_dict[device][sub]['gyro']['index'] = data_dict[device][sub]['gyro']['index'][gyro_in]
+                    data_dict[device][sub]['gyro']['time'] = data_dict[device][sub]['gyro']['time'][gyro_in]
+                    data_dict[device][sub]['gyro']['meas'] = data_dict[device][sub]['gyro']['meas'][gyro_in]
+                    data_dict[device][sub]['gyro']['label'] = data_dict[device][sub]['gyro']['label'][gyro_in]
+                    data_dict[device][sub]['acc']['index'] = data_dict[device][sub]['acc']['index'][acc_in]
+                    data_dict[device][sub]['acc']['time'] = data_dict[device][sub]['acc']['time'][acc_in]
+                    data_dict[device][sub]['acc']['meas'] = data_dict[device][sub]['acc']['meas'][acc_in]
+                    data_dict[device][sub]['acc']['label'] = data_dict[device][sub]['acc']['label'][acc_in]
+                    print(".")
+                    print(len(data_dict[device][sub]['gyro']['time']), data_dict[device][sub]['gyro']['time'][0] / 1e6, data_dict[device][sub]['gyro']['time'][-1] / 1e6)
+                    print(len(data_dict[device][sub]['acc']['time']), data_dict[device][sub]['acc']['time'][0] / 1e6, data_dict[device][sub]['acc']['time'][-1] / 1e6)
+
+                    # Resample here
+        
+        for device, sub in to_delete:
+            del data_dict[device][sub]
+
+        for phone in data_dict.keys():
+            for i, sub in enumerate(data_dict[phone].keys()):
+                for j, mod in enumerate(data_dict[phone][sub].keys()):
+                    plt.figure()
+                    diff = np.diff(data_dict[phone][sub][mod]['time'])
+                    print("......")
+                    print(phone, sub, mod)
+                    print(np.median(diff) / 1e6)
+
+
+
+        ## Visualize stuff
+        colors = ['b', 'g', 'r', 'm', 'k', 'y', 'c']
+        chunk = []
+        for i, l in enumerate(data_dict['nexus4_1']['a']['gyro']['label']):
+            if i == 0:
+                current_l = l
+                count = 0
+            if l != current_l:
+                chunk.append((current_l, i-count, i))
+                current_l = l
+                count = 0
+            count += 1
+            if i == len(data_dict['nexus4_1']['a']['gyro']['label'])-1:
+                chunk.append((current_l, i-count, i))
+
+        plt.figure()
+        plt.plot(data_dict['nexus4_1']['a']['gyro']['time'], data_dict['nexus4_1']['a']['gyro']['meas'][:,0])
+        plt.plot(data_dict['nexus4_1']['a']['gyro']['time'], data_dict['nexus4_1']['a']['gyro']['meas'][:,1])
+        plt.plot(data_dict['nexus4_1']['a']['gyro']['time'], data_dict['nexus4_1']['a']['gyro']['meas'][:,2])
+        plt.plot(data_dict['nexus4_1']['a']['acc']['time'], data_dict['nexus4_1']['a']['acc']['meas'][:,0]+40)
+        plt.plot(data_dict['nexus4_1']['a']['acc']['time'], data_dict['nexus4_1']['a']['acc']['meas'][:,1]+40)
+        plt.plot(data_dict['nexus4_1']['a']['acc']['time'], data_dict['nexus4_1']['a']['acc']['meas'][:,2]+40)
+        for c in chunk:
+            plt.axvspan(data_dict['nexus4_1']['a']['gyro']['time'][int(c[1])], data_dict['nexus4_1']['a']['gyro']['time'][int(c[2])], facecolor=colors[int(c[0])], alpha=0.2, label=c[0])
+        plt.legend()
+        plt.show()

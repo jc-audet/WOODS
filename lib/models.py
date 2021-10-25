@@ -3,7 +3,8 @@ import math
 import torch
 from torch import nn
 
-#from einops import rearrange
+# To remove 
+import matplotlib.pyplot as plt
 
 def get_model(dataset, dataset_hparams):
     """Return the dataset class with the given name."""
@@ -71,7 +72,7 @@ class RNN(nn.Module):
         pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
-        # Forward propagate LSTM
+        # Forward propagate RNN
         for t in range(input.shape[1]):
             combined = torch.cat((input[:,t,...].view(input.shape[0],-1), hidden), 1)
             hidden = self.FCH(combined)
@@ -92,17 +93,18 @@ class LSTM(nn.Module):
         # Save stuff
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
+        self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
 
         # Recurrent model
-        self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
+        self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True)
 
         # Classification model
         layers = []
-        if hidden_depth == 0:
+        if self.hidden_depth == 0:
             layers.append( nn.Linear(self.state_size, output_size) )
         else:
-            layers.append( nn.Linear(self.state_size, hidden_width) )
+            layers.append( nn.Linear(self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
             layers.append( nn.Linear(self.hidden_width, output_size) )
@@ -125,6 +127,7 @@ class LSTM(nn.Module):
         hidden = self.initHidden(input.shape[0], input.device)
 
         # Forward propagate LSTM
+        input = input.view(input.shape[0], input.shape[1], -1)
         out, hidden = self.lstm(input, hidden)
 
         # Make prediction with fully connected

@@ -132,10 +132,7 @@ def get_job_name(flags):
         str: name of the output json file of the training run 
     """
 
-    if flags['test_step'] is not None:
-        job_id = flags['objective'] + '_' + flags['dataset'] + '_' + str(flags['test_env']) + '_H' + str(flags['hparams_seed']) + '_T' + str(flags['trial_seed']) + '_S' + str(flags['test_step'])
-    else:
-        job_id = flags['objective'] + '_' + flags['dataset'] + '_' + str(flags['test_env']) + '_H' + str(flags['hparams_seed']) + '_T' + str(flags['trial_seed'])
+    job_id = flags['objective'] + '_' + flags['dataset'] + '_' + str(flags['test_env']) + '_H' + str(flags['hparams_seed']) + '_T' + str(flags['trial_seed'])
 
     return job_id
 
@@ -186,7 +183,7 @@ def setup_pretty_table(flags):
     if setup == 'seq':
         t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
     if setup == 'step':
-        t.field_names = ['Env'] + [str(e) if i != flags.test_step else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+        t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
 
     max_width = {}
     min_width = {}

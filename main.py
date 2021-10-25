@@ -41,8 +41,6 @@ if __name__ == '__main__':
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
-    # Step Setup specific argument
-    parser.add_argument('--test_step', default = None)
     # Model evaluation arguments
     parser.add_argument('--save_model', action='store_true')
     parser.add_argument('--model_path', type=str, default=None)
@@ -60,7 +58,7 @@ if __name__ == '__main__':
         assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
-    training_hparams = hyperparams.get_training_hparams(flags.hparams_seed, flags.sample_hparams)
+    training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
     objective_hparams = hyperparams.get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
     model_hparams = hyperparams.get_model_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
 

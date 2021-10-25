@@ -4,8 +4,6 @@ import numpy as np
 from lib import datasets
 from lib import utils
 
-## TODO: Might need to revisit this to make sure this is the same as domainbed
-
 ## IDEA: Choose the model which has the less variance between environments?
 
 def ensure_dict_path(dict, key):
