@@ -338,21 +338,39 @@ def SEDFx_DB_model(sample):
         }
 
 
+# def HAR_model(sample):
+#     """ PhysioNet model hparam definition """
+#     if sample:
+#         return {
+#             'model': lambda r: 'Transformer',
+#             'nheads_enc': lambda r: 8,
+#             'nlayers_enc': lambda r: 2,
+#             'embedding_size': lambda r: 32
+#         }
+#     else:
+#         return {
+#             'model': lambda r: 'Transformer',
+#             'nheads_enc': lambda r: 8,
+#             'nlayers_enc': lambda r: 2,
+#             'embedding_size': lambda r: 32
+#         }
 def HAR_model(sample):
-    """ PhysioNet model hparam definition """
+    """ TCMNIST_seq model hparam definition """
     if sample:
         return {
-            'model': lambda r: 'Transformer',
-            'nheads_enc': lambda r: 8,
-            'nlayers_enc': lambda r: 2,
-            'embedding_size': lambda r: 32
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
         }
     else:
         return {
-            'model': lambda r: 'Transformer',
-            'nheads_enc': lambda r: 8,
-            'nlayers_enc': lambda r: 2,
-            'embedding_size': lambda r: 32
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
+            'hidden_width': lambda r: 20,
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
         }
 
 

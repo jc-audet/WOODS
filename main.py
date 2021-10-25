@@ -16,6 +16,8 @@ from lib import utils
 from lib.train_seq import train_seq_setup, get_accuracies_seq
 from lib.train_step import train_step_setup
 
+#TODO:
+# - add the --save option so that simple local train runs doesn't get annoyingly saved
 if __name__ == '__main__':
 
     # Device definition

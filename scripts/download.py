@@ -11,6 +11,9 @@ import mne
 import pyedflib
 import xlrd
 
+from scipy.signal import resample
+from sklearn.preprocessing import scale
+
 from lib.datasets import DATASETS
 
 class PhysioNet():
@@ -576,6 +579,226 @@ def RealizedVolatility(flags):
         print(next(data))
         for row in data:
             print(row)
+            
+
+def HAR(flags):
+    # Label definition
+    label_dict = {  'stand': 0,
+                    'sit': 1,
+                    'walk': 2,
+                    'bike': 3,
+                    'stairsup': 4,
+                    'stairsdown': 5,
+                    'null': 6}
+
+    ## Fetch all data and put it all in a big dict
+    data_dict = {}
+    for file in glob.glob(os.path.join(flags.data_path, 'HAR/*.csv')):
+        print(file)
+
+        # Get modality
+        if 'gyroscope' in file:
+            mod = 'gyro'
+        elif 'accelerometer' in file:
+            mod = 'acc'
+
+        # Get number of time steps for all recordings
+        with open(file) as f:
+            data = csv.reader(f)
+            next(data)
+            for row in data:
+                if row[8] not in data_dict.keys():
+                    print(row[8])
+                    data_dict[row[8]] = {}
+                if row[6] not in data_dict[row[8]].keys():
+                    print('\t' + row[6])
+                    data_dict[row[8]][row[6]] = {}
+                if mod not in data_dict[row[8]][row[6]].keys():
+                    print('\t\t' + mod)
+                    data_dict[row[8]][row[6]][mod] = {}
+                    data_dict[row[8]][row[6]][mod]['n_pt'] = 0
+                
+                data_dict[row[8]][row[6]][mod]['n_pt'] += 1
+
+        # Get data
+        with open(file) as f:
+            data = csv.reader(f)
+            next(data)
+            for row in data:
+                if 'index' not in data_dict[row[8]][row[6]][mod].keys():
+                    i = 0
+                    data_dict[row[8]][row[6]][mod]['index'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
+                    data_dict[row[8]][row[6]][mod]['time'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
+                    data_dict[row[8]][row[6]][mod]['meas'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt'],3), dtype=np.float64)
+                    data_dict[row[8]][row[6]][mod]['label'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
+                
+                data_dict[row[8]][row[6]][mod]['index'][i] = int(row[0])
+                data_dict[row[8]][row[6]][mod]['time'][i] = float(row[2]) / 1e6 # Convert to miliseconds
+                data_dict[row[8]][row[6]][mod]['meas'][i,:] = [float(row[3]), float(row[4]), float(row[5])]
+                data_dict[row[8]][row[6]][mod]['label'][i] = int(label_dict[row[9]])
+
+                i += 1
+
+    # Delete keys that either 
+    # - is missing one modality (e.g. all sansungold devices only have one modelality for some reason)or 
+    # - has a number of datapoint that is too low (e.g. gear_2 -> 'i' only has 1 point for some reason)
+    to_delete = []
+    for device in data_dict.keys():
+        for sub in data_dict[device].keys():
+            if len(data_dict[device][sub].keys()) != 2:
+                print("....")
+                print("len")
+                print(device, sub)
+                to_delete.append((device, sub))
+                continue
+            for mod in data_dict[device][sub].keys():
+                if data_dict[device][sub][mod]['n_pt'] < 10000:
+                    print("....")
+                    print("n_pt")
+                    print(data_dict[device][sub][mod]['n_pt'])
+                    print(device, sub)
+                    to_delete.append((device, sub))
+                    break
+    for key in to_delete:
+        del data_dict[key[0]][key[1]]
+    print(to_delete)
+
+    ## Sort data
+    for device in data_dict.keys():
+        for sub in data_dict[device].keys():
+            for mod in data_dict[device][sub].keys():
+                # Sort by index
+                index_sort = np.argsort(data_dict[device][sub][mod]['index'])
+                data_dict[device][sub][mod]['index'] = np.take_along_axis(data_dict[device][sub][mod]['index'], index_sort, axis=0)
+                data_dict[device][sub][mod]['time'] = np.take_along_axis(data_dict[device][sub][mod]['time'], index_sort, axis=0)
+                data_dict[device][sub][mod]['meas'] = data_dict[device][sub][mod]['meas'][index_sort,:]
+                data_dict[device][sub][mod]['label'] = np.take_along_axis(data_dict[device][sub][mod]['label'], index_sort, axis=0)
+
+                # This is to take data that is within recording time 
+                # (To see an example of somewhere this isn't the case, check phones_gyrscope -> nexus4_1 -> a -> index [24641, 24675])
+                inliers = np.argwhere(  np.logical_and( data_dict[device][sub][mod]['time'][0] <= data_dict[device][sub][mod]['time'], 
+                                                        data_dict[device][sub][mod]['time'] <= data_dict[device][sub][mod]['time'][-1]))[:,0]
+                
+                # Sort by time value
+                time_sort = np.argsort(data_dict[device][sub][mod]['time'][inliers])
+
+                data_dict[device][sub][mod]['index'] = data_dict[device][sub][mod]['index'][inliers][time_sort]
+                data_dict[device][sub][mod]['time'] = data_dict[device][sub][mod]['time'][inliers][time_sort]
+                data_dict[device][sub][mod]['meas'] = data_dict[device][sub][mod]['meas'][inliers][time_sort,:]
+                data_dict[device][sub][mod]['label'] = data_dict[device][sub][mod]['label'][inliers][time_sort]
+
+    device_env_mapping = {  'nexus4_1': 'nexus4',
+                            'nexus4_2': 'nexus4',
+                            's3_1': 's3',
+                            's3_2': 's3',
+                            's3mini_1': 's3mini',
+                            's3mini_2': 's3mini',
+                            'gear_1': 'gear',
+                            'gear_2': 'gear',
+                            'lgwatch_1': 'lgwatch',
+                            'lgwatch_2': 'lgwatch'}
+
+    for device in data_dict.keys():
+        for i, sub in enumerate(data_dict[device].keys()):
+            print("..........")
+            print(device, sub)
+            # print(len(data_dict[device][sub]['gyro']['time']), data_dict[device][sub]['gyro']['time'][0], data_dict[device][sub]['gyro']['time'][-1])
+            # print(len(data_dict[device][sub]['acc']['time']), data_dict[device][sub]['acc']['time'][0], data_dict[device][sub]['acc']['time'][-1])
+
+            tmin = np.max([data_dict[device][sub]['gyro']['time'][0], data_dict[device][sub]['acc']['time'][0]])
+            tmax = np.min([data_dict[device][sub]['gyro']['time'][-1], data_dict[device][sub]['acc']['time'][-1]])
+            # print(tmin, tmax)
+
+            gyro_in = np.argwhere(  np.logical_and( tmin <= data_dict[device][sub]['gyro']['time'], 
+                                                    data_dict[device][sub]['gyro']['time'] <= tmax))[:,0]
+            acc_in = np.argwhere(  np.logical_and( tmin <= data_dict[device][sub]['acc']['time'], 
+                                                    data_dict[device][sub]['acc']['time'] <= tmax))[:,0]
+
+            data_dict[device][sub]['gyro']['index'] = data_dict[device][sub]['gyro']['index'][gyro_in]
+            data_dict[device][sub]['gyro']['time'] = data_dict[device][sub]['gyro']['time'][gyro_in]
+            data_dict[device][sub]['gyro']['meas'] = data_dict[device][sub]['gyro']['meas'][gyro_in]
+            data_dict[device][sub]['gyro']['label'] = data_dict[device][sub]['gyro']['label'][gyro_in]
+            data_dict[device][sub]['acc']['index'] = data_dict[device][sub]['acc']['index'][acc_in]
+            data_dict[device][sub]['acc']['time'] = data_dict[device][sub]['acc']['time'][acc_in]
+            data_dict[device][sub]['acc']['meas'] = data_dict[device][sub]['acc']['meas'][acc_in]
+            data_dict[device][sub]['acc']['label'] = data_dict[device][sub]['acc']['label'][acc_in]
+
+            gyro_in = np.argwhere(data_dict[device][sub]['gyro']['label'] != 6)[:,0]
+            acc_in = np.argwhere(data_dict[device][sub]['acc']['label'] != 6)[:,0]
+
+            data_dict[device][sub]['gyro']['index'] = data_dict[device][sub]['gyro']['index'][gyro_in]
+            data_dict[device][sub]['gyro']['time'] = data_dict[device][sub]['gyro']['time'][gyro_in]
+            data_dict[device][sub]['gyro']['meas'] = data_dict[device][sub]['gyro']['meas'][gyro_in,:]
+            data_dict[device][sub]['gyro']['label'] = data_dict[device][sub]['gyro']['label'][gyro_in]
+            data_dict[device][sub]['acc']['index'] = data_dict[device][sub]['acc']['index'][acc_in]
+            data_dict[device][sub]['acc']['time'] = data_dict[device][sub]['acc']['time'][acc_in]
+            data_dict[device][sub]['acc']['meas'] = data_dict[device][sub]['acc']['meas'][acc_in,:]
+            data_dict[device][sub]['acc']['label'] = data_dict[device][sub]['acc']['label'][acc_in]
+
+            ## Scale data
+            data_dict[device][sub]['gyro']['meas'] = scale(data_dict[device][sub]['gyro']['meas'])
+            data_dict[device][sub]['acc']['meas'] = scale(data_dict[device][sub]['acc']['meas'])
+
+            # Resample and split the data here
+            idx = 0
+            data = np.zeros((0,500,6))
+            labels = np.zeros((0,1))
+            while True:
+                if idx >= len(data_dict[device][sub]['gyro']['time'])-1:
+                    break
+                start_time = data_dict[device][sub]['gyro']['time'][idx]
+                gyro_in = np.argwhere(  np.logical_and( start_time <= data_dict[device][sub]['gyro']['time'], 
+                                                        data_dict[device][sub]['gyro']['time'] <= start_time+5000))[:,0]
+                acc_in = np.argwhere(  np.logical_and( start_time <= data_dict[device][sub]['acc']['time'],
+                                                        data_dict[device][sub]['acc']['time'] <= start_time+5000))[:,0]
+                print(len(gyro_in), len(acc_in))
+                                        
+                if len(gyro_in) == 0 or len(acc_in) == 0:
+                    # print("time not intersecting segment")
+                    idx += len(gyro_in)
+                    continue       
+                if data_dict[device][sub]['gyro']['time'][gyro_in][-1] - data_dict[device][sub]['gyro']['time'][gyro_in][0] < 4900 or data_dict[device][sub]['acc']['time'][acc_in][-1] - data_dict[device][sub]['acc']['time'][acc_in][0] < 4900:
+                    # print("end on break segment")
+                    idx += len(gyro_in)
+                    continue
+                if len(np.argwhere(np.diff(data_dict[device][sub]['gyro']['time'][gyro_in]) > 200)[:,0]) > 0 :
+                    diff = np.argwhere(np.diff(data_dict[device][sub]['gyro']['time'][gyro_in]) > 200)[:,0]
+                    # print("gyro contains a break")
+                    idx += diff[-1]+1
+                    continue
+                if len(np.argwhere(np.diff(data_dict[device][sub]['acc']['time'][acc_in]) > 200)[:,0]) > 0:
+                    diff = np.argwhere(np.diff(data_dict[device][sub]['acc']['time'][acc_in]) > 200)[:,0]
+                    # print("acc contains a break")
+                    idx += diff[-1]+1
+                    continue
+                start_label = data_dict[device][sub]['gyro']['label'][idx]
+                if len(np.argwhere(data_dict[device][sub]['gyro']['label'][gyro_in] != start_label)[:,0]) > 0:
+                    labels_diff = np.argwhere(data_dict[device][sub]['gyro']['label'][gyro_in] != start_label)[:,0]
+                    # print("label switch in sequence")
+                    idx += labels_diff[0]+1
+                    continue
+                
+                idx += len(gyro_in)
+
+                time = np.linspace(start = data_dict[device][sub]['gyro']['time'][gyro_in][0], stop=data_dict[device][sub]['gyro']['time'][gyro_in][-1], num=500)
+                gyro_dat = resample(data_dict[device][sub]['gyro']['meas'][gyro_in, :], 500)
+                acc_dat = resample(data_dict[device][sub]['acc']['meas'][acc_in, :], 500)
+
+                all_dat = np.concatenate((acc_dat, gyro_dat), axis=1)
+                data = np.concatenate((data, np.expand_dims(all_dat, axis=0)), axis=0)
+                labels = np.concatenate((labels, np.expand_dims(data_dict[device][sub]['gyro']['label'][gyro_in][0:1], axis=0)), axis=0)
+            
+            env = device_env_mapping[device]
+            with h5py.File(os.path.join(flags.data_path, 'HAR/HAR.h5'), 'a') as hf:
+                if env not in hf.keys():
+                    g = hf.create_group(env)
+                    g.create_dataset('data', data=data.astype('float32'), dtype='float32', maxshape=(None, 500, 6))
+                    g.create_dataset('labels', data=labels.astype('float32'), dtype='int_', maxshape=(None,1))
+                else:
+                    hf[env]['data'].resize((hf[env]['data'].shape[0] + data.shape[0]), axis = 0)
+                    hf[env]['data'][-data.shape[0]:,:,:] = data
+                    hf[env]['labels'].resize((hf[env]['labels'].shape[0] + labels.shape[0]), axis = 0)
+                    hf[env]['labels'][-labels.shape[0]:,:] = labels
 
 if __name__ == '__main__':
 
@@ -596,3 +819,6 @@ if __name__ == '__main__':
 
     if 'RealizedVolatility' in flags.dataset:
         RealizedVolatility(flags)
+
+    if 'HAR' in flags.dataset:
+        HAR(flags)

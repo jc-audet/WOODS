@@ -13,12 +13,6 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
-# might need to move
-import json
-import csv
-import glob
-from scipy.signal import resample
-
 DATASETS = [
     # 1D datasets
     'Fourier_basic',
@@ -31,6 +25,8 @@ DATASETS = [
     ## EEG Dataset
     "CAP_DB",
     "SEDFx_DB",
+    ## Financial Dataset
+    "StockVolatility",
     ## Activity Recognition
     "HAR",
     ## Sign Recognition
@@ -851,7 +847,6 @@ class Sleep_DB(Multi_Domain_Dataset):
 
         return weights
 
-
 class CAP_DB(Sleep_DB):
     """ CAP_DB Sleep stage dataset
 
@@ -978,11 +973,13 @@ class HAR(Multi_Domain_Dataset):
     """
     N_STEPS = 5001
     SETUP = 'seq'
-    PRED_TIME = [3000]
-    ENVS = ['2000-2004', '2005-2009', '2010-2014', '2015-2020']
-    INPUT_SIZE = 1000000
-    OUTPUT_SIZE = 1
-    CHECKPOINT_FREQ = 500
+    PRED_TIME = [499]
+    ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
+    INPUT_SIZE = 6
+    OUTPUT_SIZE = 6
+    CHECKPOINT_FREQ = 100
+
+    DATA_FILE = 'HAR/HAR.h5'
 
     def __init__(self, flags, training_hparams):
         """ Dataset constructor function
@@ -993,176 +990,45 @@ class HAR(Multi_Domain_Dataset):
         """
         super().__init__()
 
-        label_dict = {  'stand': 0,
-                        'sit': 1,
-                        'walk': 2,
-                        'bike': 3,
-                        'stairsup': 4,
-                        'stairsdown': 5,
-                        'null': 6}
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        # Label definition
+        self.label_dict = { 'stand': 0,
+                            'sit': 1,
+                            'walk': 2,
+                            'bike': 3,
+                            'stairsup': 4,
+                            'stairsdown': 5}
         
-        data_dict = {}
-        for file in ['/hdd/data/HAR/Phones_gyroscope.csv', '/hdd/data/HAR/Phones_accelerometer.csv']:#glob.glob(os.path.join(flags.data_path, 'HAR/*.csv')):
-            print(file)
-            if 'gyroscope' in file:
-                mod = 'gyro'
-            elif 'accelerometer' in file:
-                mod = 'acc'
-            with open(file) as f:
-                data = csv.reader(f)
-                next(data)
-                for row in data:
-                    if row[8] not in data_dict.keys():
-                        print(row[8])
-                        data_dict[row[8]] = {}
-                    if row[6] not in data_dict[row[8]].keys():
-                        print('\t' + row[6])
-                        data_dict[row[8]][row[6]] = {}
-                    if mod not in data_dict[row[8]][row[6]].keys():
-                        print('\t\t' + mod)
-                        data_dict[row[8]][row[6]][mod] = {}
-                        data_dict[row[8]][row[6]][mod]['n_pt'] = 0
-                    
-                    data_dict[row[8]][row[6]][mod]['n_pt'] += 1
+        ## Create tensor dataset and dataloader
+        self.val_names, self.val_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        for j, e in enumerate(self.ENVS):
 
-            with open(file) as f:
-                data = csv.reader(f)
-                next(data)
-                for row in data:
-                    if 'index' not in data_dict[row[8]][row[6]][mod].keys():
-                        i = 0
-                        data_dict[row[8]][row[6]][mod]['index'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
-                        data_dict[row[8]][row[6]][mod]['time'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
-                        data_dict[row[8]][row[6]][mod]['meas'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt'],3), dtype=np.float64)
-                        data_dict[row[8]][row[6]][mod]['label'] = np.zeros((data_dict[row[8]][row[6]][mod]['n_pt']))
-                    
-                    data_dict[row[8]][row[6]][mod]['index'][i] = int(row[0])
-                    data_dict[row[8]][row[6]][mod]['time'][i] = int(row[2])
-                    data_dict[row[8]][row[6]][mod]['meas'][i,:] = [float(row[3]), float(row[4]), float(row[5])]
-                    data_dict[row[8]][row[6]][mod]['label'][i] = int(label_dict[row[9]])
+            with h5py.File(os.path.join(flags.data_path, self.DATA_FILE), 'r') as f:
+                # Load data
+                data = torch.tensor(f[e]['data'][...])
+                labels = torch.tensor(f[e]['labels'][...])
 
-                    i += 1
-        
-        # class NumpyEncoder(json.JSONEncoder):
-        #     """ Special json encoder for numpy types """
-        #     def default(self, obj):
-        #         if isinstance(obj, np.integer):
-        #             return int(obj)
-        #         elif isinstance(obj, np.floating):
-        #             return float(obj)
-        #         elif isinstance(obj, np.ndarray):
-        #             return obj.tolist()
-        #         return json.JSONEncoder.default(self, obj)
+            # Get full environment dataset and define in/out split
+            full_dataset = torch.utils.data.TensorDataset(data, labels)
+            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction)
 
-        # dumped = json.dumps(data_dict, cls=NumpyEncoder)
-        # with open(os.path.join(flags.data_path, 'HAR/data.json'), 'w') as f:
-        #     json.dump(json.dumps(data_dict, cls=NumpyEncoder), f)
+            # Make training dataset/loader and append it to training containers
+            if j != flags.test_env:
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                self.train_names.append(e + '_in')
+                self.train_loaders.append(in_loader)
+            
+            # Make validation loaders
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
-        # First, delete the key if the number of datapoint is enough (e.g. gear_2 -> 'i' only has 1 point for some reason)
-        to_delete = []
-        for device in data_dict.keys():
-            for sub in data_dict[device].keys():
-                for mod in data_dict[device][sub].keys():
-                    if data_dict[device][sub][mod]['n_pt'] < 2000:
-                        to_delete.append((device, sub, mod))
-        for device, sub, mod in to_delete:
-            del data_dict[device][sub][mod]
-
-        ## Sort data
-        for device in data_dict.keys():
-            for sub in data_dict[device].keys():
-                for mod in data_dict[device][sub].keys():
-                    # Then sort by index
-                    index_sort = np.argsort(data_dict[device][sub][mod]['index'])
-                    data_dict[device][sub][mod]['index'] = np.take_along_axis(data_dict[device][sub][mod]['index'], index_sort, axis=0)
-                    data_dict[device][sub][mod]['time'] = np.take_along_axis(data_dict[device][sub][mod]['time'], index_sort, axis=0)
-                    data_dict[device][sub][mod]['meas'] = data_dict[device][sub][mod]['meas'][index_sort,:]
-                    data_dict[device][sub][mod]['label'] = np.take_along_axis(data_dict[device][sub][mod]['label'], index_sort, axis=0)
-
-                    # This is to take data that is within recording time 
-                    # (To see an example of somewhere this isn't the case, check phones_gyrscope -> nexus4_1 -> a -> index [24641, 24675])
-                    inliers = np.argwhere(  np.logical_and( data_dict[device][sub][mod]['time'][0] <= data_dict[device][sub][mod]['time'], 
-                                                            data_dict[device][sub][mod]['time'] <= data_dict[device][sub][mod]['time'][-1]))[:,0]
-                    
-                    # Sort by time value
-                    time_sort = np.argsort(data_dict[device][sub][mod]['time'][inliers])
-
-                    data_dict[device][sub][mod]['index'] = data_dict[device][sub][mod]['index'][inliers][time_sort]
-                    data_dict[device][sub][mod]['time'] = data_dict[device][sub][mod]['time'][inliers][time_sort]
-                    data_dict[device][sub][mod]['meas'] = data_dict[device][sub][mod]['meas'][inliers][time_sort,:]
-                    data_dict[device][sub][mod]['label'] = data_dict[device][sub][mod]['label'][inliers][time_sort]
-
-        to_delete = []
-        for device in data_dict.keys():
-            for sub in data_dict[device].keys():
-                if len(data_dict[device][sub].keys()) != 2:
-                    to_delete.append((device, sub))
-                else:
-                    print("..........")
-                    print(device, sub)
-                    print(len(data_dict[device][sub]['gyro']['time']), data_dict[device][sub]['gyro']['time'][0] / 1e6, data_dict[device][sub]['gyro']['time'][-1] / 1e6)
-                    print(len(data_dict[device][sub]['acc']['time']), data_dict[device][sub]['acc']['time'][0] / 1e6, data_dict[device][sub]['acc']['time'][-1] / 1e6)
-
-                    tmin = np.max([data_dict[device][sub]['gyro']['time'][0], data_dict[device][sub]['acc']['time'][0]])
-                    tmax = np.min([data_dict[device][sub]['gyro']['time'][-1], data_dict[device][sub]['acc']['time'][-1]])
-                    print(tmin, tmax)
-
-                    gyro_in = np.argwhere(  np.logical_and( tmin <= data_dict[device][sub]['gyro']['time'], 
-                                                            data_dict[device][sub]['gyro']['time'] <= tmax))[:,0]
-                    acc_in = np.argwhere(  np.logical_and( tmin <= data_dict[device][sub]['acc']['time'], 
-                                                            data_dict[device][sub]['acc']['time'] <= tmax))[:,0]
-
-                    data_dict[device][sub]['gyro']['index'] = data_dict[device][sub]['gyro']['index'][gyro_in]
-                    data_dict[device][sub]['gyro']['time'] = data_dict[device][sub]['gyro']['time'][gyro_in]
-                    data_dict[device][sub]['gyro']['meas'] = data_dict[device][sub]['gyro']['meas'][gyro_in]
-                    data_dict[device][sub]['gyro']['label'] = data_dict[device][sub]['gyro']['label'][gyro_in]
-                    data_dict[device][sub]['acc']['index'] = data_dict[device][sub]['acc']['index'][acc_in]
-                    data_dict[device][sub]['acc']['time'] = data_dict[device][sub]['acc']['time'][acc_in]
-                    data_dict[device][sub]['acc']['meas'] = data_dict[device][sub]['acc']['meas'][acc_in]
-                    data_dict[device][sub]['acc']['label'] = data_dict[device][sub]['acc']['label'][acc_in]
-                    print(".")
-                    print(len(data_dict[device][sub]['gyro']['time']), data_dict[device][sub]['gyro']['time'][0] / 1e6, data_dict[device][sub]['gyro']['time'][-1] / 1e6)
-                    print(len(data_dict[device][sub]['acc']['time']), data_dict[device][sub]['acc']['time'][0] / 1e6, data_dict[device][sub]['acc']['time'][-1] / 1e6)
-
-                    # Resample here
-        
-        for device, sub in to_delete:
-            del data_dict[device][sub]
-
-        for phone in data_dict.keys():
-            for i, sub in enumerate(data_dict[phone].keys()):
-                for j, mod in enumerate(data_dict[phone][sub].keys()):
-                    plt.figure()
-                    diff = np.diff(data_dict[phone][sub][mod]['time'])
-                    print("......")
-                    print(phone, sub, mod)
-                    print(np.median(diff) / 1e6)
-
-
-
-        ## Visualize stuff
-        colors = ['b', 'g', 'r', 'm', 'k', 'y', 'c']
-        chunk = []
-        for i, l in enumerate(data_dict['nexus4_1']['a']['gyro']['label']):
-            if i == 0:
-                current_l = l
-                count = 0
-            if l != current_l:
-                chunk.append((current_l, i-count, i))
-                current_l = l
-                count = 0
-            count += 1
-            if i == len(data_dict['nexus4_1']['a']['gyro']['label'])-1:
-                chunk.append((current_l, i-count, i))
-
-        plt.figure()
-        plt.plot(data_dict['nexus4_1']['a']['gyro']['time'], data_dict['nexus4_1']['a']['gyro']['meas'][:,0])
-        plt.plot(data_dict['nexus4_1']['a']['gyro']['time'], data_dict['nexus4_1']['a']['gyro']['meas'][:,1])
-        plt.plot(data_dict['nexus4_1']['a']['gyro']['time'], data_dict['nexus4_1']['a']['gyro']['meas'][:,2])
-        plt.plot(data_dict['nexus4_1']['a']['acc']['time'], data_dict['nexus4_1']['a']['acc']['meas'][:,0]+40)
-        plt.plot(data_dict['nexus4_1']['a']['acc']['time'], data_dict['nexus4_1']['a']['acc']['meas'][:,1]+40)
-        plt.plot(data_dict['nexus4_1']['a']['acc']['time'], data_dict['nexus4_1']['a']['acc']['meas'][:,2]+40)
-        for c in chunk:
-            plt.axvspan(data_dict['nexus4_1']['a']['gyro']['time'][int(c[1])], data_dict['nexus4_1']['a']['gyro']['time'][int(c[2])], facecolor=colors[int(c[0])], alpha=0.2, label=c[0])
-        plt.legend()
-        plt.show()
+            # Append to val containers
+            self.val_names.append(e + '_in')
+            self.val_loaders.append(fast_in_loader)
+            self.val_names.append(e + '_out')
+            self.val_loaders.append(fast_out_loader)
