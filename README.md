@@ -1,4 +1,9 @@
-# Temporal_OOD
+<p align='center'>
+  <img width='40%' src='./assets/logo.png' />
+</p>
+
+--------------------------------------------------------------------------------
+
 Repository aiming to benchmark OOD performance of temporal data.
 
 ## Quick Start
