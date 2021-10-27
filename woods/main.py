@@ -8,13 +8,13 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from lib import datasets
-from lib import models
-from lib import objectives
-from lib import hyperparams
-from lib import utils
-from lib.train_seq import train_seq_setup, get_accuracies_seq
-from lib.train_step import train_step_setup
+from woods.lib import datasets
+from woods.lib import models
+from woods.lib import objectives
+from woods.lib import hyperparams
+from woods.lib import utils
+from woods.lib.train_seq import train_seq_setup, get_accuracies_seq
+from woods.lib.train_step import train_step_setup
 
 #TODO:
 # - add the --save option so that simple local train runs doesn't get annoyingly saved
@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
     ## Initialize a model to train
     model = models.get_model(dataset, model_hparams)
-    print("Number of parameters = ", sum(p.numel() for p in model.parameters()))
+    print("Number of parameters = ", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)

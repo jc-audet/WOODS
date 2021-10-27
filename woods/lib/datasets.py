@@ -28,10 +28,10 @@ DATASETS = [
     "SEDFx_DB",
     ## Financial Dataset
     "StockVolatility",
-    ## Activity Recognition
-    "HAR",
     ## Sign Recognition
-    "LSA64"
+    "LSA64",
+    ## Activity Recognition
+    "HAR"
 ]
 
 def get_dataset_class(dataset_name):
@@ -1042,8 +1042,8 @@ class LSA64_dataset(Dataset):
         folder = self.folders[split_index]
 
         # Load data
-        X = self.read_images(folder, self.transform)     # (input) spatial images
-        y = torch.LongTensor([self.targets[split_index]])                  # (labels) LongTensor are for int64 instead of FloatTensor
+        X = self.read_images(folder, self.transform)        # (input) spatial images
+        y = torch.LongTensor([self.targets[split_index]])   # (labels) LongTensor are for int64 instead of FloatTensor
 
         return X, y
 
@@ -1059,7 +1059,7 @@ class LSA64(Multi_Domain_Dataset):
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [19]
-    ENVS = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+    ENVS = ['001']#, '002', '003', '004']#, '005', '006', '007', '008', '009', '010']
     INPUT_SIZE = 224*224*3
     OUTPUT_SIZE = 64
     CHECKPOINT_FREQ = 100

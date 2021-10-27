@@ -24,7 +24,7 @@ from torchvision.transforms._transforms_video import (
 from pytorchvideo.transforms import UniformTemporalSubsample
 import matplotlib.pyplot as plt
 
-from lib.datasets import DATASETS
+from woods.lib.datasets import DATASETS
 
 class PhysioNet():
     '''

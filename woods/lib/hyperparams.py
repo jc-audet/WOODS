@@ -1,6 +1,6 @@
 import numpy as np
 
-from lib.objectives import OBJECTIVES
+from woods.lib.objectives import OBJECTIVES
 
 def get_training_hparams(dataset_name, seed, sample=False):
     """ Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)
