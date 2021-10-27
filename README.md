@@ -13,7 +13,7 @@ Repository aiming to benchmark OOD performance of temporal data.
 Some datasets require downloads before running any training scripts notably the PhysioNet dataset which requires a download (~50G) and preprocessing (~1h30)
 
 ```sh
-python3 -m scripts.download \
+python3 -m woods.scripts.download \
         --data_path ./data
 ```
 
@@ -22,7 +22,7 @@ python3 -m scripts.download \
 Train a single model using one objective on one dataset with one test environment
 
 ```sh
-python3 -m main train \
+python3 -m woods.main train \
         --dataset Spurious_Fourier \
         --objective ERM \
         --test_env 0 \
@@ -32,7 +32,7 @@ python3 -m main train \
 From a training run results, you can also visualiza the results with the following script
 
 ```sh
-python3 -m scripts.visualize_results \
+python3 -m woods.scripts.visualize_results \
         --result_path ./results/something.json
 ```
 
@@ -41,7 +41,7 @@ python3 -m scripts.visualize_results \
 To launch a sweep, use the following script. Define a collection of Objective and Dataset to investigate a combination. All test environment are gonna be investigated automatically. By default, the sweep is gonna do a random search over 20 hyper parameter seeds with 3 trial seed each.
 
 ```sh
-python3 -m scripts.hparams_sweep \
+python3 -m woods.scripts.hparams_sweep \
         --dataset Spurious_Fourier \
         --objective ERM IRM \
         --save_path ./results \
@@ -51,7 +51,7 @@ python3 -m scripts.hparams_sweep \
 To change the number of seeds investigated, you can call the `--n_hparams` and `--n_trials` argument.
 
 ```sh
-python3 -m scripts.hparams_sweep \
+python3 -m woods.scripts.hparams_sweep \
         --dataset Spurious_Fourier TCMNIST_seq \
         --objective ERM \
         --save_path ./results \
@@ -63,7 +63,7 @@ python3 -m scripts.hparams_sweep \
 You can also specify which test environment you want to investigate using the `--unique_test_env` argument
 
 ```sh
-python3 -m scripts.hparams_sweep \
+python3 -m woods.scripts.hparams_sweep \
         --dataset Spurious_Fourier TCMNIST_seq \
         --objective ERM IRM \
         --save_path ./results \
@@ -74,7 +74,7 @@ python3 -m scripts.hparams_sweep \
 If you want to sweep a dataset with the 'step' environment setup, you must give the test_step you want the dataset to have
 
 ```sh
-python3 -m scripts.hparams_sweep \
+python3 -m woods.scripts.hparams_sweep \
         --dataset TCMNIST_step \
         --test_step 2\
         --objective ERM IRM \
@@ -85,7 +85,7 @@ python3 -m scripts.hparams_sweep \
 When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents (with the **** package)
 
 ```sh
-python3 -m scripts.compile_results \
+python3 -m woods.scripts.compile_results \
         --results_dir ./results \
         --latex
 ```
@@ -95,7 +95,7 @@ python3 -m scripts.compile_results \
 Evaluate a single model using one objective on one dataset with one test environment
 
 ```sh
-python3 -m main eval \
+python3 -m woods.main eval \
         --model_path something\
         --dataset Spurious_Fourier \
         --objective ERM \

@@ -346,6 +346,10 @@ class CRNN(nn.Module):
         self.lstm = ATTN_LSTM(self.CNN_embed_dim, output_size, model_hparams)
         # nn.LSTM(CNN_embed_dim, model_hparams['state_size'], model_hparams['recurrent_layers'], batch_first=True)
 
+        print(sum(p.numel() for p in self.resnet.parameters()))
+        print(sum(p.numel() for p in self.cnn_fc.parameters()))
+        print(sum(p.numel() for p in self.lstm.parameters()))
+
         # # Define classifier
         # self.classifier = nn.Sequential(
         #     nn.Linear( model_hparams['state_size'], model_hparams['hidden_width']),

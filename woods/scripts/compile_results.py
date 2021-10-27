@@ -8,9 +8,9 @@ from pptree import *
 import pprint
 from prettytable import PrettyTable
 
-from lib import datasets
-from lib import model_selection
-from lib import utils
+from woods.lib import datasets
+from woods.lib import model_selection
+from woods.lib import utils
 
 if __name__ == "__main__":
     """

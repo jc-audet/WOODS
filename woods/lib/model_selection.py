@@ -1,8 +1,8 @@
 import copy
 import numpy as np
 
-from lib import datasets
-from lib import utils
+from woods.lib import datasets
+from woods.lib import utils
 
 ## IDEA: Choose the model which has the less variance between environments?
 

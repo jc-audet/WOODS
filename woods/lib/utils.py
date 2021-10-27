@@ -6,8 +6,8 @@ from argparse import Namespace
 from prettytable import PrettyTable
 import matplotlib.pyplot as plt
 
-from scripts import hparams_sweep
-from lib import datasets
+from woods.scripts import hparams_sweep
+from woods.lib import datasets
 
 def get_cmap(n, name='hsv'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
