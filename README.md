@@ -71,17 +71,6 @@ python3 -m woods.scripts.hparams_sweep \
         --unique_test_env 0
 ```
 
-If you want to sweep a dataset with the 'step' environment setup, you must give the test_step you want the dataset to have
-
-```sh
-python3 -m woods.scripts.hparams_sweep \
-        --dataset TCMNIST_step \
-        --test_step 2\
-        --objective ERM IRM \
-        --save_path ./results \
-        --launcher local
-```
-
 When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents (with the **** package)
 
 ```sh

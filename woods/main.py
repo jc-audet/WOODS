@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
     ## Initialize a model to train
     model = models.get_model(dataset, model_hparams)
-    print("Number of parameters = ", sum(p.numel() for p in model.parameters()))
+    print("Number of parameters = ", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)
