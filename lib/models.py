@@ -2,6 +2,7 @@ import math
 
 import torch
 from torch import nn
+from torchvision import models
 
 # To remove 
 import matplotlib.pyplot as plt
@@ -308,6 +309,77 @@ class Transformer(nn.Module):
         out = self.classifier(out)
 
         return [out], out.argmax(1, keepdim=True)
+
+class CRNN(nn.Module):
+    """ Convolutional Recurrent Neural Network
+    https://github.com/HHTseng/video-classification/blob/99ebf204f0b1d737e38bc0d8b65aca128a57d7b1/ResNetCRNN/functions.py#L308
+    """
+    def __init__(self, input_size, output_size, model_hparams):
+        """ Initialize CRNN
+        Args:
+            input_size: int, size of input
+            output_size: int, size of output
+            model_hparams: dict, model hyperparameters
+        """
+        super(CRNN, self).__init__()
+
+        # Save stuff
+        self.input_size = input_size
+        fc_hidden1, fc_hidden2 = model_hparams['fc_hidden']
+        self.CNN_embed_dim = model_hparams['CNN_embed_dim']
+
+        # Define Resnet model
+        # self.network = torchvision.models.resnet50(pretrained=True)
+        resnet = models.resnet50(pretrained=True)
+        self.n_outputs = resnet.fc.in_features
+        modules = list(resnet.children())[:-1]      # delete the last fc layer.
+        self.resnet = nn.Sequential(*modules)
+        self.cnn_fc = nn.Sequential(
+            nn.Linear(resnet.fc.in_features, fc_hidden1),
+            nn.BatchNorm1d(fc_hidden1, momentum=0.01),
+            nn.Linear(fc_hidden1, fc_hidden2),
+            nn.BatchNorm1d(fc_hidden2, momentum=0.01),
+            nn.Linear(fc_hidden2, self.CNN_embed_dim),
+        )
+
+        # Define recurrent layers
+        self.lstm = ATTN_LSTM(self.CNN_embed_dim, output_size, model_hparams)
+        # nn.LSTM(CNN_embed_dim, model_hparams['state_size'], model_hparams['recurrent_layers'], batch_first=True)
+
+        # # Define classifier
+        # self.classifier = nn.Sequential(
+        #     nn.Linear( model_hparams['state_size'], model_hparams['hidden_width']),
+        #     nn.ReLU(),
+        #     nn.Linear(model_hparams['hidden_width'], output_size),
+        #     nn.LogSoftmax(dim=1)
+        # )
+    
+    def forward(self, input, time_pred):
+        """ Forward pass through CRNN
+        Args:
+            input: Tensor, shape [batch_size, seq_len, input_size]
+            time_pred: Tensor, time prediction indexes
+        """
+        # Pass through Resnet
+        cnn_embed_seq = torch.zeros((input.shape[0], input.shape[1], self.CNN_embed_dim)).to(input.device)
+        for t in range(input.size(1)):
+            # ResNet CNN
+            with torch.no_grad():
+                x = self.resnet(input[:,t,...])  # ResNet
+                x = x.view(x.size(0), -1)        # flatten output of conv
+
+            # FC layers
+            x = self.cnn_fc(x)
+
+            cnn_embed_seq[:,t,:] = x
+
+        # # swap time and sample dim such that (sample dim, time dim, CNN latent dim)
+        # cnn_embed_seq = torch.stack(cnn_embed_seq, dim=1)
+
+        # Pass through recurrent layers
+        out, pred = self.lstm(cnn_embed_seq, time_pred)
+
+        return out, pred
 
 # class GatedTransformerEncoderLayer(nn.Module):
 #     r"""TransformerEncoderLayer is made up of self-attn and feedforward network.

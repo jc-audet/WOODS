@@ -1,6 +1,7 @@
 import os
 import copy
 import h5py
+from PIL import Image
 import warnings
 
 import scipy.io
@@ -731,8 +732,8 @@ class TCMNIST_step(TCMNIST):
 
         return images, labels
 
-class HDF5_dataset(Dataset):
-    """ HDF5 dataset
+class EEG_dataset(Dataset):
+    """ HDF5 dataset for EEG data
 
     Container for data coming from an hdf5 file. 
     
@@ -800,25 +801,25 @@ class Sleep_DB(Multi_Domain_Dataset):
         for j, e in enumerate(self.ENVS):
 
             # Get full environment dataset and define in/out split
-            full_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e)
+            full_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
             full_dataset.close()
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
+                in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
                 in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
             # # Get in/out hdf5 dataset
-            # out_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
+            # out_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
 
             # Make validation loaders
-            fast_in_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
+            fast_in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_dataset = HDF5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
+            fast_out_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
             fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
@@ -938,6 +939,114 @@ class StockVolatility(Multi_Domain_Dataset):
                 # data[e].append(env_data)
 
 
+# class LSA64_dataset(Dataset):
+#     """ HDF5 dataset for video data
+
+#     Container for data coming from an hdf5 file. 
+    
+#     Good thing about this is that it imports data only when it needs to and thus saves ram space
+#     """
+#     def __init__(self, h5_path, env_id, split=None):
+#         self.h5_path = h5_path
+#         self.env_id = env_id
+
+#         self.hdf = h5py.File(self.h5_path, 'r')
+#         self.targets = []
+
+#         self.mapping = []
+#         for label in self.hdf.keys():
+#             for rep in self.hdf[label].keys():
+#                 self.mapping.append((label,rep))
+#                 self.targets.append(int(label))
+#         self.split = list(range(len(self.mapping))) if split==None else split
+
+#     def __len__(self):
+#         return len(self.split)
+
+#     def __getitem__(self, idx):
+#         if torch.is_tensor(idx):
+#             idx = idx.tolist()
+
+#         split_idx = self.split[idx]
+#         labels, reps = self.mapping[split_idx]
+        
+#         seq = torch.as_tensor(self.hdf[labels][reps][...])
+#         targets = torch.as_tensor(self.targets[split_idx])
+
+#         return (seq.permute(1,0,2,3), targets)
+
+#     def close(self):
+#         self.hdf.close()
+
+class LSA64_dataset(Dataset):
+    """ Video dataset for LSA64 data
+    Folder structure:
+    data_path
+        └── 001 (label)
+            └─ 001 (rep)
+                ├── frame000001.jpg
+                ├── ...
+                └── frame000020.jpg
+            └─ 002 (rep)
+            └─ ...
+        └── 002 (label)
+            └─ 001 (rep)
+            └─ 002 (rep)
+            └─ ...
+        └── 003 (label)
+        └── ...
+
+    """
+    def __init__(self, data_path, n_frames, transform=None, split=None):
+        """ Dataset constructor function
+        Args:
+            data_path (str): path to the folder containing the data
+            n_frames (int): number of frames in each video
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.data_path = data_path
+        self.n_frames = n_frames
+        self.transform = transform
+        self.targets = []
+
+        self.folders = []
+        for label in os.listdir(self.data_path):
+            for rep in os.listdir(os.path.join(self.data_path, label)):
+                self.folders.append(os.path.join(self.data_path, label, rep))
+                self.targets.append(int(label)-1)
+
+        self.split = list(range(len(self.folders))) if split==None else split
+
+    def __len__(self):
+        "Denotes the total number of samples"
+        return len(self.split)
+
+    def read_images(self, selected_folder, use_transform):
+        X = []
+        for i in range(self.n_frames):
+            image = Image.open(os.path.join(selected_folder, 'frame_{:06d}.jpg'.format(i)))
+
+            if use_transform is not None:
+                image = use_transform(image)
+
+            X.append(image)
+        X = torch.stack(X, dim=0)
+
+        return X
+
+    def __getitem__(self, index: int):
+        "Generates one sample of data"
+        # Select sample
+        split_index = self.split[index]
+        folder = self.folders[split_index]
+
+        # Load data
+        X = self.read_images(folder, self.transform)     # (input) spatial images
+        y = torch.LongTensor([self.targets[split_index]])                  # (labels) LongTensor are for int64 instead of FloatTensor
+
+        return X, y
+
 class LSA64(Multi_Domain_Dataset):
     """ LSA64: A Dataset for Argentinian Sign Language dataset
 
@@ -945,14 +1054,18 @@ class LSA64(Multi_Domain_Dataset):
         * http://facundoq.github.io/datasets/lsa64/
         * http://facundoq.github.io/guides/sign_language_datasets/slr
         * https://sci-hub.mksa.top/10.1007/978-981-10-7566-7_63
+        * https://github.com/hthuwal/sign-language-gesture-recognition/
     """
     N_STEPS = 5001
     SETUP = 'seq'
-    PRED_TIME = [3000]
-    ENVS = ['Sub0', 'Sub1', 'Sub2', 'Sub3', 'Sub4', 'Sub5', 'Sub6', 'Sub7', 'Sub8', 'Sub9']
-    INPUT_SIZE = 1000000
-    OUTPUT_SIZE = 1
-    CHECKPOINT_FREQ = 500
+    PRED_TIME = [19]
+    ENVS = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+    INPUT_SIZE = 224*224*3
+    OUTPUT_SIZE = 64
+    CHECKPOINT_FREQ = 100
+    N_FRAMES = 20
+
+    DATA_FOLDER = 'LSA64'
 
     def __init__(self, flags, training_hparams):
         """ Dataset constructor function
@@ -962,7 +1075,69 @@ class LSA64(Multi_Domain_Dataset):
             training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
         """
         super().__init__()
-        pass
+
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        ## Save stuff
+        self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
+        self.normalize = transforms.Compose([transforms.ToTensor(),
+                                             transforms.Normalize( mean=[0.485, 0.456, 0.406],
+                                                                   std=[0.229, 0.224, 0.225])])
+
+        ## Create tensor dataset and dataloader
+        self.val_names, self.val_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        for j, e in enumerate(self.ENVS):
+
+            env_path = os.path.join(flags.data_path, self.DATA_FOLDER, e)
+
+            # Get full environment dataset and define in/out split
+            full_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize)
+            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
+
+            # Make training dataset/loader and append it to training containers
+            if j != flags.test_env:
+                in_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                self.train_names.append(e + '_in')
+                self.train_loaders.append(in_loader)
+            
+            # Make validation loaders
+            fast_in_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=out_split)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+
+            # Append to val containers
+            self.val_names.append(e + '_in')
+            self.val_loaders.append(fast_in_loader)
+            self.val_names.append(e + '_out')
+            self.val_loaders.append(fast_out_loader)
+
+    def get_class_weight(self):
+        """Compute class weight for class balanced training
+
+        Returns:
+            list: list of weights of length OUTPUT_SIZE
+        """
+        _, train_loaders = self.get_train_loaders()
+
+        n_labels = torch.zeros(self.OUTPUT_SIZE)
+
+        for env_loader in train_loaders:
+            labels = env_loader.dataset.targets[:]
+            for i in range(self.OUTPUT_SIZE):
+                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+
+        weights = 1. / (n_labels*self.OUTPUT_SIZE)
+
+        return weights
 
 class HAR(Multi_Domain_Dataset):
     """ Heterogeneity Acrivity Recognition Dataset (HAR)
