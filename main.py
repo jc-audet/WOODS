@@ -46,6 +46,9 @@ if __name__ == '__main__':
     # Model evaluation arguments
     parser.add_argument('--save_model', action='store_true')
     parser.add_argument('--model_path', type=str, default=None)
+    parser.add_argument('--test_step', type=int, default=2)
+
+
     flags = parser.parse_args()
 
     print('Flags:')
