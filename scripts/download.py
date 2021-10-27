@@ -1,6 +1,7 @@
 import os
 import csv
 import copy
+import json
 import argparse
 import datetime
 import numpy as np
@@ -13,6 +14,15 @@ import xlrd
 
 from scipy.signal import resample
 from sklearn.preprocessing import scale
+
+import torchvision
+from torchvision.transforms import Compose, Resize, Lambda
+from torchvision.transforms._transforms_video import (
+    ToTensorVideo,
+    NormalizeVideo,
+)
+from pytorchvideo.transforms import UniformTemporalSubsample
+import matplotlib.pyplot as plt
 
 from lib.datasets import DATASETS
 
@@ -275,7 +285,6 @@ class PhysioNet():
                     print(f)
 
         return list(set.intersection(*_table))
-
     
 class SEDFx_DB():
     '''
@@ -292,8 +301,8 @@ class SEDFx_DB():
         super(SEDFx_DB, self).__init__()
 
         ## Download 
-        # download_process = subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/sleep-edfx/1.0.0/', '-P', flags.data_path])
-        # download_process.wait()
+        download_process = subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/sleep-edfx/1.0.0/', '-P', flags.data_path])
+        download_process.wait()
         
         ## Process data into machines
         common_channels = self.gather_EEG(flags)
@@ -789,6 +798,7 @@ def HAR(flags):
                 labels = np.concatenate((labels, np.expand_dims(data_dict[device][sub]['gyro']['label'][gyro_in][0:1], axis=0)), axis=0)
             
             env = device_env_mapping[device]
+
             with h5py.File(os.path.join(flags.data_path, 'HAR/HAR.h5'), 'a') as hf:
                 if env not in hf.keys():
                     g = hf.create_group(env)
@@ -799,6 +809,47 @@ def HAR(flags):
                     hf[env]['data'][-data.shape[0]:,:,:] = data
                     hf[env]['labels'].resize((hf[env]['labels'].shape[0] + labels.shape[0]), axis = 0)
                     hf[env]['labels'][-labels.shape[0]:,:] = labels
+
+def LSA64(flags):
+    """
+    Loads the data from the LSA64 dataset.
+    """
+
+    for person in range(1,11):
+        person_ID = str(person).zfill(3)
+        
+        # with h5py.File(os.path.join(flags.data_path, 'LSA64', 'LSA64_'+person_ID+'.h5'), 'a') as hf:
+        #     person_group = hf.create_group(person_ID)
+
+        for i, file in enumerate(glob.glob(os.path.join(flags.data_path, 'LSA64', '*_'+person_ID+'_*'))):
+            print(str(i+1)+ ' / 320 (' + file+')')
+            ID = file.split('/')[-1].split('_')
+            sample_num = ID[-1].split('.')[0]
+                
+            vid = torchvision.io.read_video(os.path.join(flags.data_path, 'LSA64', file), end_pts=2.5, pts_unit='sec')[0]
+
+            transform = Compose([ToTensorVideo(),
+                                 Resize(size=(224, 224)),
+                                 UniformTemporalSubsample(20)])#,
+                                #  NormalizeVideo(mean=[0.485, 0.456, 0.406],
+                                #                 std=[0.229, 0.224, 0.225])])
+            print(vid.shape)
+            vid = transform(vid)
+            print(vid.shape)
+
+            if not os.path.exists(os.path.join(flags.data_path, 'LSA64', ID[1])):
+                os.makedirs(os.path.join(flags.data_path, 'LSA64', ID[1]))
+            if not os.path.exists(os.path.join(flags.data_path, 'LSA64', ID[1], ID[0])):
+                os.makedirs(os.path.join(flags.data_path, 'LSA64', ID[1], ID[0]))
+            if not os.path.exists(os.path.join(flags.data_path, 'LSA64', ID[1], ID[0], sample_num)):
+                os.mkdir(os.path.join(flags.data_path, 'LSA64', ID[1], ID[0], sample_num))
+            for frame in range(vid.shape[1]):
+                torchvision.utils.save_image(vid[:,frame,...], os.path.join(flags.data_path, 'LSA64', ID[1], ID[0], sample_num, 'frame_'+str(frame).zfill(6)+'.jpg'))
+
+            # with h5py.File(os.path.join(flags.data_path, 'LSA64', 'LSA64_'+person_ID+'.h5'), 'a') as hf:
+            #     if ID[0] not in hf.keys():
+            #         label_group = hf.create_group(ID[0])
+            #     hf[ID[0]].create_dataset(sample_num, data=vid.numpy(), chunks=(3,1,224,224),compression='gzip', compression_opts=9, maxshape=(3,None,224,224))
 
 if __name__ == '__main__':
 
@@ -822,3 +873,6 @@ if __name__ == '__main__':
 
     if 'HAR' in flags.dataset:
         HAR(flags)
+
+    if 'LSA64' in flags.dataset:
+        LSA64(flags)
