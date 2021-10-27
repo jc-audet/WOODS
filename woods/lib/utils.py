@@ -56,13 +56,13 @@ def plot_results(results_path):
     for i, e in enumerate(envs):
         if e == test_env:
             linewidth = 2
-            label = e + '(test)'
+            label = str(e) + '(test)'
         else:
             linewidth = 1
             label = e
 
-        plt.plot(steps, results_arrs[e+'_in_loss'], color = env_color(i), linestyle='-', label=label, linewidth=linewidth)
-        plt.plot(steps, results_arrs[e+'_out_loss'], color = env_color(i), linestyle='--', linewidth=linewidth)
+        plt.plot(steps, results_arrs[str(e)+'_in_loss'], color = env_color(i), linestyle='-', label=label, linewidth=linewidth)
+        plt.plot(steps, results_arrs[str(e)+'_out_loss'], color = env_color(i), linestyle='--', linewidth=linewidth)
     plt.legend()
 
     # Plot accuracy
@@ -73,8 +73,8 @@ def plot_results(results_path):
         else:
             linewidth = 1
 
-        plt.plot(steps, results_arrs[e+'_in_acc'], color = env_color(i), linestyle='-', label=label, linewidth=linewidth)
-        plt.plot(steps, results_arrs[e+'_out_acc'], color = env_color(i), linestyle='--', linewidth=linewidth)
+        plt.plot(steps, results_arrs[str(e)+'_in_acc'], color = env_color(i), linestyle='-', label=label, linewidth=linewidth)
+        plt.plot(steps, results_arrs[str(e)+'_out_acc'], color = env_color(i), linestyle='--', linewidth=linewidth)
     plt.legend()
     plt.show()
 
