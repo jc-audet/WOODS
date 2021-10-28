@@ -38,7 +38,7 @@ def make_args_list(flags):
                         train_args['save_path'] = flags['save_path']
                         train_args['hparams_seed'] = i_hparam
                         train_args['trial_seed'] = j_trial
-                        train_args['test_step'] = flags['test_step']
+                        # train_args['test_step'] = flags['test_step']
                         train_args_list.append(train_args)
 
     command_list = []
