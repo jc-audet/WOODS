@@ -536,7 +536,7 @@ class TCMNIST(Multi_Domain_Dataset):
         TCMNIST_labels = ( TCMNIST_labels[:,:-1] + TCMNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
         self.TCMNIST_labels = TCMNIST_labels.long()
 
-    def plot_samples(self, images, labels):
+    def plot_samples(self, images, labels, name):
 
         show_images = torch.cat([images,torch.zeros_like(images[:,:,0:1,:,:])], dim=2)
         fig, axs = plt.subplots(3,4)
@@ -573,8 +573,8 @@ class TCMNIST(Multi_Domain_Dataset):
                 ax.set_xticks([]) 
                 ax.set_yticks([]) 
         plt.tight_layout()
-        # plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
-        plt.show()
+        plt.savefig('./assets/TCMNIST_'+ self.SETUP + '_'+name+'.pdf')
+        # plt.show()
 
 class TCMNIST_seq(TCMNIST):
     """ Temporal Colored MNIST Sequence
@@ -622,6 +622,8 @@ class TCMNIST_seq(TCMNIST):
 
             # Color subset
             colored_images, colored_labels = self.color_dataset(images, labels, i, e, self.label_noise)
+
+            self.plot_samples(colored_images, colored_labels, str(e))
 
             # Make Tensor dataset and the split
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)
@@ -703,6 +705,9 @@ class TCMNIST_step(TCMNIST):
         for i, e in enumerate(self.ENVS):
             # Color i-th frame subset
             colored_images, colored_labels = self.color_dataset(colored_images, colored_labels, i, e, self.label_noise)
+
+        for i, e in enumerate(self.ENVS):
+            self.plot_samples(colored_images[i::len(self.ENVS)], colored_labels[i::len(self.ENVS)], str(e))
 
         # Make Tensor dataset and dataloader
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
