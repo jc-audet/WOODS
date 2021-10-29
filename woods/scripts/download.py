@@ -26,6 +26,11 @@ import matplotlib.pyplot as plt
 
 from woods.lib.datasets import DATASETS
 
+from moabb.datasets import BNCI2014001, Cho2017, PhysionetMI
+from moabb.paradigms import MotorImagery
+import numpy as np
+
+
 class PhysioNet():
     '''
     PhysioNet Sleep stage dataset
@@ -851,28 +856,24 @@ def LSA64(flags):
             #         label_group = hf.create_group(ID[0])
             #     hf[ID[0]].create_dataset(sample_num, data=vid.numpy(), chunks=(3,1,224,224),compression='gzip', compression_opts=9, maxshape=(3,None,224,224))
 
-
-
 class MI():
     '''
     This class helps to download and prepare MI datasets
     
     '''
 
-    def __init__(self):
+    def __init__(self,flags):
         super(MI, self).__init__()
 
-    def download_mi(self, path='~/mne_data'):
+        self.path = flags.data_path
+
         print('Downloading MI datasets')
-        from moabb.datasets import BNCI2014001, Cho2017, PhysionetMI
-        from moabb.paradigms import MotorImagery
-        import numpy as np
 
         #set path for download
         from moabb.utils import set_download_dir
-        set_download_dir(path)
+        set_download_dir(self.path)
 
-        #
+        # Datasets
         ds_src1 = Cho2017()
         ds_src2 = PhysionetMI()
         ds_src3 = BNCI2014001()
@@ -884,45 +885,45 @@ class MI():
         prgm_2classes = MotorImagery(n_classes=2, channels=src3_channels, resample=sfreq, fmin=fmin, fmax=fmax)
         prgm_4classes = MotorImagery(n_classes=4, channels=src3_channels, resample=sfreq, fmin=fmin, fmax=fmax)
 
-        X_src1, label_src1, m_src1 = prgm_2classes.get_data(dataset=ds_src1, subjects=[1, 2, 3,4,5]) # TODO: add all 49 subjets 
-        X_src2, label_src2, m_src2 = prgm_4classes.get_data(dataset=ds_src2, subjects=[1, 2, 3, 4, 5]) # TODO: add all 109 subjets
-        X_src3, label_src3, m_src3 = prgm_4classes.get_data(dataset=ds_src3, subjects=[1,2,3,4,5]) # TODO: add all 9 subjets
+        X_src1, label_src1, m_src1 = prgm_2classes.get_data(dataset=ds_src1, subjects=[subj for subj in range(1,53) if subj not in [32,46,49]])  # three subjects [32,46,49] were removed in the moabb implementation (see:http://moabb.neurotechx.com/docs/_modules/moabb/datasets/gigadb.html#Cho2017)
+        X_src2, label_src2, m_src2 = prgm_4classes.get_data(dataset=ds_src2, subjects=list(range(1,110)))  
+        X_src3, label_src3, m_src3 = prgm_4classes.get_data(dataset=ds_src3, subjects=list(range(1,10)))  
 
         print("First source dataset has {} trials with {} electrodes and {} time samples".format(*X_src1.shape))
         print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src2.shape))
-        print("Target dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
+        print("Third source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
 
         print ("\nSource dataset 1 include labels: {}".format(np.unique(label_src1)))
         print ("Source dataset 2 include labels: {}".format(np.unique(label_src2)))
-        print ("Target dataset 1 include labels: {}".format(np.unique(label_src3)))
+        print ("Source dataset 3 include labels: {}".format(np.unique(label_src3)))
 
-        def relabel(l):
-            if l == 'left_hand': return 0
-            elif l == 'right_hand': return 1
-            else: return 2
-
-
-        y_src1 = np.array([relabel(l) for l in label_src1])
-        y_src2 = np.array([relabel(l) for l in label_src2])
-        y_src3 = np.array([relabel(l) for l in label_src3])
+        y_src1 = np.array([self.relabel(l) for l in label_src1])
+        y_src2 = np.array([self.relabel(l) for l in label_src2])
+        y_src3 = np.array([self.relabel(l) for l in label_src3])
 
         print("Only right-/left-hand labels are used and first source dataset does not have other labels:")
-        print(np.unique(y_src1), np.unique(y_src2), np.unique(y_src3))
+        print(np.unique(y_src1), np.unique(y_src2), np.unique(y_src3))     
 
+        # Deleting trials of "other labels"
+        print("Deleting trials from 'other labels'")
+        X_src2 = np.delete(X_src2,y_src2==2,0)
+        y_src2 = np.delete(y_src2,y_src2==2,0)
+        X_src3 = np.delete(X_src3,y_src3==2,0)
+        y_src3 = np.delete(y_src3,y_src3==2,0)
+
+        ## windowing trails
         window_size = min(X_src1.shape[2], X_src2.shape[2], X_src3.shape[2])
-
         X_src1 = X_src1[:, :, :window_size]
         X_src2 = X_src2[:, :, :window_size]
         X_src3 = X_src3[:, :, :window_size]
-
-        X = [X_src1, X_src2, X_src3]
-        Y = [y_src1, y_src2, y_src3]
 
         ## Create group in h5 file
         dummy_data = np.zeros((0,window_size,len(src3_channels)))
         dummy_labels = np.zeros((0,1))
         groups = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
-        with h5py.File(os.path.join(path, 'MI.h5'), 'a') as hf:
+        X = [X_src1, X_src2, X_src3]
+        Y = [y_src1, y_src2, y_src3]
+        with h5py.File(os.path.join(self.path, 'MI.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
                 g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(src3_channels)))
@@ -930,16 +931,21 @@ class MI():
         
         ## Save data to h5 file
         for group, x, y in zip(groups,X,Y):
-            with h5py.File(os.path.join(path, 'MI.h5'), 'a') as hf:
+            with h5py.File(os.path.join(self.path, 'MI.h5'), 'a') as hf:
                 hf[group]['data'].resize((hf[group]['data'].shape[0] + x.shape[0]), axis = 0)
                 hf[group]['data'][-x.shape[0]:,:,:] = x.transpose((0,2,1))
                 hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y.shape[0]), axis = 0)
                 hf[group]['labels'][-y.shape[0]:,:] = y.reshape([-1,1])
+    
+    def relabel(self,l):
+        if l == 'left_hand': return 0
+        elif l == 'right_hand': return 1
+        else: return 2
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Download datasets')
-    parser.add_argument('dataset', nargs='*', type=str, default=DATASETS)
+    parser.add_argument('--dataset', nargs='*', type=str, default=DATASETS)
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     flags = parser.parse_args()
 
@@ -952,6 +958,9 @@ if __name__ == '__main__':
 
     if 'SEDFx_DB' in flags.dataset:
         SEDFx_DB(flags)
+    
+    if 'MI' in flags.dataset:
+        MI(flags)
 
     if 'RealizedVolatility' in flags.dataset:
         RealizedVolatility(flags)
