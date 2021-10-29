@@ -164,6 +164,27 @@ def SEDFx_DB_train(sample):
 
     return hparams
 
+
+def MI_train(sample):
+    """ MI model hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 4))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 10**-4,
+            'batch_size': lambda r: 8
+        }
+
+    return hparams
+
+
 def HAR_train(sample):
     """ PhysioNet model hparam definition """
     if sample:
@@ -341,6 +362,24 @@ def CAP_DB_model(sample):
 
 def SEDFx_DB_model(sample):
     """ PhysioNet model hparam definition """
+    if sample:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+    else:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+
+
+def MI_model(sample):
+    """ MI model hparam definition """
     if sample:
         return {
             'model': lambda r: 'Transformer',

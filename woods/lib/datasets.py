@@ -26,6 +26,7 @@ DATASETS = [
     ## EEG Dataset
     "CAP_DB",
     "SEDFx_DB",
+    "MI",
     ## Financial Dataset
     "StockVolatility",
     ## Sign Recognition
@@ -905,6 +906,35 @@ class SEDFx_DB(Sleep_DB):
             training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
         """
         super().__init__(flags, training_hparams)
+
+
+       
+class MI(Sleep_DB):
+    """ MI datasets
+
+    The task is to classify the motor imaginary from EEG and other modalities of signals.
+    The raw data comes from the three MI Databases:  
+        ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+
+    You can read more on the data itself and it's provenance on: 
+        http://moabb.neurotechx.com/docs/api.html#motor-imagery-datasets
+
+    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    """
+    
+    DATA_FILE = 'MI.h5'
+    ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+    INPUT_SIZE = 22
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__(flags, training_hparams)
+
 
 class StockVolatility(Multi_Domain_Dataset):
     """ Stock Volatility Dataset

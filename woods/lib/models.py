@@ -278,17 +278,19 @@ class Transformer(nn.Module):
                 padding=(pad_size, 0)),
             nn.BatchNorm2d(n_conv_chs*2),
             nn.GELU(),
-            nn.MaxPool2d((max_pool_size, 1)),
+            # nn.MaxPool2d((max_pool_size, 1)),
+            nn.AdaptiveMaxPool2d(max_pool_size),
             # temporal conv 2
             nn.Conv2d(
                 n_conv_chs*2, n_conv_chs*4, (time_conv_size, 1),
                 padding=(pad_size, 0)),
             nn.BatchNorm2d(n_conv_chs*4),
             nn.GELU(),
-            nn.MaxPool2d((max_pool_size, 1))
+            # nn.MaxPool2d((max_pool_size, 1))
+            nn.AdaptiveMaxPool2d(max_pool_size)
         )
         self.classifier = nn.Sequential(
-            nn.Linear(2048, 128),
+            nn.Linear(9216, 128), # TODO: in_features should works for all EEG datasets
             nn.GELU(),
             nn.Linear(128, output_size),
             nn.LogSoftmax(dim=1)
