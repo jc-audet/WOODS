@@ -921,10 +921,12 @@ class MI(Sleep_DB):
 
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
-    
+
     DATA_FILE = 'MI.h5'
     ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
     INPUT_SIZE = 22
+    OUTPUT_SIZE = 2
+    N_STEPS = 20001
 
     def __init__(self, flags, training_hparams):
         """ Dataset constructor function
