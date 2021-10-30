@@ -243,6 +243,16 @@ class PositionalEncoding(nn.Module):
 
 class Transformer(nn.Module):
     # Do this : https://assets.amazon.science/11/88/6e046cba4241a06e536cc50584b2/gated-transformer-for-decoding-human-brain-eeg-signals.pdf
+    """Transformer for EEG
+
+    Args:
+        nn ([type]): [description]
+
+    TODO:
+        * Adaptive pooling to be able to use this with any input length (time)
+        * Find a way to add time embedding to the input without it not working
+        * Check model size to make it possible to overfit to the SEDFx dataset
+    """
 
     def __init__(self, input_size, output_size, model_hparams):
         super(Transformer, self).__init__()
@@ -285,7 +295,7 @@ class Transformer(nn.Module):
                 padding=(pad_size, 0)),
             nn.BatchNorm2d(n_conv_chs*4),
             nn.GELU(),
-            nn.MaxPool2d((max_pool_size, 1))
+            nn.MaxPool2d((max_pool_size, 1)) # Adaptive max pooling
         )
         self.classifier = nn.Sequential(
             nn.Linear(2048, 128),

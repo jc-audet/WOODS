@@ -740,6 +740,9 @@ class TCMNIST_step(TCMNIST):
 class EEG_dataset(Dataset):
     """ HDF5 dataset for EEG data
 
+    HDF5f file = {'env0': {'data': [], 'labels': []},
+                  'env1': {'data': [], 'labels': []}, ...}
+
     Container for data coming from an hdf5 file. 
     
     Good thing about this is that it imports data only when it needs to and thus saves ram space
