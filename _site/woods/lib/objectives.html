@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>woods.lib.objectives API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>woods.lib.objectives</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.autograd as autograd
+
+OBJECTIVES = [
+    &#39;ERM&#39;,
+    &#39;IRM&#39;,
+    &#39;VREx&#39;,
+    &#39;SD&#39;,
+    &#39;ANDMask&#39;,
+    &#39;IGA&#39;
+]
+
+def get_objective_class(objective_name):
+    &#34;&#34;&#34;Return the objective class with the given name.&#34;&#34;&#34;
+    if objective_name not in globals():
+        raise NotImplementedError(&#34;objective not found: {}&#34;.format(objective_name))
+    return globals()[objective_name]
+
+
+class Objective(nn.Module):
+    &#34;&#34;&#34;
+    A subclass of Objective implements a domain generalization Gradients.
+    Subclasses should implement the following:
+    - gradients()
+    &#34;&#34;&#34;
+    def __init__(self, hparams):
+        super(Objective, self).__init__()
+
+        self.hparams = hparams
+
+    def backward(self, losses):
+        &#34;&#34;&#34;
+        Computes the Gradients for model update
+
+        Admits a list of unlabeled losses from the test domains: losses
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+class ERM(Objective):
+    &#34;&#34;&#34;
+    Empirical Risk Minimization (ERM)
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(ERM, self).__init__(hparams)
+
+        self.model = model
+
+    def gather_logits_and_labels(self, logits, labels):
+        pass
+
+    def backward(self, losses):
+
+        objective = losses.mean()
+        objective.backward()
+
+class IRM(ERM):
+    &#34;&#34;&#34;
+    Invariant Risk Minimization (IRM)
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(IRM, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+        self.anneal_iters = self.hparams[&#39;anneal_iters&#39;]
+
+        # Memory
+        self.penalty = 0
+        self.register_buffer(&#39;update_count&#39;, torch.tensor([0]))
+
+    @staticmethod
+    def _irm_penalty(logits, y):
+        device = &#34;cuda&#34; if logits[0][0].is_cuda else &#34;cpu&#34;
+        scale = torch.tensor(1.).to(device).requires_grad_()
+        loss_1 = F.cross_entropy(logits[::2] * scale, y[::2])
+        loss_2 = F.cross_entropy(logits[1::2] * scale, y[1::2])
+        grad_1 = autograd.grad(loss_1, [scale], create_graph=True)[0]
+        grad_2 = autograd.grad(loss_2, [scale], create_graph=True)[0]
+        result = torch.sum(grad_1 * grad_2)
+        return result
+
+    def gather_logits_and_labels(self, logits, labels):
+        self.penalty += self._irm_penalty(logits, labels)
+
+    def backward(self, losses):
+        # Define stuff
+        penalty_weight = (self.penalty_weight   if self.update_count &gt;= self.anneal_iters 
+                                                else 1.0)
+
+        # Compute objective
+        n_env = losses.shape[0]
+        loss = losses.mean()
+        penalty = self.penalty / n_env
+
+        objective = loss + (penalty_weight * penalty)
+
+        # Backpropagate
+        objective.backward()
+
+        # Update memory
+        self.update_count += 1
+        self.penalty = 0
+
+
+class VREx(ERM):
+    &#34;&#34;&#34;
+    V-REx Objective from http://arxiv.org/abs/2003.00688
+    &#34;&#34;&#34;
+    def __init__(self, model, hparams):
+        super(VREx, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+        self.anneal_iters = self.hparams[&#39;anneal_iters&#39;]
+
+        # Memory
+        self.register_buffer(&#39;update_count&#39;, torch.tensor([0]))
+
+    def backward(self, losses):
+        
+        # Define stuff
+        penalty_weight = (self.penalty_weight   if self.update_count &gt;= self.anneal_iters 
+                                                else 1.0)
+
+        # Compute objective
+        mean = losses.mean()
+        penalty = ((losses - mean) ** 2).mean()
+        objective = mean + penalty_weight * penalty
+
+        objective.backward()
+
+        # Update memory
+        self.update_count += 1
+
+class SD(ERM):
+    &#34;&#34;&#34;
+    Gradient Starvation: A Learning Proclivity in Neural Networks
+    Equation 25 from [https://arxiv.org/pdf/2011.09468.pdf]
+    &#34;&#34;&#34;
+    def __init__(self, model, hparams):
+        super(SD, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+
+        # Memory
+        self.penalty = 0
+
+    def gather_logits_and_labels(self, logits, labels):
+
+        self.penalty += (logits ** 2).mean()
+
+    def backward(self, losses):
+
+        # Compute Objective
+        n_env = losses.shape[0]
+        loss = losses.mean()
+        penalty = self.penalty / n_env
+        objective = loss + self.penalty_weight * penalty
+
+        objective.backward()
+
+        # Update memory
+        self.penalty = 0
+
+class ANDMask(ERM):
+    &#34;&#34;&#34;
+    Learning Explanations that are Hard to Vary [https://arxiv.org/abs/2009.00329]
+    AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(ANDMask, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.tau = self.hparams[&#39;tau&#39;]
+
+    def backward(self, losses):
+        
+        param_gradients = [[] for _ in self.model.parameters()]
+        for env_loss in losses:
+
+            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
+            for grads, env_grad in zip(param_gradients, env_grads):
+                grads.append(env_grad)
+            
+        mean_loss = losses.mean()
+
+        self.mask_grads(self.tau, param_gradients, self.model.parameters())
+
+    def mask_grads(self, tau, gradients, params):
+
+        for param, grads in zip(params, gradients):
+            grads = torch.stack(grads, dim=0)
+            grad_signs = torch.sign(grads)
+            mask = torch.mean(grad_signs, dim=0).abs() &gt;= self.tau
+            mask = mask.to(torch.float32)
+            avg_grad = torch.mean(grads, dim=0)
+
+            mask_t = (mask.sum() / mask.numel())
+            param.grad = mask * avg_grad
+            param.grad *= (1. / (1e-10 + mask_t))
+
+class IGA(ERM):
+    &#34;&#34;&#34;
+    Inter-environmental Gradient Alignment
+    From https://arxiv.org/abs/2008.01883v2
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(IGA, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+
+    def backward(self, losses):
+
+        # Get the gradients
+        grads = []
+        for env_loss in losses:
+
+            env_grad = autograd.grad(env_loss, self.model.parameters(), 
+                                        create_graph=True)
+
+            grads.append(env_grad)
+            
+        # Compute the mean loss and mean loss gradient
+        mean_loss = losses.mean()
+        mean_grad = autograd.grad(mean_loss, self.model.parameters(), 
+                                        create_graph=True)
+
+        # compute trace penalty
+        penalty_value = 0
+        for grad in grads:
+            for g, mean_g in zip(grad, mean_grad):
+                penalty_value += (g - mean_g).pow(2).sum()
+
+        objective = mean_loss + self.penalty_weight * penalty_value
+
+        # Backpropagate
+        objective.backward()
+    </code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="woods.lib.objectives.get_objective_class"><code class="name flex">
+<span>def <span class="ident">get_objective_class</span></span>(<span>objective_name)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return the objective class with the given name.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_objective_class(objective_name):
+    &#34;&#34;&#34;Return the objective class with the given name.&#34;&#34;&#34;
+    if objective_name not in globals():
+        raise NotImplementedError(&#34;objective not found: {}&#34;.format(objective_name))
+    return globals()[objective_name]</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="woods.lib.objectives.ANDMask"><code class="flex name class">
+<span>class <span class="ident">ANDMask</span></span>
+<span>(</span><span>model, hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Learning Explanations that are Hard to Vary [<a href="https://arxiv.org/abs/2009.00329]">https://arxiv.org/abs/2009.00329]</a>
+AND-Mask implementation from [<a href="https://github.com/gibipara92/learning-explanations-hard-to-vary]">https://github.com/gibipara92/learning-explanations-hard-to-vary]</a></p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ANDMask(ERM):
+    &#34;&#34;&#34;
+    Learning Explanations that are Hard to Vary [https://arxiv.org/abs/2009.00329]
+    AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(ANDMask, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.tau = self.hparams[&#39;tau&#39;]
+
+    def backward(self, losses):
+        
+        param_gradients = [[] for _ in self.model.parameters()]
+        for env_loss in losses:
+
+            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
+            for grads, env_grad in zip(param_gradients, env_grads):
+                grads.append(env_grad)
+            
+        mean_loss = losses.mean()
+
+        self.mask_grads(self.tau, param_gradients, self.model.parameters())
+
+    def mask_grads(self, tau, gradients, params):
+
+        for param, grads in zip(params, gradients):
+            grads = torch.stack(grads, dim=0)
+            grad_signs = torch.sign(grads)
+            mask = torch.mean(grad_signs, dim=0).abs() &gt;= self.tau
+            mask = mask.to(torch.float32)
+            avg_grad = torch.mean(grads, dim=0)
+
+            mask_t = (mask.sum() / mask.numel())
+            param.grad = mask * avg_grad
+            param.grad *= (1. / (1e-10 + mask_t))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></li>
+<li><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.ANDMask.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.ANDMask.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.lib.objectives.ANDMask.mask_grads"><code class="name flex">
+<span>def <span class="ident">mask_grads</span></span>(<span>self, tau, gradients, params)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def mask_grads(self, tau, gradients, params):
+
+    for param, grads in zip(params, gradients):
+        grads = torch.stack(grads, dim=0)
+        grad_signs = torch.sign(grads)
+        mask = torch.mean(grad_signs, dim=0).abs() &gt;= self.tau
+        mask = mask.to(torch.float32)
+        avg_grad = torch.mean(grads, dim=0)
+
+        mask_t = (mask.sum() / mask.numel())
+        param.grad = mask * avg_grad
+        param.grad *= (1. / (1e-10 + mask_t))</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="woods.lib.objectives.ERM.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="woods.lib.objectives.ERM"><code class="flex name class">
+<span>class <span class="ident">ERM</span></span>
+<span>(</span><span>model, hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Empirical Risk Minimization (ERM)</p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ERM(Objective):
+    &#34;&#34;&#34;
+    Empirical Risk Minimization (ERM)
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(ERM, self).__init__(hparams)
+
+        self.model = model
+
+    def gather_logits_and_labels(self, logits, labels):
+        pass
+
+    def backward(self, losses):
+
+        objective = losses.mean()
+        objective.backward()</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ANDMask" href="#woods.lib.objectives.ANDMask">ANDMask</a></li>
+<li><a title="woods.lib.objectives.IGA" href="#woods.lib.objectives.IGA">IGA</a></li>
+<li><a title="woods.lib.objectives.IRM" href="#woods.lib.objectives.IRM">IRM</a></li>
+<li><a title="woods.lib.objectives.SD" href="#woods.lib.objectives.SD">SD</a></li>
+<li><a title="woods.lib.objectives.VREx" href="#woods.lib.objectives.VREx">VREx</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.ERM.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.ERM.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.lib.objectives.ERM.gather_logits_and_labels"><code class="name flex">
+<span>def <span class="ident">gather_logits_and_labels</span></span>(<span>self, logits, labels)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gather_logits_and_labels(self, logits, labels):
+    pass</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></b></code>:
+<ul class="hlist">
+<li><code><a title="woods.lib.objectives.Objective.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.Objective.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="woods.lib.objectives.IGA"><code class="flex name class">
+<span>class <span class="ident">IGA</span></span>
+<span>(</span><span>model, hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Inter-environmental Gradient Alignment
+From <a href="https://arxiv.org/abs/2008.01883v2">https://arxiv.org/abs/2008.01883v2</a></p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IGA(ERM):
+    &#34;&#34;&#34;
+    Inter-environmental Gradient Alignment
+    From https://arxiv.org/abs/2008.01883v2
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(IGA, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+
+    def backward(self, losses):
+
+        # Get the gradients
+        grads = []
+        for env_loss in losses:
+
+            env_grad = autograd.grad(env_loss, self.model.parameters(), 
+                                        create_graph=True)
+
+            grads.append(env_grad)
+            
+        # Compute the mean loss and mean loss gradient
+        mean_loss = losses.mean()
+        mean_grad = autograd.grad(mean_loss, self.model.parameters(), 
+                                        create_graph=True)
+
+        # compute trace penalty
+        penalty_value = 0
+        for grad in grads:
+            for g, mean_g in zip(grad, mean_grad):
+                penalty_value += (g - mean_g).pow(2).sum()
+
+        objective = mean_loss + self.penalty_weight * penalty_value
+
+        # Backpropagate
+        objective.backward()</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></li>
+<li><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.IGA.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.IGA.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="woods.lib.objectives.ERM.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="woods.lib.objectives.IRM"><code class="flex name class">
+<span>class <span class="ident">IRM</span></span>
+<span>(</span><span>model, hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Invariant Risk Minimization (IRM)</p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IRM(ERM):
+    &#34;&#34;&#34;
+    Invariant Risk Minimization (IRM)
+    &#34;&#34;&#34;
+
+    def __init__(self, model, hparams):
+        super(IRM, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+        self.anneal_iters = self.hparams[&#39;anneal_iters&#39;]
+
+        # Memory
+        self.penalty = 0
+        self.register_buffer(&#39;update_count&#39;, torch.tensor([0]))
+
+    @staticmethod
+    def _irm_penalty(logits, y):
+        device = &#34;cuda&#34; if logits[0][0].is_cuda else &#34;cpu&#34;
+        scale = torch.tensor(1.).to(device).requires_grad_()
+        loss_1 = F.cross_entropy(logits[::2] * scale, y[::2])
+        loss_2 = F.cross_entropy(logits[1::2] * scale, y[1::2])
+        grad_1 = autograd.grad(loss_1, [scale], create_graph=True)[0]
+        grad_2 = autograd.grad(loss_2, [scale], create_graph=True)[0]
+        result = torch.sum(grad_1 * grad_2)
+        return result
+
+    def gather_logits_and_labels(self, logits, labels):
+        self.penalty += self._irm_penalty(logits, labels)
+
+    def backward(self, losses):
+        # Define stuff
+        penalty_weight = (self.penalty_weight   if self.update_count &gt;= self.anneal_iters 
+                                                else 1.0)
+
+        # Compute objective
+        n_env = losses.shape[0]
+        loss = losses.mean()
+        penalty = self.penalty / n_env
+
+        objective = loss + (penalty_weight * penalty)
+
+        # Backpropagate
+        objective.backward()
+
+        # Update memory
+        self.update_count += 1
+        self.penalty = 0</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></li>
+<li><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.IRM.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.IRM.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.lib.objectives.IRM.gather_logits_and_labels"><code class="name flex">
+<span>def <span class="ident">gather_logits_and_labels</span></span>(<span>self, logits, labels)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gather_logits_and_labels(self, logits, labels):
+    self.penalty += self._irm_penalty(logits, labels)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="woods.lib.objectives.ERM.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="woods.lib.objectives.Objective"><code class="flex name class">
+<span>class <span class="ident">Objective</span></span>
+<span>(</span><span>hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A subclass of Objective implements a domain generalization Gradients.
+Subclasses should implement the following:
+- gradients()</p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Objective(nn.Module):
+    &#34;&#34;&#34;
+    A subclass of Objective implements a domain generalization Gradients.
+    Subclasses should implement the following:
+    - gradients()
+    &#34;&#34;&#34;
+    def __init__(self, hparams):
+        super(Objective, self).__init__()
+
+        self.hparams = hparams
+
+    def backward(self, losses):
+        &#34;&#34;&#34;
+        Computes the Gradients for model update
+
+        Admits a list of unlabeled losses from the test domains: losses
+        &#34;&#34;&#34;
+        raise NotImplementedError</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.Objective.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.Objective.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.lib.objectives.Objective.backward"><code class="name flex">
+<span>def <span class="ident">backward</span></span>(<span>self, losses)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Computes the Gradients for model update</p>
+<p>Admits a list of unlabeled losses from the test domains: losses</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def backward(self, losses):
+    &#34;&#34;&#34;
+    Computes the Gradients for model update
+
+    Admits a list of unlabeled losses from the test domains: losses
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+</dd>
+<dt id="woods.lib.objectives.Objective.forward"><code class="name flex">
+<span>def <span class="ident">forward</span></span>(<span>self, *input: Any) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the :class:<code>Module</code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def _forward_unimplemented(self, *input: Any) -&gt; None:
+    r&#34;&#34;&#34;Defines the computation performed at every call.
+
+    Should be overridden by all subclasses.
+
+    .. note::
+        Although the recipe for forward pass needs to be defined within
+        this function, one should call the :class:`Module` instance afterwards
+        instead of this since the former takes care of running the
+        registered hooks while the latter silently ignores them.
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="woods.lib.objectives.SD"><code class="flex name class">
+<span>class <span class="ident">SD</span></span>
+<span>(</span><span>model, hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Gradient Starvation: A Learning Proclivity in Neural Networks
+Equation 25 from [<a href="https://arxiv.org/pdf/2011.09468.pdf]">https://arxiv.org/pdf/2011.09468.pdf]</a></p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SD(ERM):
+    &#34;&#34;&#34;
+    Gradient Starvation: A Learning Proclivity in Neural Networks
+    Equation 25 from [https://arxiv.org/pdf/2011.09468.pdf]
+    &#34;&#34;&#34;
+    def __init__(self, model, hparams):
+        super(SD, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+
+        # Memory
+        self.penalty = 0
+
+    def gather_logits_and_labels(self, logits, labels):
+
+        self.penalty += (logits ** 2).mean()
+
+    def backward(self, losses):
+
+        # Compute Objective
+        n_env = losses.shape[0]
+        loss = losses.mean()
+        penalty = self.penalty / n_env
+        objective = loss + self.penalty_weight * penalty
+
+        objective.backward()
+
+        # Update memory
+        self.penalty = 0</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></li>
+<li><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.SD.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.SD.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.lib.objectives.SD.gather_logits_and_labels"><code class="name flex">
+<span>def <span class="ident">gather_logits_and_labels</span></span>(<span>self, logits, labels)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gather_logits_and_labels(self, logits, labels):
+
+    self.penalty += (logits ** 2).mean()</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="woods.lib.objectives.ERM.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="woods.lib.objectives.VREx"><code class="flex name class">
+<span>class <span class="ident">VREx</span></span>
+<span>(</span><span>model, hparams)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>V-REx Objective from <a href="http://arxiv.org/abs/2003.00688">http://arxiv.org/abs/2003.00688</a></p>
+<p>Initializes internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VREx(ERM):
+    &#34;&#34;&#34;
+    V-REx Objective from http://arxiv.org/abs/2003.00688
+    &#34;&#34;&#34;
+    def __init__(self, model, hparams):
+        super(VREx, self).__init__(model, hparams)
+
+        # Hyper parameters
+        self.penalty_weight = self.hparams[&#39;penalty_weight&#39;]
+        self.anneal_iters = self.hparams[&#39;anneal_iters&#39;]
+
+        # Memory
+        self.register_buffer(&#39;update_count&#39;, torch.tensor([0]))
+
+    def backward(self, losses):
+        
+        # Define stuff
+        penalty_weight = (self.penalty_weight   if self.update_count &gt;= self.anneal_iters 
+                                                else 1.0)
+
+        # Compute objective
+        mean = losses.mean()
+        penalty = ((losses - mean) ** 2).mean()
+        objective = mean + penalty_weight * penalty
+
+        objective.backward()
+
+        # Update memory
+        self.update_count += 1</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></li>
+<li><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.lib.objectives.VREx.dump_patches"><code class="name">var <span class="ident">dump_patches</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="woods.lib.objectives.VREx.training"><code class="name">var <span class="ident">training</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="woods.lib.objectives.ERM.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="woods.lib" href="index.html">woods.lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="woods.lib.objectives.get_objective_class" href="#woods.lib.objectives.get_objective_class">get_objective_class</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="woods.lib.objectives.ANDMask" href="#woods.lib.objectives.ANDMask">ANDMask</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.ANDMask.dump_patches" href="#woods.lib.objectives.ANDMask.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.ANDMask.mask_grads" href="#woods.lib.objectives.ANDMask.mask_grads">mask_grads</a></code></li>
+<li><code><a title="woods.lib.objectives.ANDMask.training" href="#woods.lib.objectives.ANDMask.training">training</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.lib.objectives.ERM" href="#woods.lib.objectives.ERM">ERM</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.ERM.dump_patches" href="#woods.lib.objectives.ERM.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.gather_logits_and_labels" href="#woods.lib.objectives.ERM.gather_logits_and_labels">gather_logits_and_labels</a></code></li>
+<li><code><a title="woods.lib.objectives.ERM.training" href="#woods.lib.objectives.ERM.training">training</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.lib.objectives.IGA" href="#woods.lib.objectives.IGA">IGA</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.IGA.dump_patches" href="#woods.lib.objectives.IGA.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.IGA.training" href="#woods.lib.objectives.IGA.training">training</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.lib.objectives.IRM" href="#woods.lib.objectives.IRM">IRM</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.IRM.dump_patches" href="#woods.lib.objectives.IRM.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.IRM.gather_logits_and_labels" href="#woods.lib.objectives.IRM.gather_logits_and_labels">gather_logits_and_labels</a></code></li>
+<li><code><a title="woods.lib.objectives.IRM.training" href="#woods.lib.objectives.IRM.training">training</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.lib.objectives.Objective" href="#woods.lib.objectives.Objective">Objective</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.Objective.backward" href="#woods.lib.objectives.Objective.backward">backward</a></code></li>
+<li><code><a title="woods.lib.objectives.Objective.dump_patches" href="#woods.lib.objectives.Objective.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.Objective.forward" href="#woods.lib.objectives.Objective.forward">forward</a></code></li>
+<li><code><a title="woods.lib.objectives.Objective.training" href="#woods.lib.objectives.Objective.training">training</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.lib.objectives.SD" href="#woods.lib.objectives.SD">SD</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.SD.dump_patches" href="#woods.lib.objectives.SD.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.SD.gather_logits_and_labels" href="#woods.lib.objectives.SD.gather_logits_and_labels">gather_logits_and_labels</a></code></li>
+<li><code><a title="woods.lib.objectives.SD.training" href="#woods.lib.objectives.SD.training">training</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.lib.objectives.VREx" href="#woods.lib.objectives.VREx">VREx</a></code></h4>
+<ul class="">
+<li><code><a title="woods.lib.objectives.VREx.dump_patches" href="#woods.lib.objectives.VREx.dump_patches">dump_patches</a></code></li>
+<li><code><a title="woods.lib.objectives.VREx.training" href="#woods.lib.objectives.VREx.training">training</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

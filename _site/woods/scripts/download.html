@@ -1,0 +1,2264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>woods.scripts.download API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>woods.scripts.download</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import os
+import csv
+import copy
+import json
+import argparse
+import datetime
+import numpy as np
+import glob
+import h5py
+import subprocess
+import mne
+import pyedflib
+import xlrd
+
+from scipy.signal import resample
+from sklearn.preprocessing import scale
+
+import torchvision
+from torchvision.transforms import Compose, Resize, Lambda
+from torchvision.transforms._transforms_video import (
+    ToTensorVideo,
+    NormalizeVideo,
+)
+from pytorchvideo.transforms import UniformTemporalSubsample
+import matplotlib.pyplot as plt
+
+from woods.lib.datasets import DATASETS
+
+class PhysioNet():
+    &#39;&#39;&#39;
+    PhysioNet Sleep stage dataset
+    Download: wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
+
+    TODO:
+        * Remove useless data from machine after making the h5 file
+        * check if something is already done in the download and if it does, don&#39;t do it
+        * Make it so we don&#39;t need the files attribute with the gather_EEG function
+        * Maybe do some cropping of wake stages?
+        * Make this a function, not a class
+        * Remove the append gimmic?
+        * Maybe download only already preprocessed version of dataset?
+    &#39;&#39;&#39;
+    files = [
+        [   &#39;physionet.org/files/capslpdb/1.0.0/nfle29&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle7&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle1&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle5&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/n11&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd18&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/plm9&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle35&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle36&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle2&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle38&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle39&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle21&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/nfle10&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle11&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle19&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle26&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle23&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/rbd8&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd5&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd11&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/ins8&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd10&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/n3&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle30&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle13&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle18&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle24&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle4&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle14&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle22&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/n5&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle37&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/nfle3&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle40&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle15&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle12&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle28&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle34&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle16&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle17&#39;]
+    ]
+
+    def __init__(self, flags):
+        super(PhysioNet, self).__init__()
+
+        ## Download 
+        download_process = subprocess.Popen([&#39;wget&#39;, &#39;-r&#39;, &#39;-N&#39;, &#39;-c&#39;, &#39;-np&#39;, &#39;https://physionet.org/files/capslpdb/1.0.0/&#39;, &#39;-P&#39;, flags.data_path])
+        download_process.wait()
+        
+        ## Process data into machines
+        common_channels = self.gather_EEG(flags)
+
+        ## Cluster data into machines and save
+        for i, env_set in enumerate(self.files):
+
+            for j, recording in enumerate(env_set):
+
+                # Create data path
+                edf_path = os.path.join(flags.data_path, recording + &#39;.edf&#39;)
+                txt_path = os.path.join(flags.data_path, recording + &#39;.txt&#39;)
+
+                # Fetch all data
+                data = mne.io.read_raw_edf(edf_path)
+                ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
+                data = data.pick_channels(ch)
+                labels, times = self.read_annotation(txt_path)
+
+                # Get labels
+                labels = self.string_2_label(labels)
+
+                # Sample and filter
+                data.resample(100)
+                data.filter(l_freq=0.3, h_freq=30)
+
+                # Get the indexes
+                start = data.info[&#39;meas_date&#39;]
+                times = [(t_s.replace(tzinfo=start.tzinfo), t_e.replace(tzinfo=start.tzinfo))  for (t_s, t_e) in times]
+                time_diff = [ ((t_s - start).total_seconds(), (t_e - start).total_seconds()) for (t_s, t_e) in times]
+                t_s, t_e = [t_s for (t_s, t_e) in time_diff], [t_e for (t_s, t_e) in time_diff]
+                index_s = data.time_as_index(t_s)
+                index_e = data.time_as_index(t_e)
+
+                # Split the data 
+                seq = np.array([data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e &lt;= len(data)])
+                labels = np.array([[l] for l, e in zip(labels, index_e) if e &lt;= len(data)])
+
+                # Add data to container
+                env_data = np.zeros((0, 19, 3000))
+                env_labels = np.zeros((0, 1))
+                env_data = np.append(env_data, seq, axis=0)
+                env_labels = np.append(env_labels, labels, axis=0)
+
+                # Reshape and scale the data
+                sc = mne.decoding.Scaler(scalings=&#39;mean&#39;)
+                env_data = sc.fit_transform(env_data)
+                env_data = np.transpose(env_data, (0,2,1))
+
+                with h5py.File(os.path.join(flags.data_path, &#39;physionet.org/CAP_DB.h5&#39;), &#39;a&#39;) as hf:
+                    if j == 0:
+                        g = hf.create_group(&#39;Machine&#39; + str(i))
+                        g.create_dataset(&#39;data&#39;, data=env_data.astype(&#39;float32&#39;), dtype=&#39;float32&#39;, maxshape=(None, 3000, 19))
+                        g.create_dataset(&#39;labels&#39;, data=env_labels.astype(&#39;float32&#39;), dtype=&#39;int_&#39;, maxshape=(None,1))
+                    else:
+                        hf[&#39;Machine&#39; + str(i)][&#39;data&#39;].resize((hf[&#39;Machine&#39; + str(i)][&#39;data&#39;].shape[0] + env_data.shape[0]), axis = 0)
+                        hf[&#39;Machine&#39; + str(i)][&#39;data&#39;][-env_data.shape[0]:,:,:] = env_data
+                        hf[&#39;Machine&#39; + str(i)][&#39;labels&#39;].resize((hf[&#39;Machine&#39; + str(i)][&#39;labels&#39;].shape[0] + env_labels.shape[0]), axis = 0)
+                        hf[&#39;Machine&#39; + str(i)][&#39;labels&#39;][-env_labels.shape[0]:,:] = env_labels
+        
+        # Remove useless files
+        self.remove_useless(flags)
+
+    def remove_useless(self, flags):
+
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*&#39;)):
+            print(&#34;Removing: &#34;, file)
+            os.remove(file)
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        print(&#34;Removing: &#34;, os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+        os.remove(os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+
+    def string_2_label(self, string):
+        
+        label_dict = {  &#39;W&#39;:0,
+                        &#39;S1&#39;:1,
+                        &#39;S2&#39;:2,
+                        &#39;S3&#39;:3,
+                        &#39;S4&#39;:4,
+                        &#39;R&#39;:5}
+                        
+        labels = [label_dict[s] for s in string]
+
+        return labels
+
+    def read_annotation(self, txt_path):
+
+        # Initialize storage
+        labels = []
+        times = []
+        durations = []
+
+        with open(txt_path, &#39;r&#39;) as file:
+            lines = file.readlines()
+
+        in_table = False
+        for line in lines:
+            if line[0:16] == &#39;Recording Date:   &#39;:
+                date = [int(u) for u in line.strip(&#39;\n&#39;).split(&#39;\t&#39;)[1].split(&#39;/&#39;)]
+
+            if in_table:
+                line_list = line.split(&#34;\t&#34;)
+                if line_list[event_id][0:5] == &#39;SLEEP&#39; and (position_id == None or line_list[position_id] != &#39;N/A&#39;):
+                    labels.append(line_list[label_id])
+                    durations.append(line_list[duration_id])
+                    t = line_list[time_id].split(&#39;:&#39;) if &#39;:&#39; in line_list[time_id] else line_list[time_id].split(&#39;.&#39;)
+                    t = [int(u) for u in t]
+                    dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]&lt;12))
+                    times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
+
+            if line[0:11] == &#39;Sleep Stage&#39;:
+                columns = line.split(&#34;\t&#34;)
+                label_id = columns.index(&#39;Sleep Stage&#39;)
+                time_id = columns.index(&#39;Time [hh:mm:ss]&#39;)
+                duration_id = columns.index(&#39;Duration[s]&#39;)
+                try:
+                    position_id = columns.index(&#39;Position&#39;)
+                except ValueError:
+                    position_id = None
+                event_id = columns.index(&#39;Event&#39;)
+                in_table = True
+
+        return labels, times
+
+    def gather_EEG(self, flags):
+
+        machine_id = 0
+        machines = {}
+        edf_file = []
+        table = []
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*.edf&#39;)):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print(&#34;Crashed&#34;)
+                continue
+
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id][&#39;state&#39;] = state_set
+                machines[id][&#39;amount&#39;] = 1
+                machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+                machines[id][&#39;names&#39;] = [file]
+            else:
+                machines[id][&#39;amount&#39;] += 1 
+                machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+                machines[id][&#39;names&#39;].append(file)
+            
+        _table = []
+        for id, machine in machines.items():
+            if machine[&#39;amount&#39;] &gt; 4:
+                ch = [c[0] for c in machine[&#39;state&#39;]]
+                freq = [c[1] for c in machine[&#39;state&#39;]]
+
+                _table.append(set(ch))
+                print(&#34;___________________________________________________&#34;)
+                print(&#34;Machine ID: &#34;, id)
+                print(&#34;Recording amount: &#34;, machine[&#39;amount&#39;])
+                print(&#34;Channels: &#34;, ch)
+                print(&#39;Freqs: &#39;, freq)
+                print(&#34;Dates:&#34;)
+                for d in machine[&#39;dates&#39;]:
+                    print(d)
+                print(&#34;Files:&#34;)
+                for f in machine[&#39;names&#39;]:
+                    print(f)
+
+        return list(set.intersection(*_table))
+    
+class SEDFx_DB():
+    &#39;&#39;&#39;
+    PhysioNet Sleep-EDF Database Expanded Dataset
+    Manual Download: wget -r -N -c -np https://physionet.org/files/sleep-edfx/1.0.0/
+
+    TODO:
+        * Remove useless data from machine after making the h5 file
+        * check if something is already done in the download and if it does, don&#39;t do it
+        * Make it so we don&#39;t need the files attribute with the gather_EEG function
+    &#39;&#39;&#39;
+
+    def __init__(self, flags):
+        super(SEDFx_DB, self).__init__()
+
+        ## Download 
+        download_process = subprocess.Popen([&#39;wget&#39;, &#39;-r&#39;, &#39;-N&#39;, &#39;-c&#39;, &#39;-np&#39;, &#39;https://physionet.org/files/sleep-edfx/1.0.0/&#39;, &#39;-P&#39;, flags.data_path])
+        download_process.wait()
+        
+        ## Process data into machines
+        common_channels = self.gather_EEG(flags)
+
+        ## Set labels
+        label_dict = {  &#39;Sleep stage W&#39;:0,
+                &#39;Sleep stage 1&#39;:1,
+                &#39;Sleep stage 2&#39;:2,
+                &#39;Sleep stage 3&#39;:3,
+                &#39;Sleep stage 4&#39;:4,
+                &#39;Sleep stage R&#39;:5}
+
+        ## Get subjects from xls file
+        SC_dict = {}
+        SC_xls = xlrd.open_workbook(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/SC-subjects.xls&#39;)).sheet_by_index(0)
+        for row in range(1, SC_xls.nrows):
+            if int(SC_xls.cell_value(row,0)) not in SC_dict.keys():
+                SC_dict[int(SC_xls.cell_value(row,0))] = {}
+                SC_dict[int(SC_xls.cell_value(row,0))][&#39;nights&#39;] = [&#39;SC4{:02d}{}&#39;.format(int(SC_xls.cell_value(row,0)), int(SC_xls.cell_value(row,1)))]
+                SC_dict[int(SC_xls.cell_value(row,0))][&#39;folder&#39;] = &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-cassette&#39;
+            else:
+                SC_dict[int(SC_xls.cell_value(row,0))][&#39;nights&#39;].append(&#39;SC4{:02d}{}&#39;.format(int(SC_xls.cell_value(row,0)), int(SC_xls.cell_value(row,1))))
+            SC_dict[int(SC_xls.cell_value(row,0))][&#39;age&#39;] = int(SC_xls.cell_value(row,2))
+            SC_dict[int(SC_xls.cell_value(row,0))][&#39;sex&#39;] = int(SC_xls.cell_value(row,3))
+        ST_dict = {}
+        ST_xls = xlrd.open_workbook(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/ST-subjects.xls&#39;)).sheet_by_index(0)
+        for row in range(2, ST_xls.nrows):
+            ST_dict[int(ST_xls.cell_value(row,0))] = {}
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;folder&#39;] = &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry&#39;
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;nights&#39;] = [&#39;ST7{:02d}{}&#39;.format(int(ST_xls.cell_value(row,0)), int(ST_xls.cell_value(row,3))), 
+                                                                &#39;ST7{:02d}{}&#39;.format(int(ST_xls.cell_value(row,0)), int(ST_xls.cell_value(row,5)))]
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;age&#39;] = int(ST_xls.cell_value(row,1))
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;sex&#39;] = 2 if int(ST_xls.cell_value(row,2))==1 else 1
+
+        ## Create group in h5 file
+        dummy_data = np.zeros((0,3000,4))
+        dummy_labels = np.zeros((0,1))
+        groups = [&#39;Age 20-40&#39;, &#39;Age 40-60&#39;, &#39;Age 60-80&#39;, &#39;Age 80-100&#39;]
+        with h5py.File(os.path.join(flags.data_path, &#39;physionet.org/SEDFx_DB.h5&#39;), &#39;a&#39;) as hf:
+            for g in groups:
+                g = hf.create_group(g)
+                g.create_dataset(&#39;data&#39;, data=dummy_data.astype(&#39;float32&#39;), dtype=&#39;float32&#39;, maxshape=(None, 3000, 4))
+                g.create_dataset(&#39;labels&#39;, data=dummy_labels.astype(&#39;float32&#39;), dtype=&#39;int_&#39;, maxshape=(None,1))
+
+        ## Cluster data into machines and save
+        for db in [SC_dict, ST_dict]:
+            for subject, subject_info in db.items():
+
+                # Find Age group
+                if 20 &lt; subject_info[&#39;age&#39;] &lt;= 40:
+                    age_group = groups[0]
+                elif 40 &lt; subject_info[&#39;age&#39;] &lt;= 60:
+                    age_group = groups[1]
+                elif 60 &lt; subject_info[&#39;age&#39;] &lt;= 80:
+                    age_group = groups[2]
+                elif 80 &lt; subject_info[&#39;age&#39;]:
+                    age_group = groups[3]
+                else:
+                    print(&#34;Age group counldn&#39;t be found&#34;)
+                
+                for night in subject_info[&#39;nights&#39;]:
+                    edf_path = os.path.join(flags.data_path, subject_info[&#39;folder&#39;], night+ &#39;*&#39;)
+
+                    # Fetch file name
+                    PSG_file = glob.glob(edf_path+&#39;PSG.edf&#39;)[0]
+                    hypno_file = glob.glob(edf_path+&#39;Hypnogram.edf&#39;)[0]
+
+                    # Read raw data and pick channels
+                    data = mne.io.read_raw_edf(PSG_file)
+                    ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
+                    data = data.pick_channels(ch)
+                    data.resample(100)
+                    data.filter(l_freq=0.3, h_freq=30)
+
+                    # Get annotations i.e. labels, crop the big start and end chunks of recordings
+                    annot = mne.read_annotations(hypno_file)
+                    annot.crop(annot[1][&#39;onset&#39;] - 30 * 60, annot[-2][&#39;onset&#39;] + 30 * 60)
+                    data.set_annotations(annot, emit_warning=False)
+
+                    events, event_id = mne.events_from_annotations(data, chunk_duration=30., event_id=label_dict)
+                    # mne.viz.plot_events(events, sfreq=data.info[&#39;sfreq&#39;])
+                    tmax = 30. - 1. / data.info[&#39;sfreq&#39;]  # tmax in included
+
+                    epochs_data = mne.Epochs(raw=data, events=events,
+                                            event_id=event_id, tmin=0., tmax=tmax, baseline=None)
+                    
+                    # Add data to container
+                    input_data = epochs_data.get_data()
+                    labels = events[:,2:]
+
+                    # Reshape and scale the data
+                    sc = mne.decoding.Scaler(scalings=&#39;mean&#39;)
+                    input_data = sc.fit_transform(input_data)
+                    input_data = np.transpose(input_data, (0,2,1))
+                    
+                    with h5py.File(os.path.join(flags.data_path, &#39;physionet.org/SEDFx_DB.h5&#39;), &#39;a&#39;) as hf:
+                        hf[age_group][&#39;data&#39;].resize((hf[age_group][&#39;data&#39;].shape[0] + input_data.shape[0]), axis = 0)
+                        hf[age_group][&#39;data&#39;][-input_data.shape[0]:,:,:] = input_data
+                        hf[age_group][&#39;labels&#39;].resize((hf[age_group][&#39;labels&#39;].shape[0] + labels.shape[0]), axis = 0)
+                        hf[age_group][&#39;labels&#39;][-labels.shape[0]:,:] = labels
+
+        # # Remove useless files
+        # self.remove_useless(flags)
+
+    def remove_useless(self, flags):
+
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*&#39;)):
+            print(&#34;Removing: &#34;, file)
+            os.remove(file)
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        print(&#34;Removing: &#34;, os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+        os.remove(os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+
+    def string_2_label(self, string):
+        
+        label_dict = {  &#39;W&#39;:0,
+                        &#39;S1&#39;:1,
+                        &#39;S2&#39;:2,
+                        &#39;S3&#39;:3,
+                        &#39;S4&#39;:4,
+                        &#39;R&#39;:5}
+                        
+        labels = [label_dict[s] for s in string]
+
+        return labels
+
+    def read_annotation(self, txt_path):
+
+        # Initialize storage
+        labels = []
+        times = []
+        durations = []
+
+        with open(txt_path, &#39;r&#39;) as file:
+            lines = file.readlines()
+
+        in_table = False
+        for line in lines:
+            if line[0:16] == &#39;Recording Date:   &#39;:
+                date = [int(u) for u in line.strip(&#39;\n&#39;).split(&#39;\t&#39;)[1].split(&#39;/&#39;)]
+
+            if in_table:
+                line_list = line.split(&#34;\t&#34;)
+                if line_list[event_id][0:5] == &#39;SLEEP&#39; and (position_id == None or line_list[position_id] != &#39;N/A&#39;):
+                    labels.append(line_list[label_id])
+                    durations.append(line_list[duration_id])
+                    t = line_list[time_id].split(&#39;:&#39;) if &#39;:&#39; in line_list[time_id] else line_list[time_id].split(&#39;.&#39;)
+                    t = [int(u) for u in t]
+                    dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]&lt;12))
+                    times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
+
+            if line[0:11] == &#39;Sleep Stage&#39;:
+                columns = line.split(&#34;\t&#34;)
+                label_id = columns.index(&#39;Sleep Stage&#39;)
+                time_id = columns.index(&#39;Time [hh:mm:ss]&#39;)
+                duration_id = columns.index(&#39;Duration[s]&#39;)
+                try:
+                    position_id = columns.index(&#39;Position&#39;)
+                except ValueError:
+                    position_id = None
+                event_id = columns.index(&#39;Event&#39;)
+                in_table = True
+
+        return labels, times
+
+    def gather_EEG(self, flags):
+
+        machine_id = 0
+        machines = {}
+        edf_file = []
+        table = []
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry/*PSG.edf&#39;)):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print(&#34;Crashed&#34;)
+                continue
+                
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id][&#39;state&#39;] = state_set
+                machines[id][&#39;amount&#39;] = 1
+                machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+                machines[id][&#39;names&#39;] = [file]
+            else:
+                machines[id][&#39;amount&#39;] += 1 
+                machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+                machines[id][&#39;names&#39;].append(file)
+
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/*PSG.edf&#39;)):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print(&#34;Crashed&#34;)
+                continue
+                
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id][&#39;state&#39;] = state_set
+                machines[id][&#39;amount&#39;] = 1
+                machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+                machines[id][&#39;names&#39;] = [file]
+            else:
+                machines[id][&#39;amount&#39;] += 1 
+                machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+                machines[id][&#39;names&#39;].append(file)
+            
+        _table = []
+        for id, machine in machines.items():
+            if machine[&#39;amount&#39;] &gt; 4:
+                ch = [c[0] for c in machine[&#39;state&#39;]]
+                freq = [c[1] for c in machine[&#39;state&#39;]]
+
+                _table.append(set(ch))
+                print(&#34;___________________________________________________&#34;)
+                print(&#34;Machine ID: &#34;, id)
+                print(&#34;Recording amount: &#34;, machine[&#39;amount&#39;])
+                print(&#34;Channels: &#34;, ch)
+                print(&#39;Freqs: &#39;, freq)
+                print(&#34;Dates:&#34;)
+                for d in machine[&#39;dates&#39;]:
+                    print(d)
+                print(&#34;Files:&#34;)
+                for f in machine[&#39;names&#39;]:
+                    print(f)
+
+        return list(set.intersection(*_table))
+
+
+def RealizedVolatility(flags):
+
+    with open(os.path.join(flags.data_path, &#39;RealizedVolatility/OxfordManRealizedVolatilityIndices.csv&#39;)) as f:
+        data = csv.reader(f)
+        print(next(data))
+        for row in data:
+            print(row)
+            
+
+def HAR(flags):
+    # Label definition
+    label_dict = {  &#39;stand&#39;: 0,
+                    &#39;sit&#39;: 1,
+                    &#39;walk&#39;: 2,
+                    &#39;bike&#39;: 3,
+                    &#39;stairsup&#39;: 4,
+                    &#39;stairsdown&#39;: 5,
+                    &#39;null&#39;: 6}
+
+    ## Fetch all data and put it all in a big dict
+    data_dict = {}
+    for file in glob.glob(os.path.join(flags.data_path, &#39;HAR/*.csv&#39;)):
+        print(file)
+
+        # Get modality
+        if &#39;gyroscope&#39; in file:
+            mod = &#39;gyro&#39;
+        elif &#39;accelerometer&#39; in file:
+            mod = &#39;acc&#39;
+
+        # Get number of time steps for all recordings
+        with open(file) as f:
+            data = csv.reader(f)
+            next(data)
+            for row in data:
+                if row[8] not in data_dict.keys():
+                    print(row[8])
+                    data_dict[row[8]] = {}
+                if row[6] not in data_dict[row[8]].keys():
+                    print(&#39;\t&#39; + row[6])
+                    data_dict[row[8]][row[6]] = {}
+                if mod not in data_dict[row[8]][row[6]].keys():
+                    print(&#39;\t\t&#39; + mod)
+                    data_dict[row[8]][row[6]][mod] = {}
+                    data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;] = 0
+                
+                data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;] += 1
+
+        # Get data
+        with open(file) as f:
+            data = csv.reader(f)
+            next(data)
+            for row in data:
+                if &#39;index&#39; not in data_dict[row[8]][row[6]][mod].keys():
+                    i = 0
+                    data_dict[row[8]][row[6]][mod][&#39;index&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;]))
+                    data_dict[row[8]][row[6]][mod][&#39;time&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;]))
+                    data_dict[row[8]][row[6]][mod][&#39;meas&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;],3), dtype=np.float64)
+                    data_dict[row[8]][row[6]][mod][&#39;label&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;]))
+                
+                data_dict[row[8]][row[6]][mod][&#39;index&#39;][i] = int(row[0])
+                data_dict[row[8]][row[6]][mod][&#39;time&#39;][i] = float(row[2]) / 1e6 # Convert to miliseconds
+                data_dict[row[8]][row[6]][mod][&#39;meas&#39;][i,:] = [float(row[3]), float(row[4]), float(row[5])]
+                data_dict[row[8]][row[6]][mod][&#39;label&#39;][i] = int(label_dict[row[9]])
+
+                i += 1
+
+    # Delete keys that either 
+    # - is missing one modality (e.g. all sansungold devices only have one modelality for some reason)or 
+    # - has a number of datapoint that is too low (e.g. gear_2 -&gt; &#39;i&#39; only has 1 point for some reason)
+    to_delete = []
+    for device in data_dict.keys():
+        for sub in data_dict[device].keys():
+            if len(data_dict[device][sub].keys()) != 2:
+                print(&#34;....&#34;)
+                print(&#34;len&#34;)
+                print(device, sub)
+                to_delete.append((device, sub))
+                continue
+            for mod in data_dict[device][sub].keys():
+                if data_dict[device][sub][mod][&#39;n_pt&#39;] &lt; 10000:
+                    print(&#34;....&#34;)
+                    print(&#34;n_pt&#34;)
+                    print(data_dict[device][sub][mod][&#39;n_pt&#39;])
+                    print(device, sub)
+                    to_delete.append((device, sub))
+                    break
+    for key in to_delete:
+        del data_dict[key[0]][key[1]]
+    print(to_delete)
+
+    ## Sort data
+    for device in data_dict.keys():
+        for sub in data_dict[device].keys():
+            for mod in data_dict[device][sub].keys():
+                # Sort by index
+                index_sort = np.argsort(data_dict[device][sub][mod][&#39;index&#39;])
+                data_dict[device][sub][mod][&#39;index&#39;] = np.take_along_axis(data_dict[device][sub][mod][&#39;index&#39;], index_sort, axis=0)
+                data_dict[device][sub][mod][&#39;time&#39;] = np.take_along_axis(data_dict[device][sub][mod][&#39;time&#39;], index_sort, axis=0)
+                data_dict[device][sub][mod][&#39;meas&#39;] = data_dict[device][sub][mod][&#39;meas&#39;][index_sort,:]
+                data_dict[device][sub][mod][&#39;label&#39;] = np.take_along_axis(data_dict[device][sub][mod][&#39;label&#39;], index_sort, axis=0)
+
+                # This is to take data that is within recording time 
+                # (To see an example of somewhere this isn&#39;t the case, check phones_gyrscope -&gt; nexus4_1 -&gt; a -&gt; index [24641, 24675])
+                inliers = np.argwhere(  np.logical_and( data_dict[device][sub][mod][&#39;time&#39;][0] &lt;= data_dict[device][sub][mod][&#39;time&#39;], 
+                                                        data_dict[device][sub][mod][&#39;time&#39;] &lt;= data_dict[device][sub][mod][&#39;time&#39;][-1]))[:,0]
+                
+                # Sort by time value
+                time_sort = np.argsort(data_dict[device][sub][mod][&#39;time&#39;][inliers])
+
+                data_dict[device][sub][mod][&#39;index&#39;] = data_dict[device][sub][mod][&#39;index&#39;][inliers][time_sort]
+                data_dict[device][sub][mod][&#39;time&#39;] = data_dict[device][sub][mod][&#39;time&#39;][inliers][time_sort]
+                data_dict[device][sub][mod][&#39;meas&#39;] = data_dict[device][sub][mod][&#39;meas&#39;][inliers][time_sort,:]
+                data_dict[device][sub][mod][&#39;label&#39;] = data_dict[device][sub][mod][&#39;label&#39;][inliers][time_sort]
+
+    device_env_mapping = {  &#39;nexus4_1&#39;: &#39;nexus4&#39;,
+                            &#39;nexus4_2&#39;: &#39;nexus4&#39;,
+                            &#39;s3_1&#39;: &#39;s3&#39;,
+                            &#39;s3_2&#39;: &#39;s3&#39;,
+                            &#39;s3mini_1&#39;: &#39;s3mini&#39;,
+                            &#39;s3mini_2&#39;: &#39;s3mini&#39;,
+                            &#39;gear_1&#39;: &#39;gear&#39;,
+                            &#39;gear_2&#39;: &#39;gear&#39;,
+                            &#39;lgwatch_1&#39;: &#39;lgwatch&#39;,
+                            &#39;lgwatch_2&#39;: &#39;lgwatch&#39;}
+
+    for device in data_dict.keys():
+        for i, sub in enumerate(data_dict[device].keys()):
+            print(&#34;..........&#34;)
+            print(device, sub)
+            # print(len(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;]), data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][0], data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][-1])
+            # print(len(data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;]), data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][0], data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][-1])
+
+            tmin = np.max([data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][0], data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][0]])
+            tmax = np.min([data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][-1], data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][-1]])
+            # print(tmin, tmax)
+
+            gyro_in = np.argwhere(  np.logical_and( tmin &lt;= data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;], 
+                                                    data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] &lt;= tmax))[:,0]
+            acc_in = np.argwhere(  np.logical_and( tmin &lt;= data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;], 
+                                                    data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] &lt;= tmax))[:,0]
+
+            data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;][acc_in]
+
+            gyro_in = np.argwhere(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;] != 6)[:,0]
+            acc_in = np.argwhere(data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;] != 6)[:,0]
+
+            data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;][gyro_in,:]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;][acc_in,:]
+            data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;][acc_in]
+
+            ## Scale data
+            data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;] = scale(data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;])
+            data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;] = scale(data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;])
+
+            # Resample and split the data here
+            idx = 0
+            data = np.zeros((0,500,6))
+            labels = np.zeros((0,1))
+            while True:
+                if idx &gt;= len(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;])-1:
+                    break
+                start_time = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][idx]
+                gyro_in = np.argwhere(  np.logical_and( start_time &lt;= data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;], 
+                                                        data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] &lt;= start_time+5000))[:,0]
+                acc_in = np.argwhere(  np.logical_and( start_time &lt;= data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;],
+                                                        data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] &lt;= start_time+5000))[:,0]
+                print(len(gyro_in), len(acc_in))
+                                        
+                if len(gyro_in) == 0 or len(acc_in) == 0:
+                    # print(&#34;time not intersecting segment&#34;)
+                    idx += len(gyro_in)
+                    continue       
+                if data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][-1] - data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][0] &lt; 4900 or data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in][-1] - data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in][0] &lt; 4900:
+                    # print(&#34;end on break segment&#34;)
+                    idx += len(gyro_in)
+                    continue
+                if len(np.argwhere(np.diff(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]) &gt; 200)[:,0]) &gt; 0 :
+                    diff = np.argwhere(np.diff(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]) &gt; 200)[:,0]
+                    # print(&#34;gyro contains a break&#34;)
+                    idx += diff[-1]+1
+                    continue
+                if len(np.argwhere(np.diff(data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]) &gt; 200)[:,0]) &gt; 0:
+                    diff = np.argwhere(np.diff(data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]) &gt; 200)[:,0]
+                    # print(&#34;acc contains a break&#34;)
+                    idx += diff[-1]+1
+                    continue
+                start_label = data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][idx]
+                if len(np.argwhere(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in] != start_label)[:,0]) &gt; 0:
+                    labels_diff = np.argwhere(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in] != start_label)[:,0]
+                    # print(&#34;label switch in sequence&#34;)
+                    idx += labels_diff[0]+1
+                    continue
+                
+                idx += len(gyro_in)
+
+                time = np.linspace(start = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][0], stop=data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][-1], num=500)
+                gyro_dat = resample(data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;][gyro_in, :], 500)
+                acc_dat = resample(data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;][acc_in, :], 500)
+
+                all_dat = np.concatenate((acc_dat, gyro_dat), axis=1)
+                data = np.concatenate((data, np.expand_dims(all_dat, axis=0)), axis=0)
+                labels = np.concatenate((labels, np.expand_dims(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in][0:1], axis=0)), axis=0)
+            
+            env = device_env_mapping[device]
+
+            with h5py.File(os.path.join(flags.data_path, &#39;HAR/HAR.h5&#39;), &#39;a&#39;) as hf:
+                if env not in hf.keys():
+                    g = hf.create_group(env)
+                    g.create_dataset(&#39;data&#39;, data=data.astype(&#39;float32&#39;), dtype=&#39;float32&#39;, maxshape=(None, 500, 6))
+                    g.create_dataset(&#39;labels&#39;, data=labels.astype(&#39;float32&#39;), dtype=&#39;int_&#39;, maxshape=(None,1))
+                else:
+                    hf[env][&#39;data&#39;].resize((hf[env][&#39;data&#39;].shape[0] + data.shape[0]), axis = 0)
+                    hf[env][&#39;data&#39;][-data.shape[0]:,:,:] = data
+                    hf[env][&#39;labels&#39;].resize((hf[env][&#39;labels&#39;].shape[0] + labels.shape[0]), axis = 0)
+                    hf[env][&#39;labels&#39;][-labels.shape[0]:,:] = labels
+
+def LSA64(flags):
+    &#34;&#34;&#34;
+    Loads the data from the LSA64 dataset.
+    &#34;&#34;&#34;
+
+    for person in range(1,11):
+        person_ID = str(person).zfill(3)
+        
+        # with h5py.File(os.path.join(flags.data_path, &#39;LSA64&#39;, &#39;LSA64_&#39;+person_ID+&#39;.h5&#39;), &#39;a&#39;) as hf:
+        #     person_group = hf.create_group(person_ID)
+
+        for i, file in enumerate(glob.glob(os.path.join(flags.data_path, &#39;LSA64&#39;, &#39;*_&#39;+person_ID+&#39;_*&#39;))):
+            print(str(i+1)+ &#39; / 320 (&#39; + file+&#39;)&#39;)
+            ID = file.split(&#39;/&#39;)[-1].split(&#39;_&#39;)
+            sample_num = ID[-1].split(&#39;.&#39;)[0]
+                
+            vid = torchvision.io.read_video(os.path.join(flags.data_path, &#39;LSA64&#39;, file), end_pts=2.5, pts_unit=&#39;sec&#39;)[0]
+
+            transform = Compose([ToTensorVideo(),
+                                 Resize(size=(224, 224)),
+                                 UniformTemporalSubsample(20)])#,
+                                #  NormalizeVideo(mean=[0.485, 0.456, 0.406],
+                                #                 std=[0.229, 0.224, 0.225])])
+            print(vid.shape)
+            vid = transform(vid)
+            print(vid.shape)
+
+            if not os.path.exists(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1])):
+                os.makedirs(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1]))
+            if not os.path.exists(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0])):
+                os.makedirs(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0]))
+            if not os.path.exists(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0], sample_num)):
+                os.mkdir(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0], sample_num))
+            for frame in range(vid.shape[1]):
+                torchvision.utils.save_image(vid[:,frame,...], os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0], sample_num, &#39;frame_&#39;+str(frame).zfill(6)+&#39;.jpg&#39;))
+
+            # with h5py.File(os.path.join(flags.data_path, &#39;LSA64&#39;, &#39;LSA64_&#39;+person_ID+&#39;.h5&#39;), &#39;a&#39;) as hf:
+            #     if ID[0] not in hf.keys():
+            #         label_group = hf.create_group(ID[0])
+            #     hf[ID[0]].create_dataset(sample_num, data=vid.numpy(), chunks=(3,1,224,224),compression=&#39;gzip&#39;, compression_opts=9, maxshape=(3,None,224,224))
+
+if __name__ == &#39;__main__&#39;:
+
+    parser = argparse.ArgumentParser(description=&#39;Download datasets&#39;)
+    parser.add_argument(&#39;dataset&#39;, nargs=&#39;*&#39;, type=str, default=DATASETS)
+    parser.add_argument(&#39;--data_path&#39;, type=str, default=&#39;~/Documents/Data/&#39;)
+    flags = parser.parse_args()
+
+    print(&#39;Flags:&#39;)
+    for k,v in sorted(vars(flags).items()):
+        print(&#34;\t{}: {}&#34;.format(k, v))
+
+    if &#39;PhysioNet&#39; in flags.dataset:
+        physionet = PhysioNet(flags)
+
+    if &#39;SEDFx_DB&#39; in flags.dataset:
+        SEDFx_DB(flags)
+
+    if &#39;RealizedVolatility&#39; in flags.dataset:
+        RealizedVolatility(flags)
+
+    if &#39;HAR&#39; in flags.dataset:
+        HAR(flags)
+
+    if &#39;LSA64&#39; in flags.dataset:
+        LSA64(flags)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="woods.scripts.download.HAR"><code class="name flex">
+<span>def <span class="ident">HAR</span></span>(<span>flags)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def HAR(flags):
+    # Label definition
+    label_dict = {  &#39;stand&#39;: 0,
+                    &#39;sit&#39;: 1,
+                    &#39;walk&#39;: 2,
+                    &#39;bike&#39;: 3,
+                    &#39;stairsup&#39;: 4,
+                    &#39;stairsdown&#39;: 5,
+                    &#39;null&#39;: 6}
+
+    ## Fetch all data and put it all in a big dict
+    data_dict = {}
+    for file in glob.glob(os.path.join(flags.data_path, &#39;HAR/*.csv&#39;)):
+        print(file)
+
+        # Get modality
+        if &#39;gyroscope&#39; in file:
+            mod = &#39;gyro&#39;
+        elif &#39;accelerometer&#39; in file:
+            mod = &#39;acc&#39;
+
+        # Get number of time steps for all recordings
+        with open(file) as f:
+            data = csv.reader(f)
+            next(data)
+            for row in data:
+                if row[8] not in data_dict.keys():
+                    print(row[8])
+                    data_dict[row[8]] = {}
+                if row[6] not in data_dict[row[8]].keys():
+                    print(&#39;\t&#39; + row[6])
+                    data_dict[row[8]][row[6]] = {}
+                if mod not in data_dict[row[8]][row[6]].keys():
+                    print(&#39;\t\t&#39; + mod)
+                    data_dict[row[8]][row[6]][mod] = {}
+                    data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;] = 0
+                
+                data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;] += 1
+
+        # Get data
+        with open(file) as f:
+            data = csv.reader(f)
+            next(data)
+            for row in data:
+                if &#39;index&#39; not in data_dict[row[8]][row[6]][mod].keys():
+                    i = 0
+                    data_dict[row[8]][row[6]][mod][&#39;index&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;]))
+                    data_dict[row[8]][row[6]][mod][&#39;time&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;]))
+                    data_dict[row[8]][row[6]][mod][&#39;meas&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;],3), dtype=np.float64)
+                    data_dict[row[8]][row[6]][mod][&#39;label&#39;] = np.zeros((data_dict[row[8]][row[6]][mod][&#39;n_pt&#39;]))
+                
+                data_dict[row[8]][row[6]][mod][&#39;index&#39;][i] = int(row[0])
+                data_dict[row[8]][row[6]][mod][&#39;time&#39;][i] = float(row[2]) / 1e6 # Convert to miliseconds
+                data_dict[row[8]][row[6]][mod][&#39;meas&#39;][i,:] = [float(row[3]), float(row[4]), float(row[5])]
+                data_dict[row[8]][row[6]][mod][&#39;label&#39;][i] = int(label_dict[row[9]])
+
+                i += 1
+
+    # Delete keys that either 
+    # - is missing one modality (e.g. all sansungold devices only have one modelality for some reason)or 
+    # - has a number of datapoint that is too low (e.g. gear_2 -&gt; &#39;i&#39; only has 1 point for some reason)
+    to_delete = []
+    for device in data_dict.keys():
+        for sub in data_dict[device].keys():
+            if len(data_dict[device][sub].keys()) != 2:
+                print(&#34;....&#34;)
+                print(&#34;len&#34;)
+                print(device, sub)
+                to_delete.append((device, sub))
+                continue
+            for mod in data_dict[device][sub].keys():
+                if data_dict[device][sub][mod][&#39;n_pt&#39;] &lt; 10000:
+                    print(&#34;....&#34;)
+                    print(&#34;n_pt&#34;)
+                    print(data_dict[device][sub][mod][&#39;n_pt&#39;])
+                    print(device, sub)
+                    to_delete.append((device, sub))
+                    break
+    for key in to_delete:
+        del data_dict[key[0]][key[1]]
+    print(to_delete)
+
+    ## Sort data
+    for device in data_dict.keys():
+        for sub in data_dict[device].keys():
+            for mod in data_dict[device][sub].keys():
+                # Sort by index
+                index_sort = np.argsort(data_dict[device][sub][mod][&#39;index&#39;])
+                data_dict[device][sub][mod][&#39;index&#39;] = np.take_along_axis(data_dict[device][sub][mod][&#39;index&#39;], index_sort, axis=0)
+                data_dict[device][sub][mod][&#39;time&#39;] = np.take_along_axis(data_dict[device][sub][mod][&#39;time&#39;], index_sort, axis=0)
+                data_dict[device][sub][mod][&#39;meas&#39;] = data_dict[device][sub][mod][&#39;meas&#39;][index_sort,:]
+                data_dict[device][sub][mod][&#39;label&#39;] = np.take_along_axis(data_dict[device][sub][mod][&#39;label&#39;], index_sort, axis=0)
+
+                # This is to take data that is within recording time 
+                # (To see an example of somewhere this isn&#39;t the case, check phones_gyrscope -&gt; nexus4_1 -&gt; a -&gt; index [24641, 24675])
+                inliers = np.argwhere(  np.logical_and( data_dict[device][sub][mod][&#39;time&#39;][0] &lt;= data_dict[device][sub][mod][&#39;time&#39;], 
+                                                        data_dict[device][sub][mod][&#39;time&#39;] &lt;= data_dict[device][sub][mod][&#39;time&#39;][-1]))[:,0]
+                
+                # Sort by time value
+                time_sort = np.argsort(data_dict[device][sub][mod][&#39;time&#39;][inliers])
+
+                data_dict[device][sub][mod][&#39;index&#39;] = data_dict[device][sub][mod][&#39;index&#39;][inliers][time_sort]
+                data_dict[device][sub][mod][&#39;time&#39;] = data_dict[device][sub][mod][&#39;time&#39;][inliers][time_sort]
+                data_dict[device][sub][mod][&#39;meas&#39;] = data_dict[device][sub][mod][&#39;meas&#39;][inliers][time_sort,:]
+                data_dict[device][sub][mod][&#39;label&#39;] = data_dict[device][sub][mod][&#39;label&#39;][inliers][time_sort]
+
+    device_env_mapping = {  &#39;nexus4_1&#39;: &#39;nexus4&#39;,
+                            &#39;nexus4_2&#39;: &#39;nexus4&#39;,
+                            &#39;s3_1&#39;: &#39;s3&#39;,
+                            &#39;s3_2&#39;: &#39;s3&#39;,
+                            &#39;s3mini_1&#39;: &#39;s3mini&#39;,
+                            &#39;s3mini_2&#39;: &#39;s3mini&#39;,
+                            &#39;gear_1&#39;: &#39;gear&#39;,
+                            &#39;gear_2&#39;: &#39;gear&#39;,
+                            &#39;lgwatch_1&#39;: &#39;lgwatch&#39;,
+                            &#39;lgwatch_2&#39;: &#39;lgwatch&#39;}
+
+    for device in data_dict.keys():
+        for i, sub in enumerate(data_dict[device].keys()):
+            print(&#34;..........&#34;)
+            print(device, sub)
+            # print(len(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;]), data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][0], data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][-1])
+            # print(len(data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;]), data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][0], data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][-1])
+
+            tmin = np.max([data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][0], data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][0]])
+            tmax = np.min([data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][-1], data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][-1]])
+            # print(tmin, tmax)
+
+            gyro_in = np.argwhere(  np.logical_and( tmin &lt;= data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;], 
+                                                    data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] &lt;= tmax))[:,0]
+            acc_in = np.argwhere(  np.logical_and( tmin &lt;= data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;], 
+                                                    data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] &lt;= tmax))[:,0]
+
+            data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;][acc_in]
+
+            gyro_in = np.argwhere(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;] != 6)[:,0]
+            acc_in = np.argwhere(data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;] != 6)[:,0]
+
+            data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;index&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;][gyro_in,:]
+            data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;index&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]
+            data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;][acc_in,:]
+            data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;] = data_dict[device][sub][&#39;acc&#39;][&#39;label&#39;][acc_in]
+
+            ## Scale data
+            data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;] = scale(data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;])
+            data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;] = scale(data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;])
+
+            # Resample and split the data here
+            idx = 0
+            data = np.zeros((0,500,6))
+            labels = np.zeros((0,1))
+            while True:
+                if idx &gt;= len(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;])-1:
+                    break
+                start_time = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][idx]
+                gyro_in = np.argwhere(  np.logical_and( start_time &lt;= data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;], 
+                                                        data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;] &lt;= start_time+5000))[:,0]
+                acc_in = np.argwhere(  np.logical_and( start_time &lt;= data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;],
+                                                        data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;] &lt;= start_time+5000))[:,0]
+                print(len(gyro_in), len(acc_in))
+                                        
+                if len(gyro_in) == 0 or len(acc_in) == 0:
+                    # print(&#34;time not intersecting segment&#34;)
+                    idx += len(gyro_in)
+                    continue       
+                if data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][-1] - data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][0] &lt; 4900 or data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in][-1] - data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in][0] &lt; 4900:
+                    # print(&#34;end on break segment&#34;)
+                    idx += len(gyro_in)
+                    continue
+                if len(np.argwhere(np.diff(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]) &gt; 200)[:,0]) &gt; 0 :
+                    diff = np.argwhere(np.diff(data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in]) &gt; 200)[:,0]
+                    # print(&#34;gyro contains a break&#34;)
+                    idx += diff[-1]+1
+                    continue
+                if len(np.argwhere(np.diff(data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]) &gt; 200)[:,0]) &gt; 0:
+                    diff = np.argwhere(np.diff(data_dict[device][sub][&#39;acc&#39;][&#39;time&#39;][acc_in]) &gt; 200)[:,0]
+                    # print(&#34;acc contains a break&#34;)
+                    idx += diff[-1]+1
+                    continue
+                start_label = data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][idx]
+                if len(np.argwhere(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in] != start_label)[:,0]) &gt; 0:
+                    labels_diff = np.argwhere(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in] != start_label)[:,0]
+                    # print(&#34;label switch in sequence&#34;)
+                    idx += labels_diff[0]+1
+                    continue
+                
+                idx += len(gyro_in)
+
+                time = np.linspace(start = data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][0], stop=data_dict[device][sub][&#39;gyro&#39;][&#39;time&#39;][gyro_in][-1], num=500)
+                gyro_dat = resample(data_dict[device][sub][&#39;gyro&#39;][&#39;meas&#39;][gyro_in, :], 500)
+                acc_dat = resample(data_dict[device][sub][&#39;acc&#39;][&#39;meas&#39;][acc_in, :], 500)
+
+                all_dat = np.concatenate((acc_dat, gyro_dat), axis=1)
+                data = np.concatenate((data, np.expand_dims(all_dat, axis=0)), axis=0)
+                labels = np.concatenate((labels, np.expand_dims(data_dict[device][sub][&#39;gyro&#39;][&#39;label&#39;][gyro_in][0:1], axis=0)), axis=0)
+            
+            env = device_env_mapping[device]
+
+            with h5py.File(os.path.join(flags.data_path, &#39;HAR/HAR.h5&#39;), &#39;a&#39;) as hf:
+                if env not in hf.keys():
+                    g = hf.create_group(env)
+                    g.create_dataset(&#39;data&#39;, data=data.astype(&#39;float32&#39;), dtype=&#39;float32&#39;, maxshape=(None, 500, 6))
+                    g.create_dataset(&#39;labels&#39;, data=labels.astype(&#39;float32&#39;), dtype=&#39;int_&#39;, maxshape=(None,1))
+                else:
+                    hf[env][&#39;data&#39;].resize((hf[env][&#39;data&#39;].shape[0] + data.shape[0]), axis = 0)
+                    hf[env][&#39;data&#39;][-data.shape[0]:,:,:] = data
+                    hf[env][&#39;labels&#39;].resize((hf[env][&#39;labels&#39;].shape[0] + labels.shape[0]), axis = 0)
+                    hf[env][&#39;labels&#39;][-labels.shape[0]:,:] = labels</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.LSA64"><code class="name flex">
+<span>def <span class="ident">LSA64</span></span>(<span>flags)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Loads the data from the LSA64 dataset.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def LSA64(flags):
+    &#34;&#34;&#34;
+    Loads the data from the LSA64 dataset.
+    &#34;&#34;&#34;
+
+    for person in range(1,11):
+        person_ID = str(person).zfill(3)
+        
+        # with h5py.File(os.path.join(flags.data_path, &#39;LSA64&#39;, &#39;LSA64_&#39;+person_ID+&#39;.h5&#39;), &#39;a&#39;) as hf:
+        #     person_group = hf.create_group(person_ID)
+
+        for i, file in enumerate(glob.glob(os.path.join(flags.data_path, &#39;LSA64&#39;, &#39;*_&#39;+person_ID+&#39;_*&#39;))):
+            print(str(i+1)+ &#39; / 320 (&#39; + file+&#39;)&#39;)
+            ID = file.split(&#39;/&#39;)[-1].split(&#39;_&#39;)
+            sample_num = ID[-1].split(&#39;.&#39;)[0]
+                
+            vid = torchvision.io.read_video(os.path.join(flags.data_path, &#39;LSA64&#39;, file), end_pts=2.5, pts_unit=&#39;sec&#39;)[0]
+
+            transform = Compose([ToTensorVideo(),
+                                 Resize(size=(224, 224)),
+                                 UniformTemporalSubsample(20)])#,
+                                #  NormalizeVideo(mean=[0.485, 0.456, 0.406],
+                                #                 std=[0.229, 0.224, 0.225])])
+            print(vid.shape)
+            vid = transform(vid)
+            print(vid.shape)
+
+            if not os.path.exists(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1])):
+                os.makedirs(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1]))
+            if not os.path.exists(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0])):
+                os.makedirs(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0]))
+            if not os.path.exists(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0], sample_num)):
+                os.mkdir(os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0], sample_num))
+            for frame in range(vid.shape[1]):
+                torchvision.utils.save_image(vid[:,frame,...], os.path.join(flags.data_path, &#39;LSA64&#39;, ID[1], ID[0], sample_num, &#39;frame_&#39;+str(frame).zfill(6)+&#39;.jpg&#39;))
+
+            # with h5py.File(os.path.join(flags.data_path, &#39;LSA64&#39;, &#39;LSA64_&#39;+person_ID+&#39;.h5&#39;), &#39;a&#39;) as hf:
+            #     if ID[0] not in hf.keys():
+            #         label_group = hf.create_group(ID[0])
+            #     hf[ID[0]].create_dataset(sample_num, data=vid.numpy(), chunks=(3,1,224,224),compression=&#39;gzip&#39;, compression_opts=9, maxshape=(3,None,224,224))</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.RealizedVolatility"><code class="name flex">
+<span>def <span class="ident">RealizedVolatility</span></span>(<span>flags)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def RealizedVolatility(flags):
+
+    with open(os.path.join(flags.data_path, &#39;RealizedVolatility/OxfordManRealizedVolatilityIndices.csv&#39;)) as f:
+        data = csv.reader(f)
+        print(next(data))
+        for row in data:
+            print(row)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="woods.scripts.download.PhysioNet"><code class="flex name class">
+<span>class <span class="ident">PhysioNet</span></span>
+<span>(</span><span>flags)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>PhysioNet Sleep stage dataset
+Download: wget -r -N -c -np <a href="https://physionet.org/files/capslpdb/1.0.0/">https://physionet.org/files/capslpdb/1.0.0/</a></p>
+<h2 id="todo">Todo</h2>
+<ul>
+<li>Remove useless data from machine after making the h5 file</li>
+<li>check if something is already done in the download and if it does, don't do it</li>
+<li>Make it so we don't need the files attribute with the gather_EEG function</li>
+<li>Maybe do some cropping of wake stages?</li>
+<li>Make this a function, not a class</li>
+<li>Remove the append gimmic?</li>
+<li>Maybe download only already preprocessed version of dataset?</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PhysioNet():
+    &#39;&#39;&#39;
+    PhysioNet Sleep stage dataset
+    Download: wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
+
+    TODO:
+        * Remove useless data from machine after making the h5 file
+        * check if something is already done in the download and if it does, don&#39;t do it
+        * Make it so we don&#39;t need the files attribute with the gather_EEG function
+        * Maybe do some cropping of wake stages?
+        * Make this a function, not a class
+        * Remove the append gimmic?
+        * Maybe download only already preprocessed version of dataset?
+    &#39;&#39;&#39;
+    files = [
+        [   &#39;physionet.org/files/capslpdb/1.0.0/nfle29&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle7&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle1&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle5&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/n11&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd18&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/plm9&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle35&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle36&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle2&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle38&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle39&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle21&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/nfle10&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle11&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle19&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle26&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle23&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/rbd8&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd5&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd11&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/ins8&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/rbd10&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/n3&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle30&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle13&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle18&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle24&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle4&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle14&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle22&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/n5&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle37&#39;],
+        [   &#39;physionet.org/files/capslpdb/1.0.0/nfle3&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle40&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle15&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle12&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle28&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle34&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle16&#39;,
+            &#39;physionet.org/files/capslpdb/1.0.0/nfle17&#39;]
+    ]
+
+    def __init__(self, flags):
+        super(PhysioNet, self).__init__()
+
+        ## Download 
+        download_process = subprocess.Popen([&#39;wget&#39;, &#39;-r&#39;, &#39;-N&#39;, &#39;-c&#39;, &#39;-np&#39;, &#39;https://physionet.org/files/capslpdb/1.0.0/&#39;, &#39;-P&#39;, flags.data_path])
+        download_process.wait()
+        
+        ## Process data into machines
+        common_channels = self.gather_EEG(flags)
+
+        ## Cluster data into machines and save
+        for i, env_set in enumerate(self.files):
+
+            for j, recording in enumerate(env_set):
+
+                # Create data path
+                edf_path = os.path.join(flags.data_path, recording + &#39;.edf&#39;)
+                txt_path = os.path.join(flags.data_path, recording + &#39;.txt&#39;)
+
+                # Fetch all data
+                data = mne.io.read_raw_edf(edf_path)
+                ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
+                data = data.pick_channels(ch)
+                labels, times = self.read_annotation(txt_path)
+
+                # Get labels
+                labels = self.string_2_label(labels)
+
+                # Sample and filter
+                data.resample(100)
+                data.filter(l_freq=0.3, h_freq=30)
+
+                # Get the indexes
+                start = data.info[&#39;meas_date&#39;]
+                times = [(t_s.replace(tzinfo=start.tzinfo), t_e.replace(tzinfo=start.tzinfo))  for (t_s, t_e) in times]
+                time_diff = [ ((t_s - start).total_seconds(), (t_e - start).total_seconds()) for (t_s, t_e) in times]
+                t_s, t_e = [t_s for (t_s, t_e) in time_diff], [t_e for (t_s, t_e) in time_diff]
+                index_s = data.time_as_index(t_s)
+                index_e = data.time_as_index(t_e)
+
+                # Split the data 
+                seq = np.array([data.get_data(start=s, stop=e) for s, e in zip(index_s, index_e) if e &lt;= len(data)])
+                labels = np.array([[l] for l, e in zip(labels, index_e) if e &lt;= len(data)])
+
+                # Add data to container
+                env_data = np.zeros((0, 19, 3000))
+                env_labels = np.zeros((0, 1))
+                env_data = np.append(env_data, seq, axis=0)
+                env_labels = np.append(env_labels, labels, axis=0)
+
+                # Reshape and scale the data
+                sc = mne.decoding.Scaler(scalings=&#39;mean&#39;)
+                env_data = sc.fit_transform(env_data)
+                env_data = np.transpose(env_data, (0,2,1))
+
+                with h5py.File(os.path.join(flags.data_path, &#39;physionet.org/CAP_DB.h5&#39;), &#39;a&#39;) as hf:
+                    if j == 0:
+                        g = hf.create_group(&#39;Machine&#39; + str(i))
+                        g.create_dataset(&#39;data&#39;, data=env_data.astype(&#39;float32&#39;), dtype=&#39;float32&#39;, maxshape=(None, 3000, 19))
+                        g.create_dataset(&#39;labels&#39;, data=env_labels.astype(&#39;float32&#39;), dtype=&#39;int_&#39;, maxshape=(None,1))
+                    else:
+                        hf[&#39;Machine&#39; + str(i)][&#39;data&#39;].resize((hf[&#39;Machine&#39; + str(i)][&#39;data&#39;].shape[0] + env_data.shape[0]), axis = 0)
+                        hf[&#39;Machine&#39; + str(i)][&#39;data&#39;][-env_data.shape[0]:,:,:] = env_data
+                        hf[&#39;Machine&#39; + str(i)][&#39;labels&#39;].resize((hf[&#39;Machine&#39; + str(i)][&#39;labels&#39;].shape[0] + env_labels.shape[0]), axis = 0)
+                        hf[&#39;Machine&#39; + str(i)][&#39;labels&#39;][-env_labels.shape[0]:,:] = env_labels
+        
+        # Remove useless files
+        self.remove_useless(flags)
+
+    def remove_useless(self, flags):
+
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*&#39;)):
+            print(&#34;Removing: &#34;, file)
+            os.remove(file)
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        print(&#34;Removing: &#34;, os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+        os.remove(os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+
+    def string_2_label(self, string):
+        
+        label_dict = {  &#39;W&#39;:0,
+                        &#39;S1&#39;:1,
+                        &#39;S2&#39;:2,
+                        &#39;S3&#39;:3,
+                        &#39;S4&#39;:4,
+                        &#39;R&#39;:5}
+                        
+        labels = [label_dict[s] for s in string]
+
+        return labels
+
+    def read_annotation(self, txt_path):
+
+        # Initialize storage
+        labels = []
+        times = []
+        durations = []
+
+        with open(txt_path, &#39;r&#39;) as file:
+            lines = file.readlines()
+
+        in_table = False
+        for line in lines:
+            if line[0:16] == &#39;Recording Date:   &#39;:
+                date = [int(u) for u in line.strip(&#39;\n&#39;).split(&#39;\t&#39;)[1].split(&#39;/&#39;)]
+
+            if in_table:
+                line_list = line.split(&#34;\t&#34;)
+                if line_list[event_id][0:5] == &#39;SLEEP&#39; and (position_id == None or line_list[position_id] != &#39;N/A&#39;):
+                    labels.append(line_list[label_id])
+                    durations.append(line_list[duration_id])
+                    t = line_list[time_id].split(&#39;:&#39;) if &#39;:&#39; in line_list[time_id] else line_list[time_id].split(&#39;.&#39;)
+                    t = [int(u) for u in t]
+                    dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]&lt;12))
+                    times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
+
+            if line[0:11] == &#39;Sleep Stage&#39;:
+                columns = line.split(&#34;\t&#34;)
+                label_id = columns.index(&#39;Sleep Stage&#39;)
+                time_id = columns.index(&#39;Time [hh:mm:ss]&#39;)
+                duration_id = columns.index(&#39;Duration[s]&#39;)
+                try:
+                    position_id = columns.index(&#39;Position&#39;)
+                except ValueError:
+                    position_id = None
+                event_id = columns.index(&#39;Event&#39;)
+                in_table = True
+
+        return labels, times
+
+    def gather_EEG(self, flags):
+
+        machine_id = 0
+        machines = {}
+        edf_file = []
+        table = []
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*.edf&#39;)):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print(&#34;Crashed&#34;)
+                continue
+
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id][&#39;state&#39;] = state_set
+                machines[id][&#39;amount&#39;] = 1
+                machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+                machines[id][&#39;names&#39;] = [file]
+            else:
+                machines[id][&#39;amount&#39;] += 1 
+                machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+                machines[id][&#39;names&#39;].append(file)
+            
+        _table = []
+        for id, machine in machines.items():
+            if machine[&#39;amount&#39;] &gt; 4:
+                ch = [c[0] for c in machine[&#39;state&#39;]]
+                freq = [c[1] for c in machine[&#39;state&#39;]]
+
+                _table.append(set(ch))
+                print(&#34;___________________________________________________&#34;)
+                print(&#34;Machine ID: &#34;, id)
+                print(&#34;Recording amount: &#34;, machine[&#39;amount&#39;])
+                print(&#34;Channels: &#34;, ch)
+                print(&#39;Freqs: &#39;, freq)
+                print(&#34;Dates:&#34;)
+                for d in machine[&#39;dates&#39;]:
+                    print(d)
+                print(&#34;Files:&#34;)
+                for f in machine[&#39;names&#39;]:
+                    print(f)
+
+        return list(set.intersection(*_table))</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="woods.scripts.download.PhysioNet.files"><code class="name">var <span class="ident">files</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.scripts.download.PhysioNet.gather_EEG"><code class="name flex">
+<span>def <span class="ident">gather_EEG</span></span>(<span>self, flags)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gather_EEG(self, flags):
+
+    machine_id = 0
+    machines = {}
+    edf_file = []
+    table = []
+    for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*.edf&#39;)):
+
+        # Fetch all data from file
+        edf_file.append(file)
+        try:
+            data = pyedflib.EdfReader(file)
+        except OSError:
+            print(&#34;Crashed&#34;)
+            continue
+
+        ch_freq = data.getSampleFrequencies()
+        data = mne.io.read_raw_edf(file)
+        ch = [c.lower() for c in data.ch_names]
+
+        # Create state Dict (ID)
+        state_dict = {}
+        for n, f in zip(ch, ch_freq):
+            state_dict[n] = f
+        state_set = set(state_dict.items())
+
+        # Create or assign ID
+        if state_set not in table:
+            id = copy.deepcopy(machine_id)
+            machine_id +=1
+            table.append(state_set)
+        else:
+            id = table.index(state_set)
+
+        # Add of update the dictionnary
+        if id not in machines.keys():
+            machines[id] = {}
+            machines[id][&#39;state&#39;] = state_set
+            machines[id][&#39;amount&#39;] = 1
+            machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+            machines[id][&#39;names&#39;] = [file]
+        else:
+            machines[id][&#39;amount&#39;] += 1 
+            machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+            machines[id][&#39;names&#39;].append(file)
+        
+    _table = []
+    for id, machine in machines.items():
+        if machine[&#39;amount&#39;] &gt; 4:
+            ch = [c[0] for c in machine[&#39;state&#39;]]
+            freq = [c[1] for c in machine[&#39;state&#39;]]
+
+            _table.append(set(ch))
+            print(&#34;___________________________________________________&#34;)
+            print(&#34;Machine ID: &#34;, id)
+            print(&#34;Recording amount: &#34;, machine[&#39;amount&#39;])
+            print(&#34;Channels: &#34;, ch)
+            print(&#39;Freqs: &#39;, freq)
+            print(&#34;Dates:&#34;)
+            for d in machine[&#39;dates&#39;]:
+                print(d)
+            print(&#34;Files:&#34;)
+            for f in machine[&#39;names&#39;]:
+                print(f)
+
+    return list(set.intersection(*_table))</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.PhysioNet.read_annotation"><code class="name flex">
+<span>def <span class="ident">read_annotation</span></span>(<span>self, txt_path)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_annotation(self, txt_path):
+
+    # Initialize storage
+    labels = []
+    times = []
+    durations = []
+
+    with open(txt_path, &#39;r&#39;) as file:
+        lines = file.readlines()
+
+    in_table = False
+    for line in lines:
+        if line[0:16] == &#39;Recording Date:   &#39;:
+            date = [int(u) for u in line.strip(&#39;\n&#39;).split(&#39;\t&#39;)[1].split(&#39;/&#39;)]
+
+        if in_table:
+            line_list = line.split(&#34;\t&#34;)
+            if line_list[event_id][0:5] == &#39;SLEEP&#39; and (position_id == None or line_list[position_id] != &#39;N/A&#39;):
+                labels.append(line_list[label_id])
+                durations.append(line_list[duration_id])
+                t = line_list[time_id].split(&#39;:&#39;) if &#39;:&#39; in line_list[time_id] else line_list[time_id].split(&#39;.&#39;)
+                t = [int(u) for u in t]
+                dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]&lt;12))
+                times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
+
+        if line[0:11] == &#39;Sleep Stage&#39;:
+            columns = line.split(&#34;\t&#34;)
+            label_id = columns.index(&#39;Sleep Stage&#39;)
+            time_id = columns.index(&#39;Time [hh:mm:ss]&#39;)
+            duration_id = columns.index(&#39;Duration[s]&#39;)
+            try:
+                position_id = columns.index(&#39;Position&#39;)
+            except ValueError:
+                position_id = None
+            event_id = columns.index(&#39;Event&#39;)
+            in_table = True
+
+    return labels, times</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.PhysioNet.remove_useless"><code class="name flex">
+<span>def <span class="ident">remove_useless</span></span>(<span>self, flags)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_useless(self, flags):
+
+    for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*&#39;)):
+        print(&#34;Removing: &#34;, file)
+        os.remove(file)
+    print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+    os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+    print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+    os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+    print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+    os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+    print(&#34;Removing: &#34;, os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+    os.remove(os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.PhysioNet.string_2_label"><code class="name flex">
+<span>def <span class="ident">string_2_label</span></span>(<span>self, string)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def string_2_label(self, string):
+    
+    label_dict = {  &#39;W&#39;:0,
+                    &#39;S1&#39;:1,
+                    &#39;S2&#39;:2,
+                    &#39;S3&#39;:3,
+                    &#39;S4&#39;:4,
+                    &#39;R&#39;:5}
+                    
+    labels = [label_dict[s] for s in string]
+
+    return labels</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="woods.scripts.download.SEDFx_DB"><code class="flex name class">
+<span>class <span class="ident">SEDFx_DB</span></span>
+<span>(</span><span>flags)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>PhysioNet Sleep-EDF Database Expanded Dataset
+Manual Download: wget -r -N -c -np <a href="https://physionet.org/files/sleep-edfx/1.0.0/">https://physionet.org/files/sleep-edfx/1.0.0/</a></p>
+<h2 id="todo">Todo</h2>
+<ul>
+<li>Remove useless data from machine after making the h5 file</li>
+<li>check if something is already done in the download and if it does, don't do it</li>
+<li>Make it so we don't need the files attribute with the gather_EEG function</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SEDFx_DB():
+    &#39;&#39;&#39;
+    PhysioNet Sleep-EDF Database Expanded Dataset
+    Manual Download: wget -r -N -c -np https://physionet.org/files/sleep-edfx/1.0.0/
+
+    TODO:
+        * Remove useless data from machine after making the h5 file
+        * check if something is already done in the download and if it does, don&#39;t do it
+        * Make it so we don&#39;t need the files attribute with the gather_EEG function
+    &#39;&#39;&#39;
+
+    def __init__(self, flags):
+        super(SEDFx_DB, self).__init__()
+
+        ## Download 
+        download_process = subprocess.Popen([&#39;wget&#39;, &#39;-r&#39;, &#39;-N&#39;, &#39;-c&#39;, &#39;-np&#39;, &#39;https://physionet.org/files/sleep-edfx/1.0.0/&#39;, &#39;-P&#39;, flags.data_path])
+        download_process.wait()
+        
+        ## Process data into machines
+        common_channels = self.gather_EEG(flags)
+
+        ## Set labels
+        label_dict = {  &#39;Sleep stage W&#39;:0,
+                &#39;Sleep stage 1&#39;:1,
+                &#39;Sleep stage 2&#39;:2,
+                &#39;Sleep stage 3&#39;:3,
+                &#39;Sleep stage 4&#39;:4,
+                &#39;Sleep stage R&#39;:5}
+
+        ## Get subjects from xls file
+        SC_dict = {}
+        SC_xls = xlrd.open_workbook(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/SC-subjects.xls&#39;)).sheet_by_index(0)
+        for row in range(1, SC_xls.nrows):
+            if int(SC_xls.cell_value(row,0)) not in SC_dict.keys():
+                SC_dict[int(SC_xls.cell_value(row,0))] = {}
+                SC_dict[int(SC_xls.cell_value(row,0))][&#39;nights&#39;] = [&#39;SC4{:02d}{}&#39;.format(int(SC_xls.cell_value(row,0)), int(SC_xls.cell_value(row,1)))]
+                SC_dict[int(SC_xls.cell_value(row,0))][&#39;folder&#39;] = &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-cassette&#39;
+            else:
+                SC_dict[int(SC_xls.cell_value(row,0))][&#39;nights&#39;].append(&#39;SC4{:02d}{}&#39;.format(int(SC_xls.cell_value(row,0)), int(SC_xls.cell_value(row,1))))
+            SC_dict[int(SC_xls.cell_value(row,0))][&#39;age&#39;] = int(SC_xls.cell_value(row,2))
+            SC_dict[int(SC_xls.cell_value(row,0))][&#39;sex&#39;] = int(SC_xls.cell_value(row,3))
+        ST_dict = {}
+        ST_xls = xlrd.open_workbook(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/ST-subjects.xls&#39;)).sheet_by_index(0)
+        for row in range(2, ST_xls.nrows):
+            ST_dict[int(ST_xls.cell_value(row,0))] = {}
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;folder&#39;] = &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry&#39;
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;nights&#39;] = [&#39;ST7{:02d}{}&#39;.format(int(ST_xls.cell_value(row,0)), int(ST_xls.cell_value(row,3))), 
+                                                                &#39;ST7{:02d}{}&#39;.format(int(ST_xls.cell_value(row,0)), int(ST_xls.cell_value(row,5)))]
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;age&#39;] = int(ST_xls.cell_value(row,1))
+            ST_dict[int(ST_xls.cell_value(row,0))][&#39;sex&#39;] = 2 if int(ST_xls.cell_value(row,2))==1 else 1
+
+        ## Create group in h5 file
+        dummy_data = np.zeros((0,3000,4))
+        dummy_labels = np.zeros((0,1))
+        groups = [&#39;Age 20-40&#39;, &#39;Age 40-60&#39;, &#39;Age 60-80&#39;, &#39;Age 80-100&#39;]
+        with h5py.File(os.path.join(flags.data_path, &#39;physionet.org/SEDFx_DB.h5&#39;), &#39;a&#39;) as hf:
+            for g in groups:
+                g = hf.create_group(g)
+                g.create_dataset(&#39;data&#39;, data=dummy_data.astype(&#39;float32&#39;), dtype=&#39;float32&#39;, maxshape=(None, 3000, 4))
+                g.create_dataset(&#39;labels&#39;, data=dummy_labels.astype(&#39;float32&#39;), dtype=&#39;int_&#39;, maxshape=(None,1))
+
+        ## Cluster data into machines and save
+        for db in [SC_dict, ST_dict]:
+            for subject, subject_info in db.items():
+
+                # Find Age group
+                if 20 &lt; subject_info[&#39;age&#39;] &lt;= 40:
+                    age_group = groups[0]
+                elif 40 &lt; subject_info[&#39;age&#39;] &lt;= 60:
+                    age_group = groups[1]
+                elif 60 &lt; subject_info[&#39;age&#39;] &lt;= 80:
+                    age_group = groups[2]
+                elif 80 &lt; subject_info[&#39;age&#39;]:
+                    age_group = groups[3]
+                else:
+                    print(&#34;Age group counldn&#39;t be found&#34;)
+                
+                for night in subject_info[&#39;nights&#39;]:
+                    edf_path = os.path.join(flags.data_path, subject_info[&#39;folder&#39;], night+ &#39;*&#39;)
+
+                    # Fetch file name
+                    PSG_file = glob.glob(edf_path+&#39;PSG.edf&#39;)[0]
+                    hypno_file = glob.glob(edf_path+&#39;Hypnogram.edf&#39;)[0]
+
+                    # Read raw data and pick channels
+                    data = mne.io.read_raw_edf(PSG_file)
+                    ch = [og_ch for og_ch in data.ch_names if og_ch.lower() in common_channels]
+                    data = data.pick_channels(ch)
+                    data.resample(100)
+                    data.filter(l_freq=0.3, h_freq=30)
+
+                    # Get annotations i.e. labels, crop the big start and end chunks of recordings
+                    annot = mne.read_annotations(hypno_file)
+                    annot.crop(annot[1][&#39;onset&#39;] - 30 * 60, annot[-2][&#39;onset&#39;] + 30 * 60)
+                    data.set_annotations(annot, emit_warning=False)
+
+                    events, event_id = mne.events_from_annotations(data, chunk_duration=30., event_id=label_dict)
+                    # mne.viz.plot_events(events, sfreq=data.info[&#39;sfreq&#39;])
+                    tmax = 30. - 1. / data.info[&#39;sfreq&#39;]  # tmax in included
+
+                    epochs_data = mne.Epochs(raw=data, events=events,
+                                            event_id=event_id, tmin=0., tmax=tmax, baseline=None)
+                    
+                    # Add data to container
+                    input_data = epochs_data.get_data()
+                    labels = events[:,2:]
+
+                    # Reshape and scale the data
+                    sc = mne.decoding.Scaler(scalings=&#39;mean&#39;)
+                    input_data = sc.fit_transform(input_data)
+                    input_data = np.transpose(input_data, (0,2,1))
+                    
+                    with h5py.File(os.path.join(flags.data_path, &#39;physionet.org/SEDFx_DB.h5&#39;), &#39;a&#39;) as hf:
+                        hf[age_group][&#39;data&#39;].resize((hf[age_group][&#39;data&#39;].shape[0] + input_data.shape[0]), axis = 0)
+                        hf[age_group][&#39;data&#39;][-input_data.shape[0]:,:,:] = input_data
+                        hf[age_group][&#39;labels&#39;].resize((hf[age_group][&#39;labels&#39;].shape[0] + labels.shape[0]), axis = 0)
+                        hf[age_group][&#39;labels&#39;][-labels.shape[0]:,:] = labels
+
+        # # Remove useless files
+        # self.remove_useless(flags)
+
+    def remove_useless(self, flags):
+
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*&#39;)):
+            print(&#34;Removing: &#34;, file)
+            os.remove(file)
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+        print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+        print(&#34;Removing: &#34;, os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+        os.remove(os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+
+    def string_2_label(self, string):
+        
+        label_dict = {  &#39;W&#39;:0,
+                        &#39;S1&#39;:1,
+                        &#39;S2&#39;:2,
+                        &#39;S3&#39;:3,
+                        &#39;S4&#39;:4,
+                        &#39;R&#39;:5}
+                        
+        labels = [label_dict[s] for s in string]
+
+        return labels
+
+    def read_annotation(self, txt_path):
+
+        # Initialize storage
+        labels = []
+        times = []
+        durations = []
+
+        with open(txt_path, &#39;r&#39;) as file:
+            lines = file.readlines()
+
+        in_table = False
+        for line in lines:
+            if line[0:16] == &#39;Recording Date:   &#39;:
+                date = [int(u) for u in line.strip(&#39;\n&#39;).split(&#39;\t&#39;)[1].split(&#39;/&#39;)]
+
+            if in_table:
+                line_list = line.split(&#34;\t&#34;)
+                if line_list[event_id][0:5] == &#39;SLEEP&#39; and (position_id == None or line_list[position_id] != &#39;N/A&#39;):
+                    labels.append(line_list[label_id])
+                    durations.append(line_list[duration_id])
+                    t = line_list[time_id].split(&#39;:&#39;) if &#39;:&#39; in line_list[time_id] else line_list[time_id].split(&#39;.&#39;)
+                    t = [int(u) for u in t]
+                    dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]&lt;12))
+                    times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
+
+            if line[0:11] == &#39;Sleep Stage&#39;:
+                columns = line.split(&#34;\t&#34;)
+                label_id = columns.index(&#39;Sleep Stage&#39;)
+                time_id = columns.index(&#39;Time [hh:mm:ss]&#39;)
+                duration_id = columns.index(&#39;Duration[s]&#39;)
+                try:
+                    position_id = columns.index(&#39;Position&#39;)
+                except ValueError:
+                    position_id = None
+                event_id = columns.index(&#39;Event&#39;)
+                in_table = True
+
+        return labels, times
+
+    def gather_EEG(self, flags):
+
+        machine_id = 0
+        machines = {}
+        edf_file = []
+        table = []
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry/*PSG.edf&#39;)):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print(&#34;Crashed&#34;)
+                continue
+                
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id][&#39;state&#39;] = state_set
+                machines[id][&#39;amount&#39;] = 1
+                machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+                machines[id][&#39;names&#39;] = [file]
+            else:
+                machines[id][&#39;amount&#39;] += 1 
+                machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+                machines[id][&#39;names&#39;].append(file)
+
+        for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/*PSG.edf&#39;)):
+
+            # Fetch all data from file
+            edf_file.append(file)
+            try:
+                data = pyedflib.EdfReader(file)
+            except OSError:
+                print(&#34;Crashed&#34;)
+                continue
+                
+            ch_freq = data.getSampleFrequencies()
+            data = mne.io.read_raw_edf(file)
+            ch = [c.lower() for c in data.ch_names]
+
+            # Create state Dict (ID)
+            state_dict = {}
+            for n, f in zip(ch, ch_freq):
+                state_dict[n] = f
+            state_set = set(state_dict.items())
+
+            # Create or assign ID
+            if state_set not in table:
+                id = copy.deepcopy(machine_id)
+                machine_id +=1
+                table.append(state_set)
+            else:
+                id = table.index(state_set)
+
+            # Add of update the dictionnary
+            if id not in machines.keys():
+                machines[id] = {}
+                machines[id][&#39;state&#39;] = state_set
+                machines[id][&#39;amount&#39;] = 1
+                machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+                machines[id][&#39;names&#39;] = [file]
+            else:
+                machines[id][&#39;amount&#39;] += 1 
+                machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+                machines[id][&#39;names&#39;].append(file)
+            
+        _table = []
+        for id, machine in machines.items():
+            if machine[&#39;amount&#39;] &gt; 4:
+                ch = [c[0] for c in machine[&#39;state&#39;]]
+                freq = [c[1] for c in machine[&#39;state&#39;]]
+
+                _table.append(set(ch))
+                print(&#34;___________________________________________________&#34;)
+                print(&#34;Machine ID: &#34;, id)
+                print(&#34;Recording amount: &#34;, machine[&#39;amount&#39;])
+                print(&#34;Channels: &#34;, ch)
+                print(&#39;Freqs: &#39;, freq)
+                print(&#34;Dates:&#34;)
+                for d in machine[&#39;dates&#39;]:
+                    print(d)
+                print(&#34;Files:&#34;)
+                for f in machine[&#39;names&#39;]:
+                    print(f)
+
+        return list(set.intersection(*_table))</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="woods.scripts.download.SEDFx_DB.gather_EEG"><code class="name flex">
+<span>def <span class="ident">gather_EEG</span></span>(<span>self, flags)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gather_EEG(self, flags):
+
+    machine_id = 0
+    machines = {}
+    edf_file = []
+    table = []
+    for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry/*PSG.edf&#39;)):
+
+        # Fetch all data from file
+        edf_file.append(file)
+        try:
+            data = pyedflib.EdfReader(file)
+        except OSError:
+            print(&#34;Crashed&#34;)
+            continue
+            
+        ch_freq = data.getSampleFrequencies()
+        data = mne.io.read_raw_edf(file)
+        ch = [c.lower() for c in data.ch_names]
+
+        # Create state Dict (ID)
+        state_dict = {}
+        for n, f in zip(ch, ch_freq):
+            state_dict[n] = f
+        state_set = set(state_dict.items())
+
+        # Create or assign ID
+        if state_set not in table:
+            id = copy.deepcopy(machine_id)
+            machine_id +=1
+            table.append(state_set)
+        else:
+            id = table.index(state_set)
+
+        # Add of update the dictionnary
+        if id not in machines.keys():
+            machines[id] = {}
+            machines[id][&#39;state&#39;] = state_set
+            machines[id][&#39;amount&#39;] = 1
+            machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+            machines[id][&#39;names&#39;] = [file]
+        else:
+            machines[id][&#39;amount&#39;] += 1 
+            machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+            machines[id][&#39;names&#39;].append(file)
+
+    for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/*PSG.edf&#39;)):
+
+        # Fetch all data from file
+        edf_file.append(file)
+        try:
+            data = pyedflib.EdfReader(file)
+        except OSError:
+            print(&#34;Crashed&#34;)
+            continue
+            
+        ch_freq = data.getSampleFrequencies()
+        data = mne.io.read_raw_edf(file)
+        ch = [c.lower() for c in data.ch_names]
+
+        # Create state Dict (ID)
+        state_dict = {}
+        for n, f in zip(ch, ch_freq):
+            state_dict[n] = f
+        state_set = set(state_dict.items())
+
+        # Create or assign ID
+        if state_set not in table:
+            id = copy.deepcopy(machine_id)
+            machine_id +=1
+            table.append(state_set)
+        else:
+            id = table.index(state_set)
+
+        # Add of update the dictionnary
+        if id not in machines.keys():
+            machines[id] = {}
+            machines[id][&#39;state&#39;] = state_set
+            machines[id][&#39;amount&#39;] = 1
+            machines[id][&#39;dates&#39;] = [data.info[&#39;meas_date&#39;]]
+            machines[id][&#39;names&#39;] = [file]
+        else:
+            machines[id][&#39;amount&#39;] += 1 
+            machines[id][&#39;dates&#39;].append(data.info[&#39;meas_date&#39;])
+            machines[id][&#39;names&#39;].append(file)
+        
+    _table = []
+    for id, machine in machines.items():
+        if machine[&#39;amount&#39;] &gt; 4:
+            ch = [c[0] for c in machine[&#39;state&#39;]]
+            freq = [c[1] for c in machine[&#39;state&#39;]]
+
+            _table.append(set(ch))
+            print(&#34;___________________________________________________&#34;)
+            print(&#34;Machine ID: &#34;, id)
+            print(&#34;Recording amount: &#34;, machine[&#39;amount&#39;])
+            print(&#34;Channels: &#34;, ch)
+            print(&#39;Freqs: &#39;, freq)
+            print(&#34;Dates:&#34;)
+            for d in machine[&#39;dates&#39;]:
+                print(d)
+            print(&#34;Files:&#34;)
+            for f in machine[&#39;names&#39;]:
+                print(f)
+
+    return list(set.intersection(*_table))</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.SEDFx_DB.read_annotation"><code class="name flex">
+<span>def <span class="ident">read_annotation</span></span>(<span>self, txt_path)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_annotation(self, txt_path):
+
+    # Initialize storage
+    labels = []
+    times = []
+    durations = []
+
+    with open(txt_path, &#39;r&#39;) as file:
+        lines = file.readlines()
+
+    in_table = False
+    for line in lines:
+        if line[0:16] == &#39;Recording Date:   &#39;:
+            date = [int(u) for u in line.strip(&#39;\n&#39;).split(&#39;\t&#39;)[1].split(&#39;/&#39;)]
+
+        if in_table:
+            line_list = line.split(&#34;\t&#34;)
+            if line_list[event_id][0:5] == &#39;SLEEP&#39; and (position_id == None or line_list[position_id] != &#39;N/A&#39;):
+                labels.append(line_list[label_id])
+                durations.append(line_list[duration_id])
+                t = line_list[time_id].split(&#39;:&#39;) if &#39;:&#39; in line_list[time_id] else line_list[time_id].split(&#39;.&#39;)
+                t = [int(u) for u in t]
+                dt = datetime.datetime(*date[::-1], *t) + datetime.timedelta(days=int(t[0]&lt;12))
+                times.append((dt, dt + datetime.timedelta(seconds=int(line_list[duration_id]))))
+
+        if line[0:11] == &#39;Sleep Stage&#39;:
+            columns = line.split(&#34;\t&#34;)
+            label_id = columns.index(&#39;Sleep Stage&#39;)
+            time_id = columns.index(&#39;Time [hh:mm:ss]&#39;)
+            duration_id = columns.index(&#39;Duration[s]&#39;)
+            try:
+                position_id = columns.index(&#39;Position&#39;)
+            except ValueError:
+                position_id = None
+            event_id = columns.index(&#39;Event&#39;)
+            in_table = True
+
+    return labels, times</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.SEDFx_DB.remove_useless"><code class="name flex">
+<span>def <span class="ident">remove_useless</span></span>(<span>self, flags)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_useless(self, flags):
+
+    for file in glob.glob(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0/*&#39;)):
+        print(&#34;Removing: &#34;, file)
+        os.remove(file)
+    print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+    os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb/1.0.0&#39;))
+    print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+    os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files/capslpdb&#39;))
+    print(&#34;Removing Folder: &#34;, os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+    os.rmdir(os.path.join(flags.data_path, &#39;physionet.org/files&#39;))
+    print(&#34;Removing: &#34;, os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))
+    os.remove(os.path.join(flags.data_path, &#39;physionet.org/robots.txt&#39;))</code></pre>
+</details>
+</dd>
+<dt id="woods.scripts.download.SEDFx_DB.string_2_label"><code class="name flex">
+<span>def <span class="ident">string_2_label</span></span>(<span>self, string)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def string_2_label(self, string):
+    
+    label_dict = {  &#39;W&#39;:0,
+                    &#39;S1&#39;:1,
+                    &#39;S2&#39;:2,
+                    &#39;S3&#39;:3,
+                    &#39;S4&#39;:4,
+                    &#39;R&#39;:5}
+                    
+    labels = [label_dict[s] for s in string]
+
+    return labels</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="woods.scripts" href="index.html">woods.scripts</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="woods.scripts.download.HAR" href="#woods.scripts.download.HAR">HAR</a></code></li>
+<li><code><a title="woods.scripts.download.LSA64" href="#woods.scripts.download.LSA64">LSA64</a></code></li>
+<li><code><a title="woods.scripts.download.RealizedVolatility" href="#woods.scripts.download.RealizedVolatility">RealizedVolatility</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="woods.scripts.download.PhysioNet" href="#woods.scripts.download.PhysioNet">PhysioNet</a></code></h4>
+<ul class="">
+<li><code><a title="woods.scripts.download.PhysioNet.files" href="#woods.scripts.download.PhysioNet.files">files</a></code></li>
+<li><code><a title="woods.scripts.download.PhysioNet.gather_EEG" href="#woods.scripts.download.PhysioNet.gather_EEG">gather_EEG</a></code></li>
+<li><code><a title="woods.scripts.download.PhysioNet.read_annotation" href="#woods.scripts.download.PhysioNet.read_annotation">read_annotation</a></code></li>
+<li><code><a title="woods.scripts.download.PhysioNet.remove_useless" href="#woods.scripts.download.PhysioNet.remove_useless">remove_useless</a></code></li>
+<li><code><a title="woods.scripts.download.PhysioNet.string_2_label" href="#woods.scripts.download.PhysioNet.string_2_label">string_2_label</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="woods.scripts.download.SEDFx_DB" href="#woods.scripts.download.SEDFx_DB">SEDFx_DB</a></code></h4>
+<ul class="">
+<li><code><a title="woods.scripts.download.SEDFx_DB.gather_EEG" href="#woods.scripts.download.SEDFx_DB.gather_EEG">gather_EEG</a></code></li>
+<li><code><a title="woods.scripts.download.SEDFx_DB.read_annotation" href="#woods.scripts.download.SEDFx_DB.read_annotation">read_annotation</a></code></li>
+<li><code><a title="woods.scripts.download.SEDFx_DB.remove_useless" href="#woods.scripts.download.SEDFx_DB.remove_useless">remove_useless</a></code></li>
+<li><code><a title="woods.scripts.download.SEDFx_DB.string_2_label" href="#woods.scripts.download.SEDFx_DB.string_2_label">string_2_label</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
