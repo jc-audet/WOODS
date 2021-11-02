@@ -23,7 +23,8 @@ class Objective(nn.Module):
     """
     A subclass of Objective implements a domain generalization Gradients.
     Subclasses should implement the following:
-    - gradients()
+    - update
+    - predict
     """
     def __init__(self, hparams):
         super(Objective, self).__init__()
@@ -43,26 +44,52 @@ class ERM(Objective):
     Empirical Risk Minimization (ERM)
     """
 
-    def __init__(self, model, hparams):
+    def __init__(self, model, loss_fn, optimizer, hparams):
         super(ERM, self).__init__(hparams)
 
         self.model = model
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
 
-    def gather_logits_and_labels(self, logits, labels):
-        pass
+    def predict(self, all_x, ts, device):
 
-    def backward(self, losses):
+        # Get logit and make prediction
+        out = self.model(all_x, ts)
 
-        objective = losses.mean()
+        return out
+
+    def update(self, minibatches_device, dataset, device):
+
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        out = self.predict(all_x, ts, device)
+
+        out_split = dataset.split_data(out)
+
+        env_losses = torch.zeros(len(minibatches_device)).to(device)
+        for i, (x, y) in enumerate(minibatches_device):
+
+            y = y.to(device)
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
+
+        objective = env_losses.mean()
+
+        # Back propagate
+        self.optimizer.zero_grad()
         objective.backward()
+        self.optimizer.step()
 
 class IRM(ERM):
     """
     Invariant Risk Minimization (IRM)
     """
 
-    def __init__(self, model, hparams):
-        super(IRM, self).__init__(model, hparams)
+    def __init__(self, model, loss_fn, optimizer, hparams):
+        super(IRM, self).__init__(model, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -83,35 +110,54 @@ class IRM(ERM):
         result = torch.sum(grad_1 * grad_2)
         return result
 
-    def gather_logits_and_labels(self, logits, labels):
-        self.penalty += self._irm_penalty(logits, labels)
+    def predict(self, all_x, ts, device):
 
-    def backward(self, losses):
+        # Get logit and make prediction
+        out = self.model(all_x, ts)
+
+        return out
+
+    def update(self, minibatches_device, dataset, device):
+
         # Define stuff
         penalty_weight = (self.penalty_weight   if self.update_count >= self.anneal_iters 
                                                 else 1.0)
 
-        # Compute objective
-        n_env = losses.shape[0]
-        loss = losses.mean()
-        penalty = self.penalty / n_env
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        out = self.predict(all_x, ts, device)
 
-        objective = loss + (penalty_weight * penalty)
+        out_split = dataset.split_data(out)
 
-        # Backpropagate
+        penalty = 0
+        env_losses = torch.zeros(len(minibatches_device)).to(device)
+        for i, (x, y) in enumerate(minibatches_device):
+
+            y = y.to(device)
+            for t_idx in range(y.shape[1]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
+                penalty += self._irm_penalty(out_split[i, :, t_idx, :], y[:,t_idx])
+
+        penalty = penalty / out_split.shape[0]
+        objective = env_losses.mean() + (penalty_weight * penalty)
+
+        # Back propagate
+        self.optimizer.zero_grad()
         objective.backward()
+        self.optimizer.step()
 
         # Update memory
         self.update_count += 1
-        self.penalty = 0
-
 
 class VREx(ERM):
     """
     V-REx Objective from http://arxiv.org/abs/2003.00688
     """
-    def __init__(self, model, hparams):
-        super(VREx, self).__init__(model, hparams)
+    def __init__(self, model, loss_fn, optimizer, hparams):
+        super(VREx, self).__init__(model, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -120,18 +166,43 @@ class VREx(ERM):
         # Memory
         self.register_buffer('update_count', torch.tensor([0]))
 
-    def backward(self, losses):
-        
+    def predict(self, all_x, ts, device):
+
+        # Get logit and make prediction
+        out = self.model(all_x, ts)
+
+        return out
+
+    def update(self, minibatches_device, dataset, device):
+
         # Define stuff
         penalty_weight = (self.penalty_weight   if self.update_count >= self.anneal_iters 
                                                 else 1.0)
 
-        # Compute objective
-        mean = losses.mean()
-        penalty = ((losses - mean) ** 2).mean()
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        out = self.predict(all_x, ts, device)
+
+        out_split = dataset.split_data(out)
+
+        env_losses = torch.zeros(len(minibatches_device)).to(device)
+        for i, (x, y) in enumerate(minibatches_device):
+
+            y = y.to(device)
+            for t_idx in range(y.shape[1]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
+
+        mean = env_losses.mean()
+        penalty = ((env_losses - mean) ** 2).mean()
         objective = mean + penalty_weight * penalty
 
+        # Back propagate
+        self.optimizer.zero_grad()
         objective.backward()
+        self.optimizer.step()
 
         # Update memory
         self.update_count += 1
@@ -141,31 +212,47 @@ class SD(ERM):
     Gradient Starvation: A Learning Proclivity in Neural Networks
     Equation 25 from [https://arxiv.org/pdf/2011.09468.pdf]
     """
-    def __init__(self, model, hparams):
-        super(SD, self).__init__(model, hparams)
+    def __init__(self, model, loss_fn, optimizer, hparams):
+        super(SD, self).__init__(model, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
 
-        # Memory
-        self.penalty = 0
+    def predict(self, all_x, ts, device):
 
-    def gather_logits_and_labels(self, logits, labels):
+        # Get logit and make prediction
+        out = self.model(all_x, ts)
 
-        self.penalty += (logits ** 2).mean()
+        return out
 
-    def backward(self, losses):
+    def update(self, minibatches_device, dataset, device):
 
-        # Compute Objective
-        n_env = losses.shape[0]
-        loss = losses.mean()
-        penalty = self.penalty / n_env
-        objective = loss + self.penalty_weight * penalty
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        out = self.predict(all_x, ts, device)
 
+        out_split = dataset.split_data(out)
+
+        penalty = 0
+        env_losses = torch.zeros(len(minibatches_device)).to(device)
+        for i, (x, y) in enumerate(minibatches_device):
+
+            y = y.to(device)
+            for t_idx in range(y.shape[1]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
+                penalty += (out_split[i, :, t_idx, :] ** 2).mean()
+
+        penalty = penalty / out_split.shape[0]
+        objective = env_losses.mean() + self.penalty_weight * penalty
+
+        # Back propagate
+        self.optimizer.zero_grad()
         objective.backward()
+        self.optimizer.step()
 
-        # Update memory
-        self.penalty = 0
 
 class ANDMask(ERM):
     """
@@ -173,24 +260,11 @@ class ANDMask(ERM):
     AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
     """
 
-    def __init__(self, model, hparams):
-        super(ANDMask, self).__init__(model, hparams)
+    def __init__(self, model, loss_fn, optimizer, hparams):
+        super(ANDMask, self).__init__(model, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.tau = self.hparams['tau']
-
-    def backward(self, losses):
-        
-        param_gradients = [[] for _ in self.model.parameters()]
-        for env_loss in losses:
-
-            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
-            for grads, env_grad in zip(param_gradients, env_grads):
-                grads.append(env_grad)
-            
-        mean_loss = losses.mean()
-
-        self.mask_grads(self.tau, param_gradients, self.model.parameters())
 
     def mask_grads(self, tau, gradients, params):
 
@@ -205,23 +279,83 @@ class ANDMask(ERM):
             param.grad = mask * avg_grad
             param.grad *= (1. / (1e-10 + mask_t))
 
+    def predict(self, all_x, ts, device):
+
+        # Get logit and make prediction
+        out = self.model(all_x, ts)
+
+        return out
+
+    def update(self, minibatches_device, dataset, device):
+
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        out = self.predict(all_x, ts, device)
+
+        out_split = dataset.split_data(out)
+
+        env_losses = torch.zeros(len(minibatches_device)).to(device)
+        for i, (x, y) in enumerate(minibatches_device):
+
+            y = y.to(device)
+            for t_idx in range(y.shape[1]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
+
+        param_gradients = [[] for _ in self.model.parameters()]
+        for env_loss in env_losses:
+
+            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
+            for grads, env_grad in zip(param_gradients, env_grads):
+                grads.append(env_grad)
+            
+        # Back propagate
+        self.optimizer.zero_grad()
+        self.mask_grads(self.tau, param_gradients, self.model.parameters())
+        self.optimizer.step()
+
 class IGA(ERM):
     """
     Inter-environmental Gradient Alignment
     From https://arxiv.org/abs/2008.01883v2
     """
 
-    def __init__(self, model, hparams):
-        super(IGA, self).__init__(model, hparams)
+    def __init__(self, model, loss_fn, optimizer, hparams):
+        super(IGA, self).__init__(model, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
 
-    def backward(self, losses):
+    def predict(self, all_x, ts, device):
+
+        # Get logit and make prediction
+        out = self.model(all_x, ts)
+
+        return out
+
+    def update(self, minibatches_device, dataset, device):
+
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        out = self.predict(all_x, ts, device)
+
+        out_split = dataset.split_data(out)
+
+        env_losses = torch.zeros(len(minibatches_device)).to(device)
+        for i, (x, y) in enumerate(minibatches_device):
+
+            y = y.to(device)
+            for t_idx in range(y.shape[1]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
 
         # Get the gradients
         grads = []
-        for env_loss in losses:
+        for env_loss in env_losses:
 
             env_grad = autograd.grad(env_loss, self.model.parameters(), 
                                         create_graph=True)
@@ -229,7 +363,7 @@ class IGA(ERM):
             grads.append(env_grad)
             
         # Compute the mean loss and mean loss gradient
-        mean_loss = losses.mean()
+        mean_loss = env_losses.mean()
         mean_grad = autograd.grad(mean_loss, self.model.parameters(), 
                                         create_graph=True)
 
@@ -241,6 +375,7 @@ class IGA(ERM):
 
         objective = mean_loss + self.penalty_weight * penalty_value
 
-        # Backpropagate
+        # Back propagate
+        self.optimizer.zero_grad()
         objective.backward()
-    
+        self.optimizer.step()

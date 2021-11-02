@@ -13,8 +13,7 @@ from woods.lib import models
 from woods.lib import objectives
 from woods.lib import hyperparams
 from woods.lib import utils
-from woods.lib.train_seq import train_seq_setup, get_accuracies_seq
-from woods.lib.train_step import train_step_setup
+from woods.lib.train import train, get_accuracies
 
 #TODO:
 # - add the --save option so that simple local train runs doesn't get annoyingly saved
@@ -97,20 +96,19 @@ if __name__ == '__main__':
     model = models.get_model(dataset, model_hparams)
     print("Number of parameters = ", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
+    # Define training aid
+    loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
+    optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
+
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)
-    objective = objective_class(model, objective_hparams)
+    objective = objective_class(model, loss_fn, optimizer, objective_hparams)
 
     ## Do the thing
     model.to(device)
     if flags.mode == 'train':
 
-        if dataset.get_setup() == 'seq':
-            model, record = train_seq_setup(flags, training_hparams, model, objective, dataset, device)
-        elif dataset.get_setup() == 'step':
-            model, record = train_step_setup(flags, training_hparams, model, objective, dataset, device)
-        elif dataset.get_setup() == 'language':
-            raise NotImplementedError("Language benchmarks and models aren't implemented yet")
+        model, record = train(flags, training_hparams, model, objective, dataset, device)
 
         if flags.save_model:
             torch.save(model.state_dict(), os.path.join(flags.save_path, job_name+'.pt'))

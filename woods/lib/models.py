@@ -26,6 +26,7 @@ class RNN(nn.Module):
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
+        self.output_size = output_size
 
         ## Construct the part of the RNN in charge of the hidden state
         H_layers = []
@@ -69,20 +70,20 @@ class RNN(nn.Module):
     def forward(self, input, time_pred):
 
         # Setup array
-        all_out = []
-        pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
+        all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
         # Forward propagate RNN
+        ts_counter = 0
         for t in range(input.shape[1]):
             combined = torch.cat((input[:,t,...].view(input.shape[0],-1), hidden), 1)
             hidden = self.FCH(combined)
             out = self.FCO(combined)
             if t in time_pred:
-                all_out.append(out)
-                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                all_out[:,ts_counter,:] = out
+                ts_counter += 1
 
-        return all_out, pred
+        return all_out
 
     def initHidden(self, batch_size, device):
         return torch.zeros(batch_size, self.state_size).to(device)
@@ -96,6 +97,7 @@ class LSTM(nn.Module):
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
+        self.output_size = output_size
 
         # Recurrent model
         self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True)
@@ -123,7 +125,6 @@ class LSTM(nn.Module):
     def forward(self, input, time_pred):
 
         # Setup array
-        all_out = []
         pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
@@ -132,12 +133,12 @@ class LSTM(nn.Module):
         out, hidden = self.lstm(input, hidden)
 
         # Make prediction with fully connected
-        for t in time_pred:
+        all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
+        for i, t in enumerate(time_pred):
             output = self.classifier(out[:,t,:])
-            all_out.append(output)
-            pred = torch.cat((pred, output.argmax(1, keepdim=True)), dim=1)
+            all_out[:,i,...] = output
         
-        return all_out, pred
+        return all_out
 
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
@@ -147,10 +148,12 @@ class ATTN_LSTM(nn.Module):
     def __init__(self, input_size, output_size, model_hparams):
         super(ATTN_LSTM, self).__init__()
 
+        # Save stuff
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
+        self.output_size = output_size
 
         # Recurrent model
         self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
@@ -190,7 +193,6 @@ class ATTN_LSTM(nn.Module):
     def forward(self, input, time_pred):
 
         # Setup array
-        all_out = []
         pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
@@ -207,10 +209,11 @@ class ATTN_LSTM(nn.Module):
 
         # Make prediction with fully connected
         output = self.classifier(out)
-        all_out.append(output)
-        pred = torch.cat((pred, output.argmax(1, keepdim=True)), dim=1)
+
+        # Unsqueze to make a single time dimension
+        output = output.unsqueeze(1)
         
-        return all_out, pred
+        return output
 
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
@@ -305,6 +308,13 @@ class Transformer(nn.Module):
         )
 
     def forward(self, input, time_pred):
+        """
+        Args:
+            input (Tensor): [batch_size, time_steps, input_size]
+            time_pred (Tensor): [batch_size, time_steps]
+        Returns:
+            output (Tensor): [batch_size, output_size]
+        """
 
         # Pass through attention heads
         # out = self.embedding(input)
@@ -318,7 +328,7 @@ class Transformer(nn.Module):
         out = out.view(out.shape[0], -1)
         out = self.classifier(out)
 
-        return [out], out.argmax(1, keepdim=True)
+        return out, out.argmax(1, keepdim=True)
 
 class CRNN(nn.Module):
     """ Convolutional Recurrent Neural Network

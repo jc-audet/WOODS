@@ -163,7 +163,7 @@ class Multi_Domain_Dataset:
         return self.PRED_TIME
 
     def get_class_weight(self):
-        """Compute class weight for class balanced training
+        """ Compute class weight for class balanced training
 
         Returns:
             list: list of weights of length OUTPUT_SIZE
@@ -182,7 +182,7 @@ class Multi_Domain_Dataset:
         return weights
 
     def get_train_loaders(self):
-        """Fetch all training dataloaders and their ID 
+        """ Fetch all training dataloaders and their ID 
 
         Returns:
             list: list of string names of the data splits used for training
@@ -191,13 +191,30 @@ class Multi_Domain_Dataset:
         return self.train_names, self.train_loaders
     
     def get_val_loaders(self):
-        """Fetch all validation/test dataloaders and their ID 
+        """ Fetch all validation/test dataloaders and their ID 
 
         Returns:
             list: list of string names of the data splits used for validation and test
             list: list of dataloaders of the data splits used for validation and test
         """
         return self.val_names, self.val_loaders
+              
+    def split_data(self, out):
+        """ Group data and prediction by environment
+
+        Args:
+            out (Tensor): output data
+
+        Returns:
+            Tensor: input data
+            Tensor: output data
+        """
+        out_split = torch.zeros((len(self.ENVS)-1, self.batch_size, *out.shape[1:])).to(out.device)
+        all_logits_idx = 0
+        for i in range(len(self.ENVS)-1):
+            out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+            all_logits_idx += self.batch_size
+        return out_split
 
 class Fourier_basic(Multi_Domain_Dataset):
     """ Fourier_basic dataset
@@ -225,6 +242,7 @@ class Fourier_basic(Multi_Domain_Dataset):
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         # Save stuff
+        self.batch_size = training_hparams['batch_size']
         self.class_balance = training_hparams['class_balance']
 
         ## Define label 0 and 1 Fourier spectrum
@@ -295,6 +313,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         ## Save stuff
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
 
         ## Define label 0 and 1 Fourier spectrum
         self.fourier_0 = np.zeros(1000)
@@ -374,7 +393,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
             if i != self.test_env:
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
                 self.train_names.append(str(e) + '_in')
                 self.train_loaders.append(in_loader)
             fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False)
@@ -411,6 +430,9 @@ class TMNIST(Multi_Domain_Dataset):
 
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
+        # Save stuff
+        self.batch_size = training_hparams['batch_size']
+
         ## Import original MNIST data
         MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
 
@@ -442,7 +464,7 @@ class TMNIST(Multi_Domain_Dataset):
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
 
             # Make the training loaders (No testing environment)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
             self.train_names.append(str(e) + '_in')
             self.train_loaders.append(in_loader)
 
@@ -610,6 +632,7 @@ class TCMNIST_seq(TCMNIST):
         # Save stuff
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
 
         # Make the color datasets
         self.train_names, self.train_loaders = [], [] 
@@ -630,7 +653,7 @@ class TCMNIST_seq(TCMNIST):
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
 
             if i != self.test_env:
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
                 self.train_names.append(str(e) + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -688,8 +711,8 @@ class TCMNIST_step(TCMNIST):
 
         ## Save stuff
         self.test_env = flags.test_env
-        # self.test_step = flags.test_step
         self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
 
         # Define array of training environment dataloaders
         self.train_names, self.train_loaders = [], []
@@ -713,8 +736,8 @@ class TCMNIST_step(TCMNIST):
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
 
         in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-        in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
-        self.train_names.append([str(e)+'_in' for e in self.ENVS])
+        in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
+        self.train_names = [str(e)+'_in' for e in self.ENVS[:-1]]
         self.train_loaders.append(in_loader)
         fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=252, shuffle=False)
         self.val_names.append([str(e)+'_in' for e in self.ENVS])
@@ -736,6 +759,22 @@ class TCMNIST_step(TCMNIST):
             images[sample,env_id+1,colors[sample].long(),:,:] *= 0 
 
         return images, labels
+              
+    def split_data(self, out):
+        """ Group data and prediction by environment
+
+        Args:
+            out (Tensor): output data
+
+        Returns:
+            Tensor: input data
+            Tensor: output data
+        """
+        out_split = torch.zeros((len(self.ENVS)-1, self.batch_size, 1, out.shape[-1])).to(out.device)
+        for i in range(len(self.ENVS)-1):
+            # Test env is always the last one
+            out_split[i,...] = out[:,i,...].unsqueeze(1)
+        return out_split
 
 class EEG_dataset(Dataset):
     """ HDF5 dataset for EEG data
@@ -802,6 +841,7 @@ class Sleep_DB(Multi_Domain_Dataset):
         ## Save stuff
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
 
         ## Create tensor dataset and dataloader
         self.val_names, self.val_loaders = [], []
