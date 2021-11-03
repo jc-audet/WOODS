@@ -1,6 +1,8 @@
+"""Defining hyper parameters and their distributions for HPO"""
+
 import numpy as np
 
-from woods.lib.objectives import OBJECTIVES
+from woods.objectives import OBJECTIVES
 
 def get_training_hparams(dataset_name, seed, sample=False):
     """ Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)
@@ -31,8 +33,12 @@ def get_training_hparams(dataset_name, seed, sample=False):
     return hparams
 
 
-def Fourier_basic_train(sample):
-    """ Spurious Fourier model hparam definition """
+def Basic_Fourier_train(sample):
+    """ Basic Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -51,7 +57,11 @@ def Fourier_basic_train(sample):
     return hparams
     
 def Spurious_Fourier_train(sample):
-    """ Spurious Fourier model hparam definition """
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -70,7 +80,11 @@ def Spurious_Fourier_train(sample):
     return hparams
 
 def TMNIST_train(sample):
-    """ TMNIST model hparam definition """
+    """ TMNIST model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -89,7 +103,11 @@ def TMNIST_train(sample):
     return hparams
 
 def TCMNIST_seq_train(sample):
-    """ TCMNIST_seq model hparam definition """
+    """ TCMNIST_seq model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -108,7 +126,11 @@ def TCMNIST_seq_train(sample):
     return hparams
 
 def TCMNIST_step_train(sample):
-    """ TCMNIST_step model hparam definition """
+    """ TCMNIST_step model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -127,7 +149,11 @@ def TCMNIST_step_train(sample):
     return hparams
 
 def CAP_DB_train(sample):
-    """ PhysioNet model hparam definition """
+    """ CAP_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -146,7 +172,11 @@ def CAP_DB_train(sample):
     return hparams
 
 def SEDFx_DB_train(sample):
-    """ PhysioNet model hparam definition """
+    """ SEDFx_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -165,7 +195,11 @@ def SEDFx_DB_train(sample):
     return hparams
 
 def HAR_train(sample):
-    """ PhysioNet model hparam definition """
+    """ HAR model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -184,7 +218,11 @@ def HAR_train(sample):
     return hparams
 
 def LSA64_train(sample):
-    """ PhysioNet model hparam definition """
+    """ LSA64 model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         hparams = {
             'class_balance': lambda r: True,
@@ -231,8 +269,12 @@ def get_model_hparams(dataset_name, seed, sample=False):
     
     return hparams
 
-def Fourier_basic_model(sample):
-    """ Spurious Fourier model hparam definition """
+def Basic_Fourier_model(sample):
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'RNN',
@@ -249,7 +291,11 @@ def Fourier_basic_model(sample):
         }
 
 def Spurious_Fourier_model(sample):
-    """ Spurious Fourier model hparam definition """
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'RNN',
@@ -266,7 +312,11 @@ def Spurious_Fourier_model(sample):
         }
 
 def TMNIST_model(sample):
-    """ TMNIST model hparam definition """
+    """ TMNIST model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'LSTM',
@@ -285,7 +335,11 @@ def TMNIST_model(sample):
         }
 
 def TCMNIST_seq_model(sample):
-    """ TCMNIST_seq model hparam definition """
+    """ TCMNIST_seq model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'LSTM',
@@ -304,7 +358,11 @@ def TCMNIST_seq_model(sample):
         }
 
 def TCMNIST_step_model(sample):
-    """ TCMNIST_step model hparam definition """
+    """ TCMNIST_step model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'LSTM',
@@ -323,7 +381,11 @@ def TCMNIST_step_model(sample):
         }
 
 def CAP_DB_model(sample):
-    """ PhysioNet model hparam definition """
+    """ CAP_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'Transformer',
@@ -340,7 +402,11 @@ def CAP_DB_model(sample):
         }
 
 def SEDFx_DB_model(sample):
-    """ PhysioNet model hparam definition """
+    """ SEDFx_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'Transformer',
@@ -356,25 +422,12 @@ def SEDFx_DB_model(sample):
             'embedding_size': lambda r: 32
         }
 
-
-# def HAR_model(sample):
-#     """ PhysioNet model hparam definition """
-#     if sample:
-#         return {
-#             'model': lambda r: 'Transformer',
-#             'nheads_enc': lambda r: 8,
-#             'nlayers_enc': lambda r: 2,
-#             'embedding_size': lambda r: 32
-#         }
-#     else:
-#         return {
-#             'model': lambda r: 'Transformer',
-#             'nheads_enc': lambda r: 8,
-#             'nlayers_enc': lambda r: 2,
-#             'embedding_size': lambda r: 32
-#         }
 def HAR_model(sample):
-    """ TCMNIST_seq model hparam definition """
+    """ HAR model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'LSTM',
@@ -393,7 +446,11 @@ def HAR_model(sample):
         }
 
 def LSA64_model(sample):
-    """ TCMNIST_seq model hparam definition """
+    """ LSA64 model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'model': lambda r: 'LSTM',
@@ -448,11 +505,19 @@ def get_objective_hparams(objective_name, seed, sample=False):
     return hparams
 
 def ERM_hyper(sample):
-    """ ERM objective hparam definition """
+    """ ERM objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {}
 
 def IRM_hyper(sample):
-    """ IRM objective hparam definition """
+    """ IRM objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5),
@@ -465,7 +530,11 @@ def IRM_hyper(sample):
         }
 
 def VREx_hyper(sample):
-    """ VREx objective hparam definition """
+    """ VREx objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5),
@@ -478,7 +547,11 @@ def VREx_hyper(sample):
         }
 
 def SD_hyper(sample):
-    """ SD objective hparam definition """
+    """ SD objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-2,2)
@@ -489,7 +562,11 @@ def SD_hyper(sample):
         }
         
 def IGA_hyper(sample):
-    """ IGA objective hparam definition """
+    """ IGA objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'penalty_weight': lambda r: 10**r.uniform(-1,5)
@@ -500,7 +577,11 @@ def IGA_hyper(sample):
         }
 
 def ANDMask_hyper(sample):
-    """ ANDMask objective hparam definition """
+    """ ANDMask objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     if sample:
         return {
             'tau': lambda r: r.uniform(0,1)

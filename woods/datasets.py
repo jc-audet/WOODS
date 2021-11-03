@@ -1,3 +1,5 @@
+"""Defining the benchmarks for OoD generalization in time-series"""
+
 import os
 import copy
 import h5py
@@ -16,7 +18,7 @@ from torchvision import datasets, transforms
 
 DATASETS = [
     # 1D datasets
-    'Fourier_basic',
+    'Basic_Fourier',
     'Spurious_Fourier',
     # Small images
     "TMNIST",
@@ -36,17 +38,17 @@ DATASETS = [
 
 def get_dataset_class(dataset_name):
     """ Return the dataset class with the given name.
-    Taken from : https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/datasets.py#L36
+
+    Taken from : https://github.com/facebookresearch/DomainBed/
     
     Args:
         dataset_name (str): Name of the dataset to get the function of. (Must be a part of the DATASETS list)
     
     Returns: 
-        function: The __init__ function of the desired dataset that takes as input (  flags: parser arguments of the train.py script, 
-                                                                            training_hparams: set of training hparams from hparams.py )
+        function: The __init__ function of the desired dataset that takes as input (  flags: parser arguments of the train.py script, training_hparams: set of training hparams from hparams.py )
 
     Raises:
-        NotImplementedError: Dataset name not found
+        NotImplementedError: Dataset name not found in the datasets.py globals
     """
     if dataset_name not in globals() or dataset_name not in DATASETS:
         raise NotImplementedError("Dataset not found: {}".format(dataset_name))
@@ -54,19 +56,48 @@ def get_dataset_class(dataset_name):
     return globals()[dataset_name]
 
 def num_environments(dataset_name):
-    """ Returns the number of environments of a dataset """
+    """ Returns the number of environments of a dataset 
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the number of environments of. (Must be a part of the DATASETS list)
+
+    Returns:
+        int: Number of environments of the dataset
+    """
     return len(get_dataset_class(dataset_name).ENVS)
 
 def get_environments(dataset_name):
-    """ Returns the environments of a dataset """
+    """ Returns the environments of a dataset 
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the number of environments of. (Must be a part of the DATASETS list)
+
+    Returns:
+        list: list of environments of the dataset
+    """
     return get_dataset_class(dataset_name).ENVS
 
 def get_setup(dataset_name):
-    """ Returns the setup of a dataset """
+    """ Returns the setup of a dataset 
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the number of environments of. (Must be a part of the DATASETS list)
+
+    Returns:
+        dict: The setup of the dataset ('seq' or 'step')
+    """
     return get_dataset_class(dataset_name).SETUP
 
 def XOR(a, b):
-    """ Returns a XOR b (the 'Exclusive or' gate) """
+    """ Returns a XOR b (the 'Exclusive or' gate) 
+    
+    Args:
+        a (bool): First input
+        b (bool): Second input
+
+    Returns:
+        bool: The output of the XOR gate
+    """
     return ( a - b ).abs()
 
 def bernoulli(p, size):
@@ -75,6 +106,9 @@ def bernoulli(p, size):
     Args:
         p (float): Parameter p of the Bernoulli distribution
         size (int...): A sequence of integers defining hte shape of the output tensor
+
+    Returns:
+        Tensor: Tensor of Bernoulli random variables of parameter p
     """
     return ( torch.rand(size) < p ).float()
 
@@ -129,38 +163,31 @@ def get_split(dataset, holdout_fraction, seed=0, sort=False):
 class Multi_Domain_Dataset:
     """ Abstract class of a multi domain dataset for OOD generalization.
 
-    Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SIZE, OUTPUT_SIZE
-    The data dimension needs to be (batch, time, *features_dim)
+    Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SHAPE, OUTPUT_SIZE
+    The data dimension needs to be (batch, time, features_dim)
 
     TODO:
         * Make a package test that checks if every class has 'time_pred' and 'setup'
     """
+    #:int: The number of training steps taken for this dataset
     N_STEPS = 5001
+    #:int: The frequency of results update
     CHECKPOINT_FREQ = 100
+    #:int: The number of workers used for fast dataloaders used for validation
     N_WORKERS = 4
+    #:string: The setup of the dataset ('seq' or 'step')
     SETUP = None
+    #:list: The time steps where predictions are made
     PRED_TIME = [None]
+    #:list: The environments of the dataset
     ENVS = [None]
-    INPUT_SIZE = None
+    #:int: The shape of the input (excluding batch size and time dimension)
+    INPUT_SHAPE = None
+    #:int: The size of the output
     OUTPUT_SIZE = None
 
     def __init__(self):
         pass
-
-    def get_setup(self):
-        return self.SETUP
-
-    def get_input_size(self):
-        return self.INPUT_SIZE
-
-    def get_output_size(self):
-        return self.OUTPUT_SIZE
-
-    def get_envs(self):
-        return self.ENVS
-
-    def get_pred_time(self):
-        return self.PRED_TIME
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -199,49 +226,53 @@ class Multi_Domain_Dataset:
         """
         return self.val_names, self.val_loaders
               
-    def split_data(self, out):
+    def split_data(self, out, labels):
         """ Group data and prediction by environment
 
         Args:
-            out (Tensor): output data
+            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
 
         Returns:
-            Tensor: input data
-            Tensor: output data
+            Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+            Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
         """
-        out_split = torch.zeros((len(self.ENVS)-1, self.batch_size, *out.shape[1:])).to(out.device)
+        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+        out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
+        labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
         all_logits_idx = 0
-        for i in range(len(self.ENVS)-1):
+        for i in range(n_train_env):
             out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+            labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
             all_logits_idx += self.batch_size
-        return out_split
+        return out_split, labels_split
 
-class Fourier_basic(Multi_Domain_Dataset):
+class Basic_Fourier(Multi_Domain_Dataset):
     """ Fourier_basic dataset
 
-    A dataset of 1D sinusoid signal to classify according to their Fourier spectrum.
+    A dataset of 1D sinusoid signal to classify according to their Fourier spectrum. 
+    
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
 
-    No download is required as it is purely synthetic
+    Note:
+        No download is required as it is purely synthetic
     """
     SETUP = 'seq'
     PRED_TIME = [49]
     ENVS = ['no_spur']
-    INPUT_SIZE = 1
+    INPUT_SHAPE = [1]
     OUTPUT_SIZE = 2
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__()
 
         # Make important checks
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         # Save stuff
+        self.test_env = flags.test_env
         self.batch_size = training_hparams['batch_size']
         self.class_balance = training_hparams['class_balance']
 
@@ -287,22 +318,23 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     Peaks in the fourier spectrum are added to the signal that are spuriously correlated to the label.
     Different environment have different correlation rates between the labels and the spurious peaks in the spectrum.
 
-    No download is required as it is purely synthetic
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        No download is required as it is purely synthetic
     """
     SETUP = 'seq'
-    INPUT_SIZE = 1
+    INPUT_SHAPE = [1]
     OUTPUT_SIZE = 2
     PRED_TIME = [49]
-    label_noise = 0.25          # Label noise
-    ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
+    #:float: Level of noise added to the labels
+    LABEL_NOISE = 0.25
+    #:list: The correlation rate between the label and the spurious peaks
+    ENVS = [0.1, 0.8, 0.9]
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__()
 
         if flags.test_env is not None:
@@ -369,7 +401,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             for j, label in enumerate(env_labels):
 
                 # Label noise
-                if bool(bernoulli(self.label_noise, 1)):
+                if bool(bernoulli(self.LABEL_NOISE, 1)):
                     # Correlation to label
                     if bool(bernoulli(e, 1)):
                         env_signal[j,:] = inverse_signal[label][0,:]
@@ -409,28 +441,29 @@ class TMNIST(Multi_Domain_Dataset):
     Each sample is a sequence of 4 MNIST digits.
     The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
 
-    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [1, 2, 3]
-    INPUT_SIZE = 28*28
+    INPUT_SHAPE = [28,28]
     OUTPUT_SIZE = 2
     ENVS = ['grey']
+    #:int: Length of the sequence
     SEQ_LEN = 4
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__()
 
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         # Save stuff
+        self.test_env = flags.test_env
         self.batch_size = training_hparams['batch_size']
 
         ## Import original MNIST data
@@ -476,42 +509,42 @@ class TMNIST(Multi_Domain_Dataset):
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
 
-        def plot_samples(TMNIST_images, TMNIST_labels):
-            fig, axs = plt.subplots(3,4)
-            axs[0,0].imshow(TMNIST_images[0,0,:,:], cmap='gray')
-            axs[0,0].set_ylabel('Sequence 1')
-            axs[0,1].imshow(TMNIST_images[0,1,:,:], cmap='gray')
-            axs[0,1].set_title('Label = '+str(TMNIST_labels[0,0].cpu().item()))
-            axs[0,2].imshow(TMNIST_images[0,2,:,:], cmap='gray')
-            axs[0,2].set_title('Label = '+str(TMNIST_labels[0,1].cpu().item()))
-            axs[0,3].imshow(TMNIST_images[0,3,:,:], cmap='gray')
-            axs[0,3].set_title('Label = '+str(TMNIST_labels[0,2].cpu().item()))
-            axs[1,0].imshow(TMNIST_images[1,0,:,:], cmap='gray')
-            axs[1,0].set_ylabel('Sequence 2')
-            axs[1,1].imshow(TMNIST_images[1,1,:,:], cmap='gray')
-            axs[1,1].set_title('Label = '+str(TMNIST_labels[1,0].cpu().item()))
-            axs[1,2].imshow(TMNIST_images[1,2,:,:], cmap='gray')
-            axs[1,2].set_title('Label = '+str(TMNIST_labels[1,1].cpu().item()))
-            axs[1,3].imshow(TMNIST_images[1,3,:,:], cmap='gray')
-            axs[1,3].set_title('Label = '+str(TMNIST_labels[1,2].cpu().item()))
-            axs[2,0].imshow(TMNIST_images[2,0,:,:], cmap='gray')
-            axs[2,0].set_ylabel('Sequence 3')
-            axs[2,0].set_xlabel('Time Step 1')
-            axs[2,1].imshow(TMNIST_images[2,1,:,:], cmap='gray')
-            axs[2,1].set_xlabel('Time Step 2')
-            axs[2,1].set_title('Label = '+str(TMNIST_labels[2,0].cpu().item()))
-            axs[2,2].imshow(TMNIST_images[2,2,:,:], cmap='gray')
-            axs[2,2].set_xlabel('Time Step 3')
-            axs[2,2].set_title('Label = '+str(TMNIST_labels[2,1].cpu().item()))
-            axs[2,3].imshow(TMNIST_images[2,3,:,:], cmap='gray')
-            axs[2,3].set_xlabel('Time Step 4')
-            axs[2,3].set_title('Label = '+str(TMNIST_labels[2,2].cpu().item()))
-            for row in axs:
-                for ax in row:
-                    ax.set_xticks([]) 
-                    ax.set_yticks([]) 
-            plt.tight_layout()
-            plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
+    def plot_samples(TMNIST_images, TMNIST_labels):
+        fig, axs = plt.subplots(3,4)
+        axs[0,0].imshow(TMNIST_images[0,0,:,:], cmap='gray')
+        axs[0,0].set_ylabel('Sequence 1')
+        axs[0,1].imshow(TMNIST_images[0,1,:,:], cmap='gray')
+        axs[0,1].set_title('Label = '+str(TMNIST_labels[0,0].cpu().item()))
+        axs[0,2].imshow(TMNIST_images[0,2,:,:], cmap='gray')
+        axs[0,2].set_title('Label = '+str(TMNIST_labels[0,1].cpu().item()))
+        axs[0,3].imshow(TMNIST_images[0,3,:,:], cmap='gray')
+        axs[0,3].set_title('Label = '+str(TMNIST_labels[0,2].cpu().item()))
+        axs[1,0].imshow(TMNIST_images[1,0,:,:], cmap='gray')
+        axs[1,0].set_ylabel('Sequence 2')
+        axs[1,1].imshow(TMNIST_images[1,1,:,:], cmap='gray')
+        axs[1,1].set_title('Label = '+str(TMNIST_labels[1,0].cpu().item()))
+        axs[1,2].imshow(TMNIST_images[1,2,:,:], cmap='gray')
+        axs[1,2].set_title('Label = '+str(TMNIST_labels[1,1].cpu().item()))
+        axs[1,3].imshow(TMNIST_images[1,3,:,:], cmap='gray')
+        axs[1,3].set_title('Label = '+str(TMNIST_labels[1,2].cpu().item()))
+        axs[2,0].imshow(TMNIST_images[2,0,:,:], cmap='gray')
+        axs[2,0].set_ylabel('Sequence 3')
+        axs[2,0].set_xlabel('Time Step 1')
+        axs[2,1].imshow(TMNIST_images[2,1,:,:], cmap='gray')
+        axs[2,1].set_xlabel('Time Step 2')
+        axs[2,1].set_title('Label = '+str(TMNIST_labels[2,0].cpu().item()))
+        axs[2,2].imshow(TMNIST_images[2,2,:,:], cmap='gray')
+        axs[2,2].set_xlabel('Time Step 3')
+        axs[2,2].set_title('Label = '+str(TMNIST_labels[2,1].cpu().item()))
+        axs[2,3].imshow(TMNIST_images[2,3,:,:], cmap='gray')
+        axs[2,3].set_xlabel('Time Step 4')
+        axs[2,3].set_title('Label = '+str(TMNIST_labels[2,2].cpu().item()))
+        for row in axs:
+            for ax in row:
+                ax.set_xticks([]) 
+                ax.set_yticks([]) 
+        plt.tight_layout()
+        plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
 
 class TCMNIST(Multi_Domain_Dataset):
     """ Abstract class for Temporal Colored MNIST
@@ -521,12 +554,17 @@ class TCMNIST(Multi_Domain_Dataset):
     Color is added to the digits that is correlated with the label of the current step.
     The formulation of which is defined in the child of this class, either sequences-wise of step-wise
 
-    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+
+    Note:
+        The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     N_STEPS = 5001
     PRED_TIME = [1, 2, 3]
-    INPUT_SIZE = 2 * 28 * 28
+    INPUT_SHAPE = [2,28,28]
     OUTPUT_SIZE = 2
+    #:int: Length of the sequence
     SEQ_LEN = 4
 
     def __init__(self, flags):
@@ -540,9 +578,6 @@ class TCMNIST(Multi_Domain_Dataset):
         test_ds = datasets.MNIST(flags.data_path, train=False, download=True, transform=MNIST_tfrm) 
 
         # Concatenate all data and labels
-        # print(train_ds[0])
-        # train_data = [data[0] for data in train_ds]
-        # print(len(train_data))
         MNIST_images = torch.cat((train_ds.data.float(), test_ds.data.float()))
         MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
@@ -607,21 +642,22 @@ class TCMNIST_seq(TCMNIST):
 
     The correlation of the color to the label is constant across sequences and whole sequences are sampled from an environmnent definition
 
-    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     SETUP = 'seq'
-    ENVS = [0.1, 0.8, 0.9]      # Environment is a function of correlation
 
-    ## Dataset parameters
-    label_noise = 0.25                    # Label noise
+    ## Correlation shift parameters
+    #:list: list of different correlation values between the color and the label
+    ENVS = [0.1, 0.8, 0.9]
+    #:float: Level of noise added to the labels
+    LABEL_NOISE = 0.25
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__(flags)
 
         if flags.test_env is not None:
@@ -644,7 +680,7 @@ class TCMNIST_seq(TCMNIST):
             labels = self.TCMNIST_labels[i::len(self.ENVS)]
 
             # Color subset
-            colored_images, colored_labels = self.color_dataset(images, labels, i, e, self.label_noise)
+            colored_images, colored_labels = self.color_dataset(images, labels, e, self.LABEL_NOISE)
 
             self.plot_samples(colored_images, colored_labels, str(e))
 
@@ -664,7 +700,18 @@ class TCMNIST_seq(TCMNIST):
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
 
-    def color_dataset(self, images, labels, env_id, p, d):
+    def color_dataset(self, images, labels, p, d):
+        """ Color the dataset
+
+        Args:
+            images (Tensor): 3 channel images to color
+            labels (Tensor): labels of the images
+            p (float): correlation between the color and the label
+            d (float): level of noise added to the labels
+
+        Returns:
+            colored_images (Tensor): colored images
+        """
 
         # Add label noise
         labels = XOR(labels, bernoulli(d, labels.shape)).long()
@@ -682,24 +729,30 @@ class TCMNIST_seq(TCMNIST):
 
         return images, labels
 
-    def get_loaders(self):
-        return self.train_loaders, self.test_loader
-
 class TCMNIST_step(TCMNIST):
     """ Temporal Colored MNIST Step
+
     Each sample is a sequence of 4 MNIST digits.
     The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
     Color is added to the digits that is correlated with the label of the current step.
-    The correlation of the color to the label is varying across sequences and time steps are sampled from an environmnent definition
-    This dataset has the ''test_step'' variable that discts which time step is hidden during training
-    The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
-    """
-    N_STEPS = 15000
-    SETUP = 'step'
-    ENVS = [0.9, 0.8, 0.1]  # Environment is a function of correlation
 
-    # Dataset parameters
-    label_noise = 0.25      # Label noise
+    The correlation of the color to the label is varying across sequences and time steps are sampled from an environmnent definition.
+    By definition, the test environment is always the last time step in the sequence.
+
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
+    """
+    SETUP = 'step'
+
+    # Correlation shift parameters
+    #:list: list of different correlation values between the color and the label
+    ENVS = [0.9, 0.8, 0.1]
+    #:float: Level of noise added to the labels
+    LABEL_NOISE = 0.25
 
     def __init__(self, flags, training_hparams):
         super(TCMNIST_step, self).__init__(flags)
@@ -727,7 +780,7 @@ class TCMNIST_step(TCMNIST):
         colored_images = torch.stack([self.TCMNIST_images, self.TCMNIST_images], dim=2)
         for i, e in enumerate(self.ENVS):
             # Color i-th frame subset
-            colored_images, colored_labels = self.color_dataset(colored_images, colored_labels, i, e, self.label_noise)
+            colored_images, colored_labels = self.color_dataset(colored_images, colored_labels, i, e, self.LABEL_NOISE)
 
         for i, e in enumerate(self.ENVS):
             self.plot_samples(colored_images[i::len(self.ENVS)], colored_labels[i::len(self.ENVS)], str(e))
@@ -747,6 +800,18 @@ class TCMNIST_step(TCMNIST):
         self.val_loaders.append(fast_out_loader)
 
     def color_dataset(self, images, labels, env_id, p, d):
+        """ Color a single step 'env_id' of the dataset
+
+        Args:
+            images (Tensor): 3 channel images to color
+            labels (Tensor): labels of the images
+            env_id (int): environment id
+            p (float): correlation between the color and the label
+            d (float): level of noise added to the labels
+
+        Returns:
+            colored_images (Tensor): all dataset with a new step colored
+        """
 
         # Add label noise
         labels[:,env_id] = XOR(labels[:,env_id], bernoulli(d, labels[:,env_id].shape)).long()
@@ -760,31 +825,43 @@ class TCMNIST_step(TCMNIST):
 
         return images, labels
               
-    def split_data(self, out):
+    def split_data(self, out, labels):
         """ Group data and prediction by environment
 
         Args:
-            out (Tensor): output data
+            out (Tensor): output data from a model (batch_size, len(PRED_TIME), n_classes)
+            labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
 
         Returns:
-            Tensor: input data
-            Tensor: output data
+            Tensor: The reshaped data (n_env-1, batch_size, 1, n_classes)
+            Tensor: The reshaped labels (n_env-1, batch_size, 1)
         """
-        out_split = torch.zeros((len(self.ENVS)-1, self.batch_size, 1, out.shape[-1])).to(out.device)
-        for i in range(len(self.ENVS)-1):
+        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+        out_split = torch.zeros((n_train_env, self.batch_size, 1, out.shape[-1])).to(out.device)
+        labels_split = torch.zeros((n_train_env, self.batch_size, 1)).long().to(labels.device)
+        for i in range(n_train_env):
             # Test env is always the last one
             out_split[i,...] = out[:,i,...].unsqueeze(1)
-        return out_split
+            labels_split[i,...] = labels[:,i,...].unsqueeze(1)
+        return out_split, labels_split
 
 class EEG_dataset(Dataset):
     """ HDF5 dataset for EEG data
 
-    HDF5f file = {'env0': {'data': [], 'labels': []},
-                  'env1': {'data': [], 'labels': []}, ...}
+    The HDF5 file is expected to have the following nested dict structure::
 
-    Container for data coming from an hdf5 file. 
-    
+        {'env0': {'data': np.array(n_samples, time_steps, input_size), 
+                  'labels': np.array(n_samples, len(PRED_TIME))},
+        'env1': {'data': np.array(n_samples, time_steps, input_size), 
+                 'labels': np.array(n_samples, len(PRED_TIME))}, 
+        ...}
+
     Good thing about this is that it imports data only when it needs to and thus saves ram space
+
+    Args:
+        h5_path (str): absolute path to the hdf5 file
+        env_id (int): environment id key in the hdf5 file
+        split (list): list of indices of the dataset the belong to the split. If 'None', all the data is used
     """
     def __init__(self, h5_path, env_id, split=None):
         self.h5_path = h5_path
@@ -811,26 +888,24 @@ class EEG_dataset(Dataset):
         return (seq, labels)
 
     def close(self):
+        """ Close the hdf5 file link """
         self.hdf.close()
 
 class Sleep_DB(Multi_Domain_Dataset):
-    """ Class for Physionet Sleep staging datasets
-            * CAP_DB
-            * SEDFx_DB
+    """ Class for Sleep Staging datasets with their data stored in a HDF5 file
+        
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
     """
-    N_STEPS = 5001
     CHECKPOINT_FREQ = 500
     SETUP = 'seq'
     PRED_TIME = [3000]
     OUTPUT_SIZE = 6
+    #:str: realative path to the hdf5 file
+    DATA_FILE = None
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__()
 
         if flags.test_env is not None:
@@ -900,57 +975,58 @@ class CAP_DB(Sleep_DB):
     """ CAP_DB Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
-    The raw data comes from the CAP Sleep Database hosted on Physionet.org:  
-        https://physionet.org/content/capslpdb/1.0.0/
     This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
     We use the 5 most commonly used machines in the database to create the 5 seperate environment to train on.
     The machines that were used were infered by grouping together the recording that had the same channels, and the 
     final preprocessed data only include the channels that were in common between those 5 machines.
 
-    You can read more on the data itself and it's provenance on Physionet.org
+    You can read more on the data itself and it's provenance on Physionet.org:
+        https://physionet.org/content/capslpdb/1.0.0/
 
-    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        This dataset need to be downloaded and preprocessed. This can be done with the download.py script.
     """
     DATA_FILE = 'physionet.org/CAP_DB.h5'
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
-    INPUT_SIZE = 19
+    INPUT_SHAPE = [19]
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__(flags, training_hparams)
         
 class SEDFx_DB(Sleep_DB):
     """ SEDFx_DB Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
-    The raw data comes from the Sleep EDF Expanded Database hosted on Physionet.org:  
-        https://physionet.org/content/sleep-edfx/1.0.0/
     This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
+    We split the dataset in 5 environments to train on, each of them containing the data taken from a given group age.
 
-    You can read more on the data itself and it's provenance on Physionet.org
+    You can read more on the data itself and it's provenance on Physionet.org:
+         https://physionet.org/content/sleep-edfx/1.0.0/
 
-    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
     DATA_FILE = 'physionet.org/SEDFx_DB.h5'
     ENVS = ['Age 20-40', 'Age 40-60', 'Age 60-80','Age 80-100']
-    INPUT_SIZE = 4
+    INPUT_SHAPE = [4]
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__(flags, training_hparams)
 
 class StockVolatility(Multi_Domain_Dataset):
     """ Stock Volatility Dataset
+
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
 
     Ressources:
         * https://github.com/lukaszbanasiak/yahoo-finance
@@ -963,17 +1039,11 @@ class StockVolatility(Multi_Domain_Dataset):
 
     # Choisir une maniere de split en [3,10] environment
     ENVS = ['2000-2004', '2005-2009', '2010-2014', '2015-2020']
-    INPUT_SIZE = 1000000
+    INPUT_SHAPE = [1000000]
     OUTPUT_SIZE = 1
     CHECKPOINT_FREQ = 500
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__()
         pass
 
@@ -987,72 +1057,33 @@ class StockVolatility(Multi_Domain_Dataset):
                 # data[e].append(env_data)
 
 
-# class LSA64_dataset(Dataset):
-#     """ HDF5 dataset for video data
-
-#     Container for data coming from an hdf5 file. 
-    
-#     Good thing about this is that it imports data only when it needs to and thus saves ram space
-#     """
-#     def __init__(self, h5_path, env_id, split=None):
-#         self.h5_path = h5_path
-#         self.env_id = env_id
-
-#         self.hdf = h5py.File(self.h5_path, 'r')
-#         self.targets = []
-
-#         self.mapping = []
-#         for label in self.hdf.keys():
-#             for rep in self.hdf[label].keys():
-#                 self.mapping.append((label,rep))
-#                 self.targets.append(int(label))
-#         self.split = list(range(len(self.mapping))) if split==None else split
-
-#     def __len__(self):
-#         return len(self.split)
-
-#     def __getitem__(self, idx):
-#         if torch.is_tensor(idx):
-#             idx = idx.tolist()
-
-#         split_idx = self.split[idx]
-#         labels, reps = self.mapping[split_idx]
-        
-#         seq = torch.as_tensor(self.hdf[labels][reps][...])
-#         targets = torch.as_tensor(self.targets[split_idx])
-
-#         return (seq.permute(1,0,2,3), targets)
-
-#     def close(self):
-#         self.hdf.close()
-
 class LSA64_dataset(Dataset):
-    """ Video dataset for LSA64 data
-    Folder structure:
-    data_path
-        └── 001 (label)
-            └─ 001 (rep)
-                ├── frame000001.jpg
-                ├── ...
-                └── frame000020.jpg
-            └─ 002 (rep)
-            └─ ...
-        └── 002 (label)
-            └─ 001 (rep)
-            └─ 002 (rep)
-            └─ ...
-        └── 003 (label)
-        └── ...
+    """ Video dataset for a single environment of the LSA64 data (single signer)
 
+    Folder structure::
+
+        data_path
+            └── 001
+                └─ 001
+                    ├── frame000001.jpg
+                    ├── ...
+                    └── frame0000{n_frames}.jpg
+                └─ 002
+                └─ (Repetitions) ...
+            └── 002
+                └─ 001
+                └─ 002
+                └─ (Repetitions) ...
+            └── 003
+            └── (labels) ...
+
+    Args:
+        data_path (str): path to the folder containing the data
+        n_frames (int): number of frames in each video
+        transform (callable, optional): Optional transform to be applied
+            on a sample.
     """
     def __init__(self, data_path, n_frames, transform=None, split=None):
-        """ Dataset constructor function
-        Args:
-            data_path (str): path to the folder containing the data
-            n_frames (int): number of frames in each video
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
         self.data_path = data_path
         self.n_frames = n_frames
         self.transform = transform
@@ -1071,6 +1102,15 @@ class LSA64_dataset(Dataset):
         return len(self.split)
 
     def read_images(self, selected_folder, use_transform):
+        """ Read images from a folder (single video consisting of n_frames images)
+
+        Args:
+            selected_folder (str): path to the folder containing the images
+            use_transform (callable): transform to apply on the images
+
+        Returns:
+            Tensor: images tensor (n_frames, 3, 224, 224)
+        """
         X = []
         for i in range(self.n_frames):
             image = Image.open(os.path.join(selected_folder, 'frame_{:06d}.jpg'.format(i)))
@@ -1083,8 +1123,15 @@ class LSA64_dataset(Dataset):
 
         return X
 
-    def __getitem__(self, index: int):
-        "Generates one sample of data"
+    def __getitem__(self, index):
+        """ Reads an image given anindex
+
+        Args:
+            index (int): index of the video sample to get
+
+        Returns:
+            Tensor: video tensor (n_frames, 3, 224, 224)
+        """
         # Select sample
         split_index = self.split[index]
         folder = self.folders[split_index]
@@ -1098,6 +1145,18 @@ class LSA64_dataset(Dataset):
 class LSA64(Multi_Domain_Dataset):
     """ LSA64: A Dataset for Argentinian Sign Language dataset
 
+    This dataset is composed of videos of different signers.
+
+    You can read more on the data itself and it's provenance from it's source:
+        http://facundoq.github.io/datasets/lsa64/
+
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+
     Ressources:
         * http://facundoq.github.io/datasets/lsa64/
         * http://facundoq.github.io/guides/sign_language_datasets/slr
@@ -1108,20 +1167,15 @@ class LSA64(Multi_Domain_Dataset):
     SETUP = 'seq'
     PRED_TIME = [19]
     ENVS = ['001']#, '002', '003', '004']#, '005', '006', '007', '008', '009', '010']
-    INPUT_SIZE = 224*224*3
+    INPUT_SHAPE = [3, 224, 224]
     OUTPUT_SIZE = 64
     CHECKPOINT_FREQ = 100
+    #:int: number of frames in each video
     N_FRAMES = 20
-
+    #:str: path to the folder containing the data
     DATA_FOLDER = 'LSA64'
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
-
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
         super().__init__()
 
         if flags.test_env is not None:
@@ -1190,6 +1244,19 @@ class LSA64(Multi_Domain_Dataset):
 class HAR(Multi_Domain_Dataset):
     """ Heterogeneity Acrivity Recognition Dataset (HAR)
 
+    This dataset is composed of wearables measurements during different activities.
+    The goal is to classify those activities (stand, sit, walk, bike, stairs up, stairs down).
+
+    You can read more on the data itself and it's provenance from it's source:
+        https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
+
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+
     Ressources:
         * https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
         * https://dl.acm.org/doi/10.1145/2809695.2809718
@@ -1198,17 +1265,18 @@ class HAR(Multi_Domain_Dataset):
     SETUP = 'seq'
     PRED_TIME = [499]
     ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
-    INPUT_SIZE = 6
+    INPUT_SHAPE = 6
     OUTPUT_SIZE = 6
     CHECKPOINT_FREQ = 100
 
+    #:str: Path to the file containing the data
     DATA_FILE = 'HAR/HAR.h5'
 
     def __init__(self, flags, training_hparams):
         """ Dataset constructor function
 
         Args:
-            flags (Namespace): argparse of training arguments
+            flags (argparse.Namespace): argparse of training arguments
             training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
         """
         super().__init__()

@@ -1,3 +1,5 @@
+"""Compile resuls from a hyperparameter sweep and perform model selection strategies"""
+
 import os
 import json
 import tqdm
@@ -8,9 +10,9 @@ from pptree import *
 import pprint
 from prettytable import PrettyTable
 
-from woods.lib import datasets
-from woods.lib import model_selection
-from woods.lib import utils
+from woods import datasets
+from woods import model_selection
+from woods import utils
 
 if __name__ == "__main__":
     """

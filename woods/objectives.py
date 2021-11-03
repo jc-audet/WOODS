@@ -1,3 +1,5 @@
+"""Defining domain generalization algorithms"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -64,17 +66,15 @@ class ERM(Objective):
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
-        ts = torch.tensor(dataset.get_pred_time()).to(device)
+        ts = torch.tensor(dataset.PRED_TIME).to(device)
         out = self.predict(all_x, ts, device)
 
-        out_split = dataset.split_data(out)
+        out_split, labels_split = dataset.split_data(out, all_y)
 
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            y = y.to(device)
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], y[:,t_idx]) 
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx])
 
         objective = env_losses.mean()
 

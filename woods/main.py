@@ -1,3 +1,13 @@
+""" Script used for the main functionnalities of the woods package 
+
+There is 2 mode of operation:
+    - training mode: trains a model on a given dataset with a given test environment using a given algorithm
+    - test mode: tests an existing model on a given dataset with a given test environment using a given algorithm
+
+Raises:
+    NotImplementedError: Some part of the code is not implemented yet
+"""
+
 import os
 import json
 import time
@@ -8,12 +18,12 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from woods.lib import datasets
-from woods.lib import models
-from woods.lib import objectives
-from woods.lib import hyperparams
-from woods.lib import utils
-from woods.lib.train import train, get_accuracies
+from woods import datasets
+from woods import models
+from woods import objectives
+from woods import hyperparams
+from woods import utils
+from woods.train import train, get_accuracies
 
 #TODO:
 # - add the --save option so that simple local train runs doesn't get annoyingly saved
@@ -124,12 +134,6 @@ if __name__ == '__main__':
             json.dump(record, f)
 
     elif flags.mode == 'eval':
-        
-        """eval mode : -- download the weights of something -- evaluate it with get_accuracy of the right setup
-
-        Raises:
-            NotImplementedError: [description]
-        """
         # Load the weights
         assert flags.model_path != None, "You must give the model_path in order to evaluate a model"
         model.load_state_dict(torch.load(os.path.join(flags.model_path)))

@@ -1,11 +1,13 @@
+"""Perform an hyper parameter sweep"""
+
 import os
 import argparse
 import shlex
 import json
 
-from woods.lib import command_launchers
-from woods.lib import objectives
-from woods.lib import datasets
+from woods import command_launchers
+from woods import objectives
+from woods import datasets
 
 def make_args_list(flags):
     """ Creates a list of commands to launch all of the training runs in the hyper parameter sweep

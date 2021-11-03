@@ -1,3 +1,5 @@
+"""Defining the architectures used for benchmarking algorithms"""
+
 import math
 
 import torch
@@ -14,26 +16,28 @@ def get_model(dataset, dataset_hparams):
 
     model_fn = globals()[dataset_hparams['model']]
 
-    return model_fn(dataset.get_input_size(), 
-                    dataset.get_output_size(),
+    return model_fn(dataset.INPUT_SHAPE, 
+                    dataset.OUTPUT_SIZE,
                     dataset_hparams)
 
 class RNN(nn.Module):
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, input_shape, output_size, model_hparams):
         super(RNN, self).__init__()
 
         # Save stuff
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
+
+        self.input_size = math.prod(input_shape)
         self.output_size = output_size
 
         ## Construct the part of the RNN in charge of the hidden state
         H_layers = []
         if self.hidden_depth == 0:
-            H_layers.append( nn.Linear(input_size + self.state_size, self.state_size) )
+            H_layers.append( nn.Linear(self.input_size + self.state_size, self.state_size) )
         else:
-            H_layers.append( nn.Linear(input_size + self.state_size, self.hidden_width) )
+            H_layers.append( nn.Linear(self.input_size + self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 H_layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
             H_layers.append( nn.Linear(self.hidden_width, self.state_size) )
@@ -50,9 +54,9 @@ class RNN(nn.Module):
         ## Construct the part of the model in charge of the output
         O_layers = []
         if self.hidden_depth == 0:
-            O_layers.append( nn.Linear(input_size + self.state_size, output_size) )
+            O_layers.append( nn.Linear(self.input_size + self.state_size, output_size) )
         else:
-            O_layers.append( nn.Linear(input_size + self.state_size, self.hidden_width) )
+            O_layers.append( nn.Linear(self.input_size + self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 O_layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
             O_layers.append( nn.Linear(self.hidden_width, output_size) )
@@ -89,7 +93,7 @@ class RNN(nn.Module):
         return torch.zeros(batch_size, self.state_size).to(device)
 
 class LSTM(nn.Module):
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, input_shape, output_size, model_hparams):
         super(LSTM, self).__init__()
 
         # Save stuff
@@ -97,10 +101,12 @@ class LSTM(nn.Module):
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
+
+        self.input_size = math.prod(input_shape)
         self.output_size = output_size
 
         # Recurrent model
-        self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True)
+        self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
 
         # Classification model
         layers = []
@@ -257,11 +263,11 @@ class Transformer(nn.Module):
         * Check model size to make it possible to overfit to the SEDFx dataset
     """
 
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, input_shape, output_size, model_hparams):
         super(Transformer, self).__init__()
 
         # Save stuff
-        self.input_size = input_size
+        self.input_size = math.prod(input_shape)
         self.embedding_size = model_hparams['embedding_size']
 
         # Define encoding layers
@@ -313,7 +319,7 @@ class Transformer(nn.Module):
             input (Tensor): [batch_size, time_steps, input_size]
             time_pred (Tensor): [batch_size, time_steps]
         Returns:
-            output (Tensor): [batch_size, output_size]
+            output (Tensor): [batch_size, 1, output_size]
         """
 
         # Pass through attention heads
@@ -328,7 +334,7 @@ class Transformer(nn.Module):
         out = out.view(out.shape[0], -1)
         out = self.classifier(out)
 
-        return out, out.argmax(1, keepdim=True)
+        return out.unsqueeze(1)
 
 class CRNN(nn.Module):
     """ Convolutional Recurrent Neural Network
@@ -395,7 +401,7 @@ class CRNN(nn.Module):
         # Pass through recurrent layers
         out, pred = self.lstm(cnn_embed_seq, time_pred)
 
-        return out, pred
+        return out.unsqueeze(1)
 
 # class GatedTransformerEncoderLayer(nn.Module):
 #     r"""TransformerEncoderLayer is made up of self-attn and feedforward network.

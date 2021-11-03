@@ -1,14 +1,16 @@
+"""Defining the training functions"""
+
 import time
 import numpy as np
 
 import torch
 from torch import nn, optim
 
-from woods.lib import datasets
-from woods.lib import models
-from woods.lib import objectives
-from woods.lib import hyperparams
-from woods.lib import utils
+from woods import datasets
+from woods import models
+from woods import objectives
+from woods import hyperparams
+from woods import utils
 
 ## Train function
 def train_step(model, objective, dataset, in_loaders_iter, device):
@@ -20,7 +22,7 @@ def train_step(model, objective, dataset, in_loaders_iter, device):
     """
     model.train()
 
-    ts = torch.tensor(dataset.get_pred_time()).to(device)
+    ts = torch.tensor(dataset.PRED_TIME).to(device)
         
     # Get next batch of training data 
     # TODO: Fix that awful patch
@@ -71,7 +73,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
             record[str(step)] = checkpoint_record
 
             t.add_row([step] 
-                    + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.get_envs()] 
+                    + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
                     + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
                     + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
                     + ["{:.2f}".format(np.mean(step_times))] 
@@ -96,8 +98,10 @@ def get_accuracies(objective, dataset, device):
         
             record.update({ name+'_acc': accuracy,
                             name+'_loss': loss})
+
         elif dataset.SETUP == 'step':
             accuracies, losses = get_split_accuracy_step(objective, dataset, loader, device)
+
             for i, e in enumerate(name):
                 record.update({ e+'_acc': accuracies[i],
                                 e+'_loss': losses[i]})
@@ -106,7 +110,7 @@ def get_accuracies(objective, dataset, device):
 
 def get_split_accuracy_seq(objective, dataset, loader, device):
 
-    ts = torch.tensor(dataset.get_pred_time()).to(device)
+    ts = torch.tensor(dataset.PRED_TIME).to(device)
 
     losses = 0
     nb_correct = 0
@@ -131,7 +135,7 @@ def get_split_accuracy_seq(objective, dataset, loader, device):
 
 def get_split_accuracy_step(objective, dataset, loader, device):
 
-    ts = torch.tensor(dataset.get_pred_time()).to(device)
+    ts = torch.tensor(dataset.PRED_TIME).to(device)
 
     losses = torch.zeros(*ts.shape).to(device)
     nb_correct = torch.zeros(*ts.shape).to(device)
