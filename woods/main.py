@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)
-    objective = objective_class(model, loss_fn, optimizer, objective_hparams)
+    objective = objective_class(model, dataset, loss_fn, optimizer, objective_hparams)
 
     ## Do the thing
     model.to(device)

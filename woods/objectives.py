@@ -46,7 +46,7 @@ class ERM(Objective):
     Empirical Risk Minimization (ERM)
     """
 
-    def __init__(self, model, loss_fn, optimizer, hparams):
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
         super(ERM, self).__init__(hparams)
 
         self.model = model
@@ -88,8 +88,8 @@ class IRM(ERM):
     Invariant Risk Minimization (IRM)
     """
 
-    def __init__(self, model, loss_fn, optimizer, hparams):
-        super(IRM, self).__init__(model, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(IRM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -156,8 +156,8 @@ class VREx(ERM):
     """
     V-REx Objective from http://arxiv.org/abs/2003.00688
     """
-    def __init__(self, model, loss_fn, optimizer, hparams):
-        super(VREx, self).__init__(model, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(VREx, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -212,8 +212,8 @@ class SD(ERM):
     Gradient Starvation: A Learning Proclivity in Neural Networks
     Equation 25 from [https://arxiv.org/pdf/2011.09468.pdf]
     """
-    def __init__(self, model, loss_fn, optimizer, hparams):
-        super(SD, self).__init__(model, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(SD, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -260,8 +260,8 @@ class ANDMask(ERM):
     AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
     """
 
-    def __init__(self, model, loss_fn, optimizer, hparams):
-        super(ANDMask, self).__init__(model, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(ANDMask, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.tau = self.hparams['tau']
@@ -322,8 +322,8 @@ class IGA(ERM):
     From https://arxiv.org/abs/2008.01883v2
     """
 
-    def __init__(self, model, loss_fn, optimizer, hparams):
-        super(IGA, self).__init__(model, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(IGA, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']

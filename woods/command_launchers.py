@@ -1,4 +1,7 @@
-"""Set of functions used to launch lists of python scripts"""
+"""Set of functions used to launch lists of python scripts
+
+TODO:
+    Check Joblib library for parallel compute?"""
 import os
 import time
 import subprocess
@@ -43,8 +46,10 @@ def slurm_launcher(commands):
             #SBATCH --time=1-00:00:00
             #SBATCH --mem=81Gb
 
-        Note: --cpus-per-task should match the N_WORKERS defined in datasets.py (default 8)
-        Note: there should be equal number of --ntasks and --gres
+    Note: 
+        --cpus-per-task should match the N_WORKERS defined in datasets.py (default 4)
+    Note: 
+        there should be equal number of --ntasks and --gres
 
     Args:
         commands (List): List of list of string that consists of a python script call

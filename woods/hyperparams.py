@@ -40,21 +40,19 @@ def Basic_Fourier_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
             'batch_size': lambda r: int(2**r.uniform(3, 9))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 1e-3,
             'batch_size': lambda r: 64
         }
-
-    return hparams
     
 def Spurious_Fourier_train(sample):
     """ Spurious Fourier model hparam definition 
@@ -63,21 +61,19 @@ def Spurious_Fourier_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
             'batch_size': lambda r: int(2**r.uniform(3, 9))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 1e-3,
             'batch_size': lambda r: 64
         }
-
-    return hparams
 
 def TMNIST_train(sample):
     """ TMNIST model hparam definition 
@@ -86,21 +82,19 @@ def TMNIST_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
             'batch_size': lambda r: int(2**r.uniform(3, 9))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 1e-3,
             'batch_size': lambda r: 64
         }
-
-    return hparams
 
 def TCMNIST_seq_train(sample):
     """ TCMNIST_seq model hparam definition 
@@ -109,21 +103,19 @@ def TCMNIST_seq_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
             'batch_size': lambda r: int(2**r.uniform(3, 9))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 1e-3,
             'batch_size': lambda r: 64
         }
-
-    return hparams
 
 def TCMNIST_step_train(sample):
     """ TCMNIST_step model hparam definition 
@@ -132,21 +124,19 @@ def TCMNIST_step_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
             'batch_size': lambda r: int(2**r.uniform(3, 9))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 1e-3,
             'batch_size': lambda r: 64
         }
-
-    return hparams
 
 def CAP_DB_train(sample):
     """ CAP_DB model hparam definition 
@@ -155,21 +145,19 @@ def CAP_DB_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
             'batch_size': lambda r: int(2**r.uniform(3, 4))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 8
         }
-
-    return hparams
 
 def SEDFx_DB_train(sample):
     """ SEDFx_DB model hparam definition 
@@ -178,21 +166,19 @@ def SEDFx_DB_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
             'batch_size': lambda r: int(2**r.uniform(3, 4))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 8
         }
-
-    return hparams
 
 def HAR_train(sample):
     """ HAR model hparam definition 
@@ -201,21 +187,19 @@ def HAR_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
             'batch_size': lambda r: int(2**r.uniform(3, 4))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 8
         }
-
-    return hparams
 
 def LSA64_train(sample):
     """ LSA64 model hparam definition 
@@ -224,21 +208,19 @@ def LSA64_train(sample):
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
     if sample:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
             'batch_size': lambda r: int(2**r.uniform(3, 4))
         }
     else:
-        hparams = {
+        return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 8
         }
-
-    return hparams
 
 def get_model_hparams(dataset_name, seed, sample=False):
     """ Get the model related hyper parameters
