@@ -25,8 +25,6 @@ from woods import hyperparams
 from woods import utils
 from woods.train import train, get_accuracies
 
-#TODO:
-# - add the --save option so that simple local train runs doesn't get annoyingly saved
 if __name__ == '__main__':
 
     # Device definition
@@ -53,7 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
     # Model evaluation arguments
-    parser.add_argument('--save_model', action='store_true')
+    parser.add_argument('--save', action='store_true')
     parser.add_argument('--model_path', type=str, default=None)
     flags = parser.parse_args()
 
@@ -66,7 +64,7 @@ if __name__ == '__main__':
 
     assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
     if flags.mode == 'train':
-        assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
+        assert not os.path.isfile(os.path.join(flags.save_path, 'logs', job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
@@ -118,20 +116,30 @@ if __name__ == '__main__':
     model.to(device)
     if flags.mode == 'train':
 
-        model, record = train(flags, training_hparams, model, objective, dataset, device)
+        model, record, table = train(flags, training_hparams, model, objective, dataset, device)
 
-        if flags.save_model:
-            torch.save(model.state_dict(), os.path.join(flags.save_path, job_name+'.pt'))
+        ## Save stuff
+        if flags.save:
+            hparams = {}
+            hparams.update(training_hparams)
+            hparams.update(model_hparams)
+            hparams.update(objective_hparams)
+            record['hparams'] = hparams
+            record['flags'] = vars(flags)
+            with open(os.path.join(flags.save_path, 'logs', job_name+'.json'), 'w') as f:
+                json.dump(record, f)
+            torch.save(model.state_dict(), os.path.join(flags.save_path, 'models', job_name+'.pt'))
+            with open(os.path.join(flags.save_path, 'outputs', job_name+'.txt'), 'w') as f:
+                f.write('HParams:\n')
+                for k, v in sorted(training_hparams.items()):
+                    f.write('\t{}: {}\n'.format(k, v))
+                for k, v in sorted(model_hparams.items()):
+                    f.write('\t{}: {}\n'.format(k, v))
+                for k, v in sorted(objective_hparams.items()):
+                    f.write('\t{}: {}\n'.format(k, v))
+                job_id = 'Training ' + flags.objective  + ' on ' + flags.dataset + ' (H=' + str(flags.hparams_seed) + ', T=' + str(flags.trial_seed) + ')'
+                f.write(table.get_string(title=job_id, border=True, hrule=0))
 
-        ## Save record
-        hparams = {}
-        hparams.update(training_hparams)
-        hparams.update(model_hparams)
-        hparams.update(objective_hparams)
-        record['hparams'] = hparams
-        record['flags'] = vars(flags)
-        with open(os.path.join(flags.save_path, job_name+'.json'), 'w') as f:
-            json.dump(record, f)
 
     elif flags.mode == 'eval':
         # Load the weights

@@ -24,14 +24,15 @@ def train_step(model, objective, dataset, in_loaders_iter, device):
 
     ts = torch.tensor(dataset.PRED_TIME).to(device)
         
-    # Get next batch of training data 
-    # TODO: Fix that awful patch
-    try:
-        batch_loaders = next(in_loaders_iter)
-    except StopIteration:
-        _, loaders = dataset.get_train_loaders()
-        in_loaders_iter = zip(*loaders)
-        batch_loaders = next(in_loaders_iter)
+    batch_loaders = next(in_loaders_iter)
+    # # Get next batch of training data 
+    # # TODO: Fix that awful patch
+    # try:
+    #     batch_loaders = next(in_loaders_iter)
+    # except StopIteration:
+    #     _, loaders = dataset.get_train_loaders()
+    #     in_loaders_iter = zip(*loaders)
+    #     batch_loaders = next(in_loaders_iter)
 
     # Send everything in an array
     minibatches_device = [(x, y) for x,y in batch_loaders]
@@ -82,7 +83,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
             step_times = [] 
             print("\n".join(t.get_string().splitlines()[-2:-1]))
 
-    return model, record
+    return model, record, t
 
 def get_accuracies(objective, dataset, device):
 

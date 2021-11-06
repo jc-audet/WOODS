@@ -44,7 +44,7 @@ def Basic_Fourier_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
-            'batch_size': lambda r: int(2**r.uniform(3, 9))
+            'batch_size': lambda r: int(2**r.uniform(3, 7))
         }
     else:
         return {
@@ -65,7 +65,7 @@ def Spurious_Fourier_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-4.5, -2.5),
-            'batch_size': lambda r: int(2**r.uniform(3, 9))
+            'batch_size': lambda r: int(2**r.uniform(3, 7))
         }
     else:
         return {

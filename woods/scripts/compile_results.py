@@ -15,46 +15,44 @@ from woods import model_selection
 from woods import utils
 
 if __name__ == "__main__":
-    """
-    TODO:
-        * There is a problem with the file saving. Everything is finishing by _SNone.json
-        * Make an average column in the table
-    """
 
     parser = argparse.ArgumentParser(description="Collect result of hyper parameter sweep")
     parser.add_argument('mode', nargs='?', type=str, default=['tables'], choices=['tables', 'hparams'])
-    parser.add_argument("--results_dir", type=str, required=True)
+    parser.add_argument("--results_dirs", type=str, nargs='+', required=True)
     parser.add_argument("--ignore_integrity_check", action='store_true')
     parser.add_argument("--latex", action='store_true')
     flags = parser.parse_args()
 
-    ## Check if all run are there
-    if flags.ignore_integrity_check:
-        warnings.warn("Sweep results are reported without integrity check.")
-    else:
-        utils.check_file_integrity(flags.results_dir)
+    # For all directories you want to collect data from
+    for results_dir in flags.results_dirs:
 
-    ## Load records in a nested dictionnary (Dataset > Objective > Test env > Trial Seed > Hparams Seed)
-    records = {}
-    for i, subdir in tqdm.tqdm(list(enumerate(os.listdir(flags.results_dir))), desc="Loading Results"):
-        results_path = os.path.join(flags.results_dir, subdir)
-        try:
-            with open(results_path, "r") as f:
-                run_results = json.load(f)
+        ## Check if all run are there
+        if flags.ignore_integrity_check:
+            warnings.warn("Sweep results are reported without integrity check.")
+        else:
+            utils.check_file_integrity(results_dir)
 
-                sub_records = model_selection.ensure_dict_path(records, run_results['flags']['dataset'])
-                sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['objective'])
-                sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['test_env'])
-                sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['trial_seed'])
-                sub_records.update({run_results['flags']['hparams_seed']: run_results})
-        except KeyError:
-            pass
-        except IOError:
-            pass
+        ## Load records in a nested dictionnary (Dataset > Objective > Test env > Trial Seed > Hparams Seed)
+        records = {}
+        for subdir in tqdm.tqdm(os.listdir(os.path.join(results_dir,'logs')), desc="Loading Results"):
+            results_path = os.path.join(results_dir, 'logs', subdir)
+            try:
+                with open(results_path, "r") as f:
+                    run_results = json.load(f)
+
+                    sub_records = model_selection.ensure_dict_path(records, run_results['flags']['dataset'])
+                    sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['objective'])
+                    sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['test_env'])
+                    sub_records = model_selection.ensure_dict_path(sub_records, run_results['flags']['trial_seed'])
+                    sub_records.update({run_results['flags']['hparams_seed']: run_results})
+            except KeyError:
+                pass
+            except IOError:
+                pass
 
     # Choose model selection under study
-    model_selection_methods = ['train_domain_validation',
-                            'test_domain_validation']
+    model_selection_methods = [ 'train_domain_validation',
+                                'test_domain_validation']
 
     if 'hparams' in flags.mode:
 

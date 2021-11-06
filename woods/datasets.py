@@ -160,6 +160,57 @@ def get_split(dataset, holdout_fraction, seed=0, sort=False):
 
     return in_keys, out_keys
 
+class InfiniteSampler(torch.utils.data.Sampler):
+    """ Infinite Sampler for PyTorch.
+
+    Inspired from : https://github.com/facebookresearch/DomainBed
+
+    Args:
+        sampler (torch.utils.data.Sampler): Sampler to be used for the infinite sampling.
+    """
+    def __init__(self, sampler):
+        self.sampler = sampler
+
+    def __iter__(self):
+        while True:
+            for batch in self.sampler:
+                yield batch
+
+    def __len__(self):
+        return len(self.sampler)
+
+class InfiniteLoader(torch.utils.data.IterableDataset):
+    """ InfiniteLoader is a torch.utils.data.IterableDataset that can be used to infinitely iterate over a finite dataset.
+
+    Inspired from : https://github.com/facebookresearch/DomainBed
+
+    Args:
+        dataset (Dataset): Dataset to be iterated over
+        batch_size (int): Batch size of the dataset
+        num_workers (int, optional): Number of workers to use for the data loading. Defaults to 0.
+    """
+    def __init__(self, dataset, batch_size, num_workers=0):
+        super(InfiniteLoader, self).__init__()
+
+        self.dataset = dataset
+
+        sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
+
+        batch_sampler = torch.utils.data.BatchSampler(sampler, batch_size, drop_last=True)
+
+        self.infinite_iterator = iter(
+            torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers)
+        )
+
+    def __iter__(self):
+        while True:
+            yield next(self.infinite_iterator)
+    
+    def __len__(self):
+        return len(self.infinite_iterator)
+
+    
+
 class Multi_Domain_Dataset:
     """ Abstract class of a multi domain dataset for OOD generalization.
 
@@ -334,6 +385,9 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     #:list: The correlation rate between the label and the spurious peaks
     ENVS = [0.1, 0.8, 0.9]
 
+    #TO REMOVE:
+    N_STEPS = 2
+
     def __init__(self, flags, training_hparams):
         super().__init__()
 
@@ -425,9 +479,10 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
             if i != self.test_env:
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=4)
                 self.train_names.append(str(e) + '_in')
                 self.train_loaders.append(in_loader)
+
             fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False)
             self.val_names.append(str(e) + '_in')
             self.val_loaders.append(fast_in_loader)
@@ -650,6 +705,7 @@ class TCMNIST_seq(TCMNIST):
         The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     SETUP = 'seq'
+    N_STEPS = 2
 
     ## Correlation shift parameters
     #:list: list of different correlation values between the color and the label
@@ -682,7 +738,7 @@ class TCMNIST_seq(TCMNIST):
             # Color subset
             colored_images, colored_labels = self.color_dataset(images, labels, e, self.LABEL_NOISE)
 
-            self.plot_samples(colored_images, colored_labels, str(e))
+            # self.plot_samples(colored_images, colored_labels, str(e))
 
             # Make Tensor dataset and the split
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)

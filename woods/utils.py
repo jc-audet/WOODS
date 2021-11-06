@@ -3,6 +3,7 @@
 import os
 import json
 import tqdm
+import glob
 import numpy as np
 from argparse import Namespace
 from prettytable import PrettyTable
@@ -12,8 +13,8 @@ from woods.scripts import hparams_sweep
 from woods import datasets
 
 def get_cmap(n, name='hsv'):
-    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
-    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+    RGB color; the keyword argument name must be a standard mpl colormap name."""
     return plt.cm.get_cmap(name, n)
 
 def plot_results(results_path):
@@ -148,21 +149,28 @@ def check_file_integrity(results_dir):
         AssertionError: If there is a sweep file missing
     """
 
-    with open(os.path.join(results_dir,'sweep_config.json'), 'r') as fp:
+    config_file = os.path.join(results_dir, 'sweep_config.json')
+
+    with open(config_file, 'r') as fp:
         flags = json.load(fp)
+
+    # Add dummy values to flags
+    flags['data_path'] = 'dummy'
+    flags['save_path'] = 'dummy'
     
     # Recall sweep config
     _, train_args = hparams_sweep.make_args_list(flags)
 
     # Check for sweep output files
     missing_files = 0
-    for args in tqdm.tqdm(train_args, desc="Checking file integrity"):
+    for args in tqdm.tqdm(train_args, desc="Checking file integrity for folder "+results_dir):
         name = get_job_name(args) + '.json'
         
-        if not os.path.exists(os.path.join(results_dir, name)):
+        if not os.path.exists(os.path.join(results_dir, 'logs', name)):
             missing_files += 1
 
     assert missing_files == 0, str(missing_files) + " sweep results are missing from the results directory"
+    assert len(train_args) == len(os.listdir(os.path.join(results_dir, 'logs'))), "There are extra files in the logs directory"
 
 def setup_pretty_table(flags):
     """ Setup the printed table that show the results at each checkpoints

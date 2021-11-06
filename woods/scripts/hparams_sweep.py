@@ -1,9 +1,11 @@
 """Perform an hyper parameter sweep"""
 
 import os
-import argparse
-import shlex
 import json
+import copy
+import glob
+import shlex
+import argparse
 
 from woods import command_launchers
 from woods import objectives
@@ -24,7 +26,9 @@ def make_args_list(flags):
 
     train_args_list = []
     for obj in flags['objective']:
+        assert obj in objectives.OBJECTIVES, "Objective {} not found".format(obj)
         for dataset in flags['dataset']:
+            assert dataset in datasets.DATASETS, "Dataset {} not found".format(dataset)
             for i_hparam in range(flags['n_hparams']):
                 for j_trial in range(flags['n_trials']):
                     if flags['unique_test_env'] is not None:
@@ -40,12 +44,11 @@ def make_args_list(flags):
                         train_args['save_path'] = flags['save_path']
                         train_args['hparams_seed'] = i_hparam
                         train_args['trial_seed'] = j_trial
-                        train_args['test_step'] = flags['test_step']
                         train_args_list.append(train_args)
 
     command_list = []
     for train_args in train_args_list:  
-        command = ['python3', '-m main train', '--sample_hparams']
+        command = ['python3', '-m woods.scripts.main train', '--sample_hparams', '--save']
         for k, v in sorted(train_args.items()):
             if isinstance(v, list):
                 v = ' '.join([str(v_) for v_ in v])
@@ -71,17 +74,38 @@ if __name__ == '__main__':
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
-    # Step Setup
-    parser.add_argument('--test_step', type=int, default=None)
     flags = parser.parse_args()
 
-    # Create command list and train_arguments
-    flags_dict = vars(flags)
-    command_list, train_args = make_args_list(flags_dict)
+    # Check stuff
+    if flags.unique_test_env is not None:
+        assert len(flags.dataset) == 1, 'unique_test_env is only supported for single dataset'
 
-    # Create the sweep config file including all of the sweep parameters
-    with open(os.path.join(flags.save_path,'sweep_config.json'), 'w') as fp:
-        json.dump(flags_dict, fp)
+    # Get args in a dict
+    flags_dict = vars(flags)
+
+    # Create the flags dictionary and remove flags that are irrelevant to the hyper parameter sweep configuration (doesn't impact results)
+    flags_to_save = copy.deepcopy(flags_dict)
+    keys_to_del = ['data_path', 'launcher', 'save_path']
+    for key in keys_to_del:
+        del flags_to_save[key]
+
+    # Check if there is already a sweep config file
+    if os.path.exists(os.path.join(flags.save_path, 'sweep_config.json')):
+        with open(os.path.join(flags.save_path, 'sweep_config.json')) as f:
+            existing_config = json.load(f)
+        assert existing_config == flags_to_save, 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'
+    else:
+        with open(os.path.join(flags.save_path,'sweep_config.json'), 'w') as fp:
+            json.dump(flags_to_save, fp)
+            
+        # Create folders
+        os.mkdir(os.path.join(flags.save_path, 'logs'))
+        os.mkdir(os.path.join(flags.save_path, 'models'))
+        os.mkdir(os.path.join(flags.save_path, 'outputs'))
+
+
+    # Create command list and train_arguments
+    command_list, train_args = make_args_list(flags_dict)
 
     # Launch commands
     launcher_fn = command_launchers.REGISTRY[flags.launcher]

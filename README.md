@@ -22,7 +22,7 @@ python3 -m woods.scripts.download \
 Train a single model using one objective on one dataset with one test environment
 
 ```sh
-python3 -m woods.main train \
+python3 -m woods.scripts.main train \
         --dataset Spurious_Fourier \
         --objective ERM \
         --test_env 0 \
