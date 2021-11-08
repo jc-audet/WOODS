@@ -765,6 +765,7 @@ class EEG_dataset(Dataset):
         split_idx = self.split[idx]
         
         seq = torch.as_tensor(self.data[split_idx, ...])
+        seq = seq / seq.max()
         labels = torch.as_tensor(self.targets[split_idx])
 
         return (seq, labels)
@@ -792,10 +793,10 @@ class Sleep_DB(Multi_Domain_Dataset):
         """
         super().__init__()
 
-        if flags.test_env is not None:
-            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
-        else:
-            warnings.warn("You don't have any test environment")
+        # if flags.test_env is not None:
+        #     assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        # else:
+        #     warnings.warn("You don't have any test environment")
 
         ## Save stuff
         self.test_env = flags.test_env
@@ -812,7 +813,7 @@ class Sleep_DB(Multi_Domain_Dataset):
             full_dataset.close()
 
             # Make training dataset/loader and append it to training containers
-            if j != flags.test_env:
+            if j not in flags.test_env: #!= flags.test_env:
                 in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
                 in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
                 self.train_names.append(e + '_in')
@@ -923,8 +924,8 @@ class MI(Sleep_DB):
     """
 
     DATA_FILE = 'MI.h5'
-    ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
-    INPUT_SIZE = 22
+    ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
+    INPUT_SIZE = 21
     OUTPUT_SIZE = 2
     N_STEPS = 20001
 

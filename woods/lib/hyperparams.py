@@ -177,7 +177,7 @@ def MI_train(sample):
     else:
         hparams = {
             'class_balance': lambda r: True,
-            'weight_decay': lambda r: 0,
+            'weight_decay': lambda r: 0.1,
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 8
         }
@@ -389,7 +389,7 @@ def MI_model(sample):
         }
     else:
         return {
-            'model': lambda r: 'Transformer',
+            'model': lambda r: 'shallow',
             'nheads_enc': lambda r: 8,
             'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32

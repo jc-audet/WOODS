@@ -31,7 +31,7 @@ if __name__ == '__main__':
     # Main mode
     parser.add_argument('mode', choices=['train', 'eval'])
     # Dataset arguments
-    parser.add_argument('--test_env', type=int, default = None)
+    parser.add_argument('--test_env', type=int, nargs='+', default = None)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--holdout_fraction', type=float, default=0.2)
     # Setup arguments
@@ -46,6 +46,8 @@ if __name__ == '__main__':
     # Model evaluation arguments
     parser.add_argument('--save_model', action='store_true')
     parser.add_argument('--model_path', type=str, default=None)
+    parser.add_argument('--sam', type=bool, default=False)
+
 
 
     flags = parser.parse_args()
@@ -57,9 +59,9 @@ if __name__ == '__main__':
     ## Making job ID and checking if done
     job_name = utils.get_job_name(vars(flags))
 
-    assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
+    # assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
     if flags.mode == 'train':
-        assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
+        pass #assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)

@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 from woods.lib.datasets import DATASETS
 
-from moabb.datasets import BNCI2014001, Cho2017, PhysionetMI
+from moabb.datasets import BNCI2014001, Cho2017, PhysionetMI, Lee2019_MI
 from moabb.paradigms import MotorImagery
 import numpy as np
 
@@ -877,65 +877,143 @@ class MI():
         ds_src1 = Cho2017()
         ds_src2 = PhysionetMI()
         ds_src3 = BNCI2014001()
+        ds_src4 = Lee2019_MI()
 
         fmin, fmax = 4, 32
         raw = ds_src3.get_data(subjects=[1])[1]['session_T']['run_1']
         src3_channels = raw.pick_types(eeg=True).ch_names
+        raw = ds_src4.get_data(subjects=[1])[1]['session_2']['train']
+        src4_channels = raw.pick_types(eeg=True).ch_names
+        common_channels = set(src3_channels) & set(src4_channels)
         sfreq = 250.
-        prgm_2classes = MotorImagery(n_classes=2, channels=src3_channels, resample=sfreq, fmin=fmin, fmax=fmax)
-        prgm_4classes = MotorImagery(n_classes=4, channels=src3_channels, resample=sfreq, fmin=fmin, fmax=fmax)
+        prgm_2classes = MotorImagery(n_classes=2, channels=common_channels, resample=sfreq, fmin=fmin, fmax=fmax)
+        prgm_4classes = MotorImagery(n_classes=4, channels=common_channels, resample=sfreq, fmin=fmin, fmax=fmax)
 
-        X_src1, label_src1, m_src1 = prgm_2classes.get_data(dataset=ds_src1, subjects=[subj for subj in range(1,53) if subj not in [32,46,49]])  # three subjects [32,46,49] were removed in the moabb implementation (see:http://moabb.neurotechx.com/docs/_modules/moabb/datasets/gigadb.html#Cho2017)
-        X_src2, label_src2, m_src2 = prgm_4classes.get_data(dataset=ds_src2, subjects=list(range(1,110)))  
-        X_src3, label_src3, m_src3 = prgm_4classes.get_data(dataset=ds_src3, subjects=list(range(1,10)))  
+        X_src1, label_src1, m_src1 = prgm_2classes.get_data(dataset=ds_src1, subjects=[subj for subj in range(1,2) if subj not in [32,46,49]])  # three subjects [32,46,49] were removed in the moabb implementation (see:http://moabb.neurotechx.com/docs/_modules/moabb/datasets/gigadb.html#Cho2017)
+        X_src2, label_src2, m_src2 = prgm_4classes.get_data(dataset=ds_src2, subjects=list(range(1,2)))  
+        X_src3, label_src3, m_src3 = prgm_4classes.get_data(dataset=ds_src3, subjects=list(range(1,2)))  
+        X_src4, label_src4, m_src4 = prgm_2classes.get_data(dataset=ds_src4, subjects=list(range(1,2))) #   
 
         print("First source dataset has {} trials with {} electrodes and {} time samples".format(*X_src1.shape))
         print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src2.shape))
         print("Third source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
+        print("Forth source dataset has {} trials with {} electrodes and {} time samples".format(*X_src4.shape))
+
 
         print ("\nSource dataset 1 include labels: {}".format(np.unique(label_src1)))
         print ("Source dataset 2 include labels: {}".format(np.unique(label_src2)))
         print ("Source dataset 3 include labels: {}".format(np.unique(label_src3)))
+        print ("Source dataset 4 include labels: {}".format(np.unique(label_src4)))
+
 
         y_src1 = np.array([self.relabel(l) for l in label_src1])
         y_src2 = np.array([self.relabel(l) for l in label_src2])
         y_src3 = np.array([self.relabel(l) for l in label_src3])
+        y_src4 = np.array([self.relabel(l) for l in label_src4])
+
 
         print("Only right-/left-hand labels are used and first source dataset does not have other labels:")
-        print(np.unique(y_src1), np.unique(y_src2), np.unique(y_src3))     
+        print(np.unique(y_src1), np.unique(y_src2), np.unique(y_src3), np.unique(y_src4))     
 
-        # Deleting trials of "other labels"
+        ## Deleting trials of "other labels"
         print("Deleting trials from 'other labels'")
         X_src2 = np.delete(X_src2,y_src2==2,0)
         y_src2 = np.delete(y_src2,y_src2==2,0)
         X_src3 = np.delete(X_src3,y_src3==2,0)
         y_src3 = np.delete(y_src3,y_src3==2,0)
+        X_src4 = np.delete(X_src4,y_src4==2,0)
+        y_src4 = np.delete(y_src4,y_src4==2,0)
 
         ## windowing trails
-        window_size = min(X_src1.shape[2], X_src2.shape[2], X_src3.shape[2])
+        window_size = min(X_src1.shape[2], X_src2.shape[2], X_src3.shape[2],X_src4.shape[2])
+        # window_size = min(X_src2.shape[2], X_src3.shape[2],X_src4.shape[2])
         X_src1 = X_src1[:, :, :window_size]
         X_src2 = X_src2[:, :, :window_size]
         X_src3 = X_src3[:, :, :window_size]
+        X_src4 = X_src4[:, :, :window_size]
+
+        # print stats
+        print(X_src1.shape,X_src2.shape,X_src3.shape,X_src4.shape)
+        print(np.max(X_src1),np.max(X_src2),np.max(X_src3),np.max(X_src4))
+        print(max(y_src1), sum(y_src1)/len(y_src1))
+        print(max(y_src2), sum(y_src2)/len(y_src2))
+        print(max(y_src3), sum(y_src3)/len(y_src3))
+        print(max(y_src4), sum(y_src4)/len(y_src4))
+        print(len(common_channels))
+
 
         ## Create group in h5 file
-        dummy_data = np.zeros((0,window_size,len(src3_channels)))
+        dummy_data = np.zeros((0,window_size,len(common_channels)))
         dummy_labels = np.zeros((0,1))
-        groups = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
-        X = [X_src1, X_src2, X_src3]
-        Y = [y_src1, y_src2, y_src3]
+        groups = ['Cho2017', 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
+        # groups = ['PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
+        # X = [X_src1, X_src2, X_src3, X_src4]
+        # Y = [y_src1, y_src2, y_src3, y_src4]
+        X = [ X_src2, X_src3, X_src4]
+        Y = [y_src2, y_src3, y_src4]
         with h5py.File(os.path.join(self.path, 'MI.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
-                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(src3_channels)))
+                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(common_channels)))
                 g.create_dataset('labels', data=dummy_labels.astype('float32'), dtype='int_', maxshape=(None,1))
         
         ## Save data to h5 file
-        for group, x, y in zip(groups,X,Y):
+        import  psutil
+        process = psutil.Process(os.getpid())
+        print(process.memory_info()[0]/1024 ** 2)
+        for group in groups:
+ 
+            if group in ['Cho2017']:
+                print("dataset#1")
+                print(process.memory_info()[0]/1024 ** 2)
+                X_src, label_src, m_src = prgm_2classes.get_data(dataset=ds_src1, subjects=[subj for subj in range(1,53) if subj not in [32,46,49]])  # 50 subjets! three subjects [32,46,49] were removed in the moabb implementation (see:http://moabb.neurotechx.com/docs/_modules/moabb/datasets/gigadb.html#Cho2017)
+                # print("First source dataset has {} trials with {} electrodes and {} time samples".format(*X_src.shape))
+                # y_src = np.array([self.relabel(l) for l in label_src])
+                # X_src = X_src[:, :, :window_size]
+
+
+            elif group in ['PhysionetMI']:
+                print("dataset#2")
+                print(process.memory_info()[0]/1024 ** 2)
+                X_src, label_src, m_src = prgm_4classes.get_data(dataset=ds_src2, subjects=list(range(1,110))) #110 subjects
+                # print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src.shape))
+                # y_src2 = np.array([self.relabel(l) for l in label_src2])
+                # print("Deleting trials from 'other labels'")
+                # X_src2 = np.delete(X_src2,y_src2==2,0)
+                # y_src2 = np.delete(y_src2,y_src2==2,0)
+                # X_src2 = X_src2[:, :, :window_size]
+ 
+            elif group in [ 'BNCI2014001']:
+                print("dataset#3")
+                print(process.memory_info()[0]/1024 ** 2)
+                X_src, label_src, m_src = prgm_4classes.get_data(dataset=ds_src3, subjects=list(range(1,10))) # 10 subjects
+                # print("Third source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
+                # y_src3 = np.array([self.relabel(l) for l in label_src3])
+                # X_src3 = np.delete(X_src3,y_src3==2,0)
+                # y_src3 = np.delete(y_src3,y_src3==2,0)
+                # X_src3 = X_src3[:, :, :window_size]
+ 
+            elif group in ['Lee2019_MI']:
+                print("dataset#4")
+                print(process.memory_info()[0]/1024 ** 2)
+                X_src, label_src, m_src = prgm_2classes.get_data(dataset=ds_src4, subjects=list(range(1,40))) # 55 subjects
+                # print("Forth source dataset has {} trials with {} electrodes and {} time samples".format(*X_src4.shape))
+                # y_src4 = np.array([self.relabel(l) for l in label_src4])
+                # X_src4 = X_src4[:, :, :window_size]
+
+            print("The source dataset has {} trials with {} electrodes and {} time samples".format(*X_src.shape))
+            y_src = np.array([self.relabel(l) for l in label_src])
+            print("Deleting trials from 'other labels'")
+            X_src = np.delete(X_src,y_src==2,0)
+            y_src = np.delete(y_src,y_src==2,0)
+            X_src = X_src[:, :, :window_size]
+ 
+
             with h5py.File(os.path.join(self.path, 'MI.h5'), 'a') as hf:
-                hf[group]['data'].resize((hf[group]['data'].shape[0] + x.shape[0]), axis = 0)
-                hf[group]['data'][-x.shape[0]:,:,:] = x.transpose((0,2,1))
-                hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y.shape[0]), axis = 0)
-                hf[group]['labels'][-y.shape[0]:,:] = y.reshape([-1,1])
+                hf[group]['data'].resize((hf[group]['data'].shape[0] + X_src.shape[0]), axis = 0)
+                hf[group]['data'][-X_src.shape[0]:,:,:] = X_src.transpose((0,2,1))
+                hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y_src.shape[0]), axis = 0)
+                hf[group]['labels'][-y_src.shape[0]:,:] = y_src.reshape([-1,1])
     
     def relabel(self,l):
         if l == 'left_hand': return 0

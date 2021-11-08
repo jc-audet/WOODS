@@ -11,7 +11,7 @@ from woods.lib import hyperparams
 from woods.lib import utils
 
 ## Train function
-def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, device):
+def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, device, sam = False):
     """
     :param model: nn model defined in a models.py
     :param train_loader: training dataloader(s)
@@ -38,35 +38,54 @@ def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, d
     all_x = torch.cat([x for x,y in minibatches_device]).to(device)
     all_y = torch.cat([y for x,y in minibatches_device]).to(device)
     all_out = []
+  
+    if sam:
+        from woods.lib.sam import SAM
+        import torch.nn.functional as F
 
-    # Get logit and make prediction
-    all_out, pred = model(all_x, ts)
+        base_optimizer = torch.optim.Adam
+        optimizer = SAM(model.parameters(), base_optimizer, lr=0.0001, adaptive=True)
+        # first forward-backward pass
+        # Get logit and make prediction
+        all_out, pred = model(all_x, ts)
+        loss_1 =  loss_fn(all_out[0],all_y.squeeze())  # use this loss for any training statistics
+        loss_1.backward()
+        optimizer.first_step(zero_grad=True)
+        
+        # second forward-backward pass
+        all_out_2, _ = model(all_x, ts)
+        loss_fn(all_out_2[0],all_y.squeeze()).backward()  # make sure to do a full forward pass
+        optimizer.second_step(zero_grad=True)
 
-    # Compute environment-wise losses
-    all_logits_idx = 0
-    env_losses = torch.zeros(len(minibatches_device))
-    for i, (x, y) in enumerate(minibatches_device):
-        env_loss = 0
-        y = y.to(device)
-        for t_idx, out in enumerate(all_out):     # Number of time steps
-            env_out_t = out[all_logits_idx:all_logits_idx + x.shape[0],:]
-            env_loss += loss_fn(env_out_t, y[:,t_idx]) 
-            objective.gather_logits_and_labels(env_out_t, y[:,t_idx])
+    else:
+        # Get logit and make prediction
+        all_out, pred = model(all_x, ts)
 
-        # get train accuracy and save it
-        nb_correct = pred[all_logits_idx:all_logits_idx + x.shape[0],:].eq(y).cpu().sum()
-        nb_items = pred[all_logits_idx:all_logits_idx + x.shape[0],:].numel()
+        # Compute environment-wise losses
+        all_logits_idx = 0
+        env_losses = torch.zeros(len(minibatches_device))
+        for i, (x, y) in enumerate(minibatches_device):
+            env_loss = 0
+            y = y.to(device)
+            for t_idx, out in enumerate(all_out):     # Number of time steps
+                env_out_t = out[all_logits_idx:all_logits_idx + x.shape[0],:]
+                env_loss += loss_fn(env_out_t, y[:,t_idx]) 
+                objective.gather_logits_and_labels(env_out_t, y[:,t_idx])
 
-        # Save loss
-        env_losses[i] = env_loss
+            # get train accuracy and save it
+            nb_correct = pred[all_logits_idx:all_logits_idx + x.shape[0],:].eq(y).cpu().sum()
+            nb_items = pred[all_logits_idx:all_logits_idx + x.shape[0],:].numel()
 
-        # Update stuff
-        all_logits_idx += x.shape[0]
+            # Save loss
+            env_losses[i] = env_loss
 
-    # Back propagate
-    optimizer.zero_grad()
-    objective.backward(env_losses)
-    optimizer.step()
+            # Update stuff
+            all_logits_idx += x.shape[0]
+
+        # Back propagate
+        optimizer.zero_grad()
+        objective.backward(env_losses)
+        optimizer.step()
 
     return model
 
@@ -87,7 +106,7 @@ def train_seq_setup(flags, training_hparams, model, objective, dataset, device):
 
         ## Make training step and report accuracies and losses
         step_start = time.time()
-        model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device)
+        model = train_step(model, loss_fn, objective, dataset, train_loaders_iter, optimizer, device, flags.sam)
         step_times.append(time.time() - step_start)
 
         if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
