@@ -264,7 +264,8 @@ class Transformer(nn.Module):
         pad_size = 25
         # spatial conv
         self.spatial_conv = nn.Sequential(
-            nn.Conv2d(1, model_hparams['embedding_size'], (1, self.input_size))
+            nn.Conv2d(1, model_hparams['embedding_size'], (1, self.input_size)),
+            nn.BatchNorm2d(model_hparams['embedding_size']),
         )
         self.feature_extractor = nn.Sequential(
             # temporal conv 1
@@ -311,6 +312,30 @@ class Transformer(nn.Module):
         out = self.classifier(out)
 
         return [out], out.argmax(1, keepdim=True)
+
+
+class shallow(nn.Module):
+    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    
+    def __init__(self, input_size, output_size, model_hparams):
+        super(shallow, self).__init__()
+        from braindecode.models import ShallowFBCSPNet
+        # Save stuff
+        self.input_size = input_size
+        self.embedding_size = model_hparams['embedding_size']
+        input_window_samples = 750
+
+        self.model = ShallowFBCSPNet(
+        input_size,
+        output_size,
+        input_window_samples=input_window_samples,
+        final_conv_length='auto',
+        )
+        
+    def forward(self, input, time_pred):
+        out = self.model(input.permute((0, 2, 1)))
+        return [out], out.argmax(1, keepdim=True)
+
 
 class CRNN(nn.Module):
     """ Convolutional Recurrent Neural Network
