@@ -1,3 +1,4 @@
+better_apidoc==0.3.2
 h5py==3.3.0
 matplotlib==3.4.1
 mne==0.23.2

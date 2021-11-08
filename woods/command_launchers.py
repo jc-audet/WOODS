@@ -1,3 +1,7 @@
+"""Set of functions used to launch lists of python scripts
+
+TODO:
+    Check Joblib library for parallel compute?"""
 import os
 import time
 import subprocess
@@ -5,7 +9,8 @@ from multiprocessing import Pool
 
 def dummy_launcher(commands):
     """Doesn't launch any scripts in commands, it only prints the commands. Useful for testing.
-    Taken from: https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/command_launchers.py#L18
+
+    Taken from : https://github.com/facebookresearch/DomainBed/
 
     Args:
         commands (List): List of list of string that consists of a python script call
@@ -15,7 +20,8 @@ def dummy_launcher(commands):
         
 def local_launcher(commands):
     """Launch all of the scripts in commands on the local machine serially. If GPU is available it is gonna use it.
-    Taken from: https://github.com/facebookresearch/DomainBed/blob/9e864cc4057d1678765ab3ecb10ae37a4c75a840/domainbed/command_launchers.py#L13
+
+    Taken from : https://github.com/facebookresearch/DomainBed/
 
     Args:
         commands (List): List of list of string that consists of a python script call
@@ -26,10 +32,9 @@ def local_launcher(commands):
         
 def slurm_launcher(commands):
     """Parallel job launcher for computationnal cluster using the SLURM workload manager. 
-    Launches all the jobs in commands in parallel according to the number of tasks in the slurm allocation.
 
-    Example:
-        An example of SBATCH options:
+    Launches all the jobs in commands in parallel according to the number of tasks in the slurm allocation.
+    An example of SBATCH options::
 
             #!/bin/bash
             #SBATCH --job-name=<job_name>
@@ -41,8 +46,10 @@ def slurm_launcher(commands):
             #SBATCH --time=1-00:00:00
             #SBATCH --mem=81Gb
 
-        Note: --cpus-per-task should match the N_WORKERS defined in datasets.py (default 8)
-        Note: there should be equal number of --ntasks and --gres
+    Note: 
+        --cpus-per-task should match the N_WORKERS defined in datasets.py (default 4)
+    Note: 
+        there should be equal number of --ntasks and --gres
 
     Args:
         commands (List): List of list of string that consists of a python script call

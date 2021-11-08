@@ -1,3 +1,5 @@
+"""Download the datasets used in the package"""
+
 import os
 import csv
 import copy
@@ -24,7 +26,7 @@ from torchvision.transforms._transforms_video import (
 from pytorchvideo.transforms import UniformTemporalSubsample
 import matplotlib.pyplot as plt
 
-from woods.lib.datasets import DATASETS
+from woods.datasets import DATASETS
 
 from moabb.datasets import BNCI2014001, Cho2017, PhysionetMI
 from moabb.paradigms import MotorImagery

@@ -1,8 +1,10 @@
+"""Visualize logs from a training run"""
+
 import os
 import json
 import argparse
 
-from woods.lib import utils
+from woods import utils
 
 if __name__ == '__main__':
 
