@@ -256,9 +256,6 @@ class shallow(nn.Module):
     def __init__(self, input_size, output_size, model_hparams):
         super(shallow, self).__init__()
         from braindecode.models import ShallowFBCSPNet
-        # Save stuff
-        self.input_size = input_size
-        self.embedding_size = model_hparams['embedding_size']
         input_window_samples = 750 # lenght of each trial TODO: should be a parameter
 
         self.model = ShallowFBCSPNet(
