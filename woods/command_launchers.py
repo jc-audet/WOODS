@@ -73,56 +73,8 @@ def slurm_launcher(commands):
             print("//// Completed ", i+1 , " / ", len(commands), "////")
             print("//////////////////////////////")
 
-       
-def slurm_launcher_sbatch(commands):
-    """Parallel job launcher for computational cluster using the SLURM workload manager. 
-    Launches all the jobs in commands in parallel using job array.
-
-    Args:
-        commands (List): List of list of string that consists of a python script call
-    """
-    # Read in the file
-    with open('job_array_template.sh', 'r') as file :
-        filedata = file.read()
-
-    # Replace the target string
-    filedata = filedata.replace('n_of_jobs', str(len(commands)))
-    # filedata = filedata.replace('command_to_run', str(command))
-
-    # Write the file out again
-    with open('job_array.sh', 'w') as file:
-        file.write(filedata)
-
-    print(type(commands),len(commands))
-    for cmd in commands:
-        f=open('commands.txt','w')
-        for ele in commands:
-            f.write(ele+'\n')
-        f.close()
-        
-    command = 'sbatch'+ ' ' + 'job_array.sh' 
-    print(command)
-    subprocess.call(command, shell=True)
-           
-
 REGISTRY = {
     'dummy': dummy_launcher,
     'local': local_launcher,
     'slurm_launcher': slurm_launcher,
-    'slurm_launcher_sbatch': slurm_launcher_sbatch
 }
-
-if __name__ == '__main__':
-    n_of_jobs = 100
-
-    # Read in the file
-    with open('job_array_template.sh', 'r') as file :
-        filedata = file.read()
-
-    # Replace the target string
-    filedata = filedata.replace('n_of_jobs', str(n_of_jobs))
-    filedata = filedata.replace('command_to_run', str(command))
-
-    # Write the file out again
-    with open('job_array.sh', 'w') as file:
-        file.write(filedata)
