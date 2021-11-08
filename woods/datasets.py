@@ -16,6 +16,8 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
+import matplotlib.pyplot as plt
+
 DATASETS = [
     # 1D datasets
     'Basic_Fourier',
@@ -256,7 +258,7 @@ class Multi_Domain_Dataset:
             for i in range(self.OUTPUT_SIZE):
                 n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
 
-        weights = 1. / (n_labels*self.OUTPUT_SIZE)
+        weights = n_labels.max() / n_labels
 
         return weights
 
@@ -330,21 +332,32 @@ class Basic_Fourier(Multi_Domain_Dataset):
 
         ## Define label 0 and 1 Fourier spectrum
         self.fourier_0 = np.zeros(1000)
-        self.fourier_0[800:900] = np.linspace(0, 500, num=100)
+        self.fourier_0[900] = 1
         self.fourier_1 = np.zeros(1000)
-        self.fourier_1[800:900] = np.linspace(500, 0, num=100)
+        self.fourier_1[850] = 1
 
         ## Make the full time series with inverse fft
-        signal_0 = fft.irfft(self.fourier_0, n=10000)[1000:9000]
-        signal_1 = fft.irfft(self.fourier_1, n=10000)[1000:9000]
-        signal_0 = torch.tensor( signal_0.reshape(-1,50) ).float()
-        signal_1 = torch.tensor( signal_1.reshape(-1,50) ).float()
-        signal = torch.cat((signal_0, signal_1))
+        signal_0 = fft.irfft(self.fourier_0, n=10000)
+        signal_1 = fft.irfft(self.fourier_1, n=10000)
+        signal_0 /= np.max(np.abs(signal_0))
+        signal_1 /= np.max(np.abs(signal_1))
+
+        ## Sample signals frames with a bunch of offsets
+        all_signal_0 = torch.zeros(0,50,1)
+        all_signal_1 = torch.zeros(0,50,1)
+        for i in range(0, 50, 2):
+            offset_signal_0 = copy.deepcopy(signal_0)[i:i-50]
+            offset_signal_1 = copy.deepcopy(signal_1)[i:i-50]
+            split_signal_0 = offset_signal_0.reshape(-1,50,1).clone().detach().float()
+            split_signal_1 = offset_signal_1.reshape(-1,50,1).clone().detach().float()
+            all_signal_0 = torch.cat((all_signal_0, split_signal_0), dim=0)
+            all_signal_1 = torch.cat((all_signal_1, split_signal_1), dim=0)
+        signal = torch.cat((all_signal_0, all_signal_1), dim=0)
 
         ## Create the labels
-        labels_0 = torch.zeros((signal_0.shape[0],1)).long()
-        labels_1 = torch.ones((signal_1.shape[0],1)).long()
-        labels = torch.cat((labels_0, labels_1))
+        labels_0 = torch.zeros((all_signal_0.shape[0],1)).long()
+        labels_1 = torch.ones((all_signal_1.shape[0],1)).long()
+        labels = torch.cat((labels_0, labels_1), dim=0)
 
         ## Create tensor dataset and dataloader
         self.train_names, self.train_loaders = [], []
@@ -353,13 +366,13 @@ class Basic_Fourier(Multi_Domain_Dataset):
             dataset = torch.utils.data.TensorDataset(signal, labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
 
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+            in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
             self.train_names.append(e+'_in')
             self.train_loaders.append(in_loader)
-            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False)
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=1028, shuffle=False)
             self.val_names.append(e+'_in')
             self.val_loaders.append(fast_in_loader)
-            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=1028, shuffle=False)
             self.val_names.append(e+'_out')
             self.val_loaders.append(fast_out_loader)
         
@@ -386,9 +399,6 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     #:list: The correlation rate between the label and the spurious peaks
     ENVS = [0.1, 0.8, 0.9]
 
-    #TO REMOVE:
-    N_STEPS = 2
-
     def __init__(self, flags, training_hparams):
         super().__init__()
 
@@ -404,44 +414,52 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
         ## Define label 0 and 1 Fourier spectrum
         self.fourier_0 = np.zeros(1000)
-        self.fourier_0[800:900] = np.linspace(0, 500, num=100)
+        self.fourier_0[900] = 1
         self.fourier_1 = np.zeros(1000)
-        self.fourier_1[800:900] = np.linspace(500, 0, num=100)
+        self.fourier_1[850] = 1
 
         ## Define the spurious Fourier spectrum (one direct and the inverse)
         self.direct_fourier_0 = copy.deepcopy(self.fourier_0)
         self.direct_fourier_1 = copy.deepcopy(self.fourier_1)
-        self.direct_fourier_0[250] = 1000
-        self.direct_fourier_1[400] = 1000
+        self.direct_fourier_0[250] = 0.5
+        self.direct_fourier_1[400] = 0.5
 
         self.inverse_fourier_0 = copy.deepcopy(self.fourier_0)
         self.inverse_fourier_1 = copy.deepcopy(self.fourier_1)
-        self.inverse_fourier_0[400] = 1000
-        self.inverse_fourier_1[250] = 1000
+        self.inverse_fourier_0[400] = 0.5
+        self.inverse_fourier_1[250] = 0.5
 
         ## Create the sequences for direct and inverse
-        direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)[1000:9000]
-        direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50) ).float()
-        perm = torch.randperm(direct_signal_0.shape[0])
-        direct_signal_0 = direct_signal_0[perm,:]
-        direct_signal_1 = fft.irfft(self.direct_fourier_1, n=10000)[1000:9000]
-        direct_signal_1 = torch.tensor( direct_signal_1.reshape(-1,50) ).float()
-        perm = torch.randperm(direct_signal_1.shape[0])
-        direct_signal_1 = direct_signal_1[perm,:]
+        direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)
+        direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50,1) ).float()
+        direct_signal_0 /= direct_signal_0.max()
+        direct_signal_1 = fft.irfft(self.direct_fourier_1, n=10000)
+        direct_signal_1 = torch.tensor( direct_signal_1.reshape(-1,50,1) ).float()
+        direct_signal_1 /= direct_signal_1.max()
+        direct_signal_0, direct_signal_1 = self.super_sample(direct_signal_0, direct_signal_1)
+
+        perm_0 = torch.randperm(direct_signal_0.shape[0])
+        direct_signal_0 = direct_signal_0[perm_0,:]
+        perm_1 = torch.randperm(direct_signal_1.shape[0])
+        direct_signal_1 = direct_signal_1[perm_1,:]
         direct_signal = [direct_signal_0, direct_signal_1]
 
-        inverse_signal_0 = fft.irfft(self.inverse_fourier_0, n=10000)[1000:9000]
-        inverse_signal_0 = torch.tensor( inverse_signal_0.reshape(-1,50) ).float()
-        perm = torch.randperm(inverse_signal_0.shape[0])
-        inverse_signal_0 = inverse_signal_0[perm,:]
-        inverse_signal_1 = fft.irfft(self.inverse_fourier_1, n=10000)[1000:9000]
-        inverse_signal_1 = torch.tensor( inverse_signal_1.reshape(-1,50) ).float()
-        perm = torch.randperm(inverse_signal_1.shape[0])
-        inverse_signal_1 = inverse_signal_1[perm,:]
+        inverse_signal_0 = fft.irfft(self.inverse_fourier_0, n=10000)
+        inverse_signal_0 = torch.tensor( inverse_signal_0.reshape(-1,50,1) ).float()
+        inverse_signal_0 /= inverse_signal_0.max()
+        inverse_signal_1 = fft.irfft(self.inverse_fourier_1, n=10000)
+        inverse_signal_1 = torch.tensor( inverse_signal_1.reshape(-1,50,1) ).float()
+        inverse_signal_1 /= inverse_signal_1.max()
+        inverse_signal_0, inverse_signal_1 = self.super_sample(inverse_signal_0, inverse_signal_1)
+
+        perm_0 = torch.randperm(inverse_signal_0.shape[0])
+        inverse_signal_0 = inverse_signal_0[perm_0,:]
+        perm_1 = torch.randperm(inverse_signal_1.shape[0])
+        inverse_signal_1 = inverse_signal_1[perm_1,:]
         inverse_signal = [inverse_signal_0, inverse_signal_1]
 
         ## Create the environments with different correlations
-        env_size = 150
+        env_size = 4000
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
         for i, e in enumerate(self.ENVS):
@@ -452,44 +470,58 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             env_labels = torch.cat((env_labels_0, env_labels_1))
 
             ## Fill signal
-            env_signal = torch.zeros((env_size, 50))
+            env_signal = torch.zeros((env_size, 50, 1))
             for j, label in enumerate(env_labels):
 
                 # Label noise
                 if bool(bernoulli(self.LABEL_NOISE, 1)):
                     # Correlation to label
                     if bool(bernoulli(e, 1)):
-                        env_signal[j,:] = inverse_signal[label][0,:]
-                        inverse_signal[label] = inverse_signal[label][1:,:]
+                        env_signal[j,...] = inverse_signal[label][0,...]
+                        inverse_signal[label] = inverse_signal[label][1:,...]
                     else:
-                        env_signal[j,:] = direct_signal[label][0,:]
-                        direct_signal[label] = direct_signal[label][1:,:]
+                        env_signal[j,...] = direct_signal[label][0,...]
+                        direct_signal[label] = direct_signal[label][1:,...]
                     
                     # Flip the label
                     env_labels[j, -1] = XOR(label, 1)
                 else:
                     if bool(bernoulli(e, 1)):
-                        env_signal[j,:] = direct_signal[label][0,:]
-                        direct_signal[label] = direct_signal[label][1:,:]
+                        env_signal[j,...] = direct_signal[label][0,...]
+                        direct_signal[label] = direct_signal[label][1:,...]
                     else:
-                        env_signal[j,:] = inverse_signal[label][0,:]
-                        inverse_signal[label] = inverse_signal[label][1:,:]
+                        env_signal[j,...] = inverse_signal[label][0,...]
+                        inverse_signal[label] = inverse_signal[label][1:,...]
 
             # Make Tensor dataset
             dataset = torch.utils.data.TensorDataset(env_signal, env_labels)
 
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
             if i != self.test_env:
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=4)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(str(e) + '_in')
                 self.train_loaders.append(in_loader)
 
-            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False)
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=4000, shuffle=False)
             self.val_names.append(str(e) + '_in')
             self.val_loaders.append(fast_in_loader)
-            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=4000, shuffle=False)
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
+    
+    def super_sample(self, signal_0, signal_1):
+        """ Sample signals frames with a bunch of offsets """
+        all_signal_0 = torch.zeros(0,50,1)
+        all_signal_1 = torch.zeros(0,50,1)
+        for i in range(0, 50, 2):
+            new_signal_0 = copy.deepcopy(signal_0)[i:i-50]
+            new_signal_1 = copy.deepcopy(signal_1)[i:i-50]
+            split_signal_0 = new_signal_0.reshape(-1,50,1).clone().detach().float()
+            split_signal_1 = new_signal_1.reshape(-1,50,1).clone().detach().float()
+            all_signal_0 = torch.cat((all_signal_0, split_signal_0), dim=0)
+            all_signal_1 = torch.cat((all_signal_1, split_signal_1), dim=0)
+        
+        return all_signal_0, all_signal_1
 
 class TMNIST(Multi_Domain_Dataset):
     """ Temporal MNIST dataset
@@ -1024,7 +1056,7 @@ class Sleep_DB(Multi_Domain_Dataset):
             for i in range(self.OUTPUT_SIZE):
                 n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
 
-        weights = 1. / (n_labels*self.OUTPUT_SIZE)
+        weights = n_labels.max() / n_labels
 
         return weights
 
@@ -1077,8 +1109,6 @@ class SEDFx_DB(Sleep_DB):
 
     def __init__(self, flags, training_hparams):
         super().__init__(flags, training_hparams)
-
-
        
 class MI(Sleep_DB):
     """ MI datasets
@@ -1145,8 +1175,8 @@ class StockVolatility(Multi_Domain_Dataset):
                 # data[e].append(env_data)
 
 
-class LSA64_dataset(Dataset):
-    """ Video dataset for a single environment of the LSA64 data (single signer)
+class video_dataset(Dataset):
+    """ Video dataset
 
     Folder structure::
 
@@ -1157,11 +1187,11 @@ class LSA64_dataset(Dataset):
                     ├── ...
                     └── frame0000{n_frames}.jpg
                 └─ 002
-                └─ (Repetitions) ...
+                └─ (samples) ...
             └── 002
                 └─ 001
                 └─ 002
-                └─ (Repetitions) ...
+                └─ (samples) ...
             └── 003
             └── (labels) ...
 
@@ -1286,21 +1316,21 @@ class LSA64(Multi_Domain_Dataset):
             env_path = os.path.join(flags.data_path, self.DATA_FOLDER, e)
 
             # Get full environment dataset and define in/out split
-            full_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize)
+            full_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
+                in_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
                 in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
             # Make validation loaders
-            fast_in_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
+            fast_in_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_dataset = LSA64_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=out_split)
+            fast_out_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=out_split)
             fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
@@ -1325,7 +1355,7 @@ class LSA64(Multi_Domain_Dataset):
             for i in range(self.OUTPUT_SIZE):
                 n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
 
-        weights = 1. / (n_labels*self.OUTPUT_SIZE)
+        weights = n_labels.max() / n_labels
 
         return weights
 
@@ -1353,7 +1383,7 @@ class HAR(Multi_Domain_Dataset):
     SETUP = 'seq'
     PRED_TIME = [499]
     ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
-    INPUT_SHAPE = 6
+    INPUT_SHAPE = [6]
     OUTPUT_SIZE = 6
     CHECKPOINT_FREQ = 100
 
@@ -1373,6 +1403,10 @@ class HAR(Multi_Domain_Dataset):
             assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
         else:
             warnings.warn("You don't have any test environment")
+
+        # Save stuff 
+        self.test_env = flags.test_env
+        self.batch_size = training_hparams['batch_size']
 
         # Label definition
         self.label_dict = { 'stand': 0,
@@ -1398,7 +1432,7 @@ class HAR(Multi_Domain_Dataset):
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             

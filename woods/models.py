@@ -6,8 +6,9 @@ import torch
 from torch import nn
 from torchvision import models
 
-# To remove 
-import matplotlib.pyplot as plt
+# new package
+from braindecode.models import EEGResNet
+from torchsummary import summary
 
 def get_model(dataset, dataset_hparams):
     """Return the dataset class with the given name."""
@@ -20,79 +21,14 @@ def get_model(dataset, dataset_hparams):
                     dataset.OUTPUT_SIZE,
                     dataset_hparams)
 
-class RNN(nn.Module):
-    def __init__(self, input_shape, output_size, model_hparams):
-        super(RNN, self).__init__()
-
-        # Save stuff
-        self.state_size = model_hparams['state_size']
-        self.hidden_depth = model_hparams['hidden_depth']
-        self.hidden_width = model_hparams['hidden_width']
-
-        self.input_size = math.prod(input_shape)
-        self.output_size = output_size
-
-        ## Construct the part of the RNN in charge of the hidden state
-        H_layers = []
-        if self.hidden_depth == 0:
-            H_layers.append( nn.Linear(self.input_size + self.state_size, self.state_size) )
-        else:
-            H_layers.append( nn.Linear(self.input_size + self.state_size, self.hidden_width) )
-            for i in range(self.hidden_depth-1):
-                H_layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
-            H_layers.append( nn.Linear(self.hidden_width, self.state_size) )
-        
-        seq_arr = []
-        for i, lin in enumerate(H_layers):
-            nn.init.xavier_uniform_(lin.weight)
-            nn.init.zeros_(lin.bias)
-            seq_arr.append(lin)
-            if i != self.hidden_depth:
-                seq_arr.append(nn.ReLU(True))
-        self.FCH = nn.Sequential(*seq_arr)
-
-        ## Construct the part of the model in charge of the output
-        O_layers = []
-        if self.hidden_depth == 0:
-            O_layers.append( nn.Linear(self.input_size + self.state_size, output_size) )
-        else:
-            O_layers.append( nn.Linear(self.input_size + self.state_size, self.hidden_width) )
-            for i in range(self.hidden_depth-1):
-                O_layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
-            O_layers.append( nn.Linear(self.hidden_width, output_size) )
-        
-        seq_arr = []
-        for i, lin in enumerate(O_layers):
-            nn.init.xavier_uniform_(lin.weight)
-            nn.init.zeros_(lin.bias)
-            seq_arr.append(lin)
-            if i != self.hidden_depth:
-                seq_arr.append(nn.ReLU(True))
-        seq_arr.append(nn.LogSoftmax(dim=1))
-        self.FCO = nn.Sequential(*seq_arr)
-
-    def forward(self, input, time_pred):
-
-        # Setup array
-        hidden = self.initHidden(input.shape[0], input.device)
-
-        all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
-        # Forward propagate RNN
-        ts_counter = 0
-        for t in range(input.shape[1]):
-            combined = torch.cat((input[:,t,...].view(input.shape[0],-1), hidden), 1)
-            hidden = self.FCH(combined)
-            out = self.FCO(combined)
-            if t in time_pred:
-                all_out[:,ts_counter,:] = out
-                ts_counter += 1
-
-        return all_out
-
-    def initHidden(self, batch_size, device):
-        return torch.zeros(batch_size, self.state_size).to(device)
-
 class LSTM(nn.Module):
+    """ A simple LSTM model
+
+    Args:
+        input_shape (tuple): The shape of the input data.
+        output_size (int): The size of the output.
+        model_hparams (dict): The hyperparameters for the model.
+    """
     def __init__(self, input_shape, output_size, model_hparams):
         super(LSTM, self).__init__()
 
@@ -151,7 +87,7 @@ class LSTM(nn.Module):
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
 class ATTN_LSTM(nn.Module):
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, input_shape, output_size, model_hparams):
         super(ATTN_LSTM, self).__init__()
 
         # Save stuff
@@ -160,9 +96,10 @@ class ATTN_LSTM(nn.Module):
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
         self.output_size = output_size
+        self.input_size = math.prod(input_shape)
 
         # Recurrent model
-        self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
+        self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
 
         # attention model
         layers = []
@@ -224,6 +161,32 @@ class ATTN_LSTM(nn.Module):
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
+
+class EEGResnet(nn.Module):
+    def __init__(self, input_shape, output_size, model_hparams):
+        super(EEGResnet, self).__init__()
+
+        # Save stuff
+        self.output_size = output_size
+        self.input_size = math.prod(input_shape)
+
+        # Get model from BrainDecode
+        print("hello")
+        self.model = EEGResNet( in_chans=self.input_size,
+                                n_classes=self.output_size,
+                                input_window_samples=3000,
+                                final_pool_length='auto',
+                                n_first_filters=10)
+        summary(self.model.cuda(), input_size=(3000, input_shape[0]))
+        print(self.model)
+
+    def forward(self, input, time_pred):
+
+        print(input.shape)
+        out = self.model(input)
+        print(out.shape)
+
+        return out.unsqueeze(1)
 
 class PositionalEncoding(nn.Module):
     """ Positional Encoding class
@@ -330,6 +293,7 @@ class Transformer(nn.Module):
         out = self.spatial_conv(out)
         out = out.transpose(1,3).squeeze()
         # out = self.pos_encoder(out)
+        print(out.shape)
         out = self.enc_layers(out)
         out = out.unsqueeze(1)
         out = self.feature_extractor(out)

@@ -24,17 +24,9 @@ def train_step(model, objective, dataset, in_loaders_iter, device):
 
     ts = torch.tensor(dataset.PRED_TIME).to(device)
         
-    batch_loaders = next(in_loaders_iter)
-    # # Get next batch of training data 
-    # # TODO: Fix that awful patch
-    # try:
-    #     batch_loaders = next(in_loaders_iter)
-    # except StopIteration:
-    #     _, loaders = dataset.get_train_loaders()
-    #     in_loaders_iter = zip(*loaders)
-    #     batch_loaders = next(in_loaders_iter)
 
-    # Send everything in an array
+    # Get batch and Send everything in an array
+    batch_loaders = next(in_loaders_iter)
     minibatches_device = [(x, y) for x,y in batch_loaders]
 
     objective.update(minibatches_device, dataset, device)

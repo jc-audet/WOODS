@@ -71,7 +71,7 @@ if __name__ == '__main__':
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
     objective_hparams = hyperparams.get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
-    model_hparams = hyperparams.get_model_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
+    model_hparams = hyperparams.get_model_hparams(flags.dataset)
 
     print('HParams:')
     for k, v in sorted(training_hparams.items()):
@@ -108,6 +108,7 @@ if __name__ == '__main__':
 
     # Define training aid
     loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
+    # loss_fn = nn.NLLLoss()
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
 
     ## Initialize some Objective
