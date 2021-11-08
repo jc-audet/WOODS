@@ -4,11 +4,11 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from woods.lib import datasets
-from woods.lib import models
-from woods.lib import objectives
-from woods.lib import hyperparams
-from woods.lib import utils
+from woods import datasets
+from woods import models
+from woods import objectives
+from woods import hyperparams
+from woods import utils
 
 ## Train function
 def train_step(model, loss_fn, objective, dataset, in_loaders_iter, optimizer, device):

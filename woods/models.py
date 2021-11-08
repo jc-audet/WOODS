@@ -1,3 +1,5 @@
+"""Defining the architectures used for benchmarking algorithms"""
+
 import math
 
 import torch
@@ -14,12 +16,12 @@ def get_model(dataset, dataset_hparams):
 
     model_fn = globals()[dataset_hparams['model']]
 
-    return model_fn(dataset.get_input_size(), 
-                    dataset.get_output_size(),
+    return model_fn(dataset.INPUT_SHAPE, 
+                    dataset.OUTPUT_SIZE,
                     dataset_hparams)
 
 class RNN(nn.Module):
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, input_shape, output_size, model_hparams):
         super(RNN, self).__init__()
 
         # Save stuff
@@ -27,12 +29,15 @@ class RNN(nn.Module):
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
 
+        self.input_size = math.prod(input_shape)
+        self.output_size = output_size
+
         ## Construct the part of the RNN in charge of the hidden state
         H_layers = []
         if self.hidden_depth == 0:
-            H_layers.append( nn.Linear(input_size + self.state_size, self.state_size) )
+            H_layers.append( nn.Linear(self.input_size + self.state_size, self.state_size) )
         else:
-            H_layers.append( nn.Linear(input_size + self.state_size, self.hidden_width) )
+            H_layers.append( nn.Linear(self.input_size + self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 H_layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
             H_layers.append( nn.Linear(self.hidden_width, self.state_size) )
@@ -49,9 +54,9 @@ class RNN(nn.Module):
         ## Construct the part of the model in charge of the output
         O_layers = []
         if self.hidden_depth == 0:
-            O_layers.append( nn.Linear(input_size + self.state_size, output_size) )
+            O_layers.append( nn.Linear(self.input_size + self.state_size, output_size) )
         else:
-            O_layers.append( nn.Linear(input_size + self.state_size, self.hidden_width) )
+            O_layers.append( nn.Linear(self.input_size + self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 O_layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
             O_layers.append( nn.Linear(self.hidden_width, output_size) )
@@ -69,26 +74,26 @@ class RNN(nn.Module):
     def forward(self, input, time_pred):
 
         # Setup array
-        all_out = []
-        pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
+        all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
         # Forward propagate RNN
+        ts_counter = 0
         for t in range(input.shape[1]):
             combined = torch.cat((input[:,t,...].view(input.shape[0],-1), hidden), 1)
             hidden = self.FCH(combined)
             out = self.FCO(combined)
             if t in time_pred:
-                all_out.append(out)
-                pred = torch.cat((pred, out.argmax(1, keepdim=True)), dim=1)
+                all_out[:,ts_counter,:] = out
+                ts_counter += 1
 
-        return all_out, pred
+        return all_out
 
     def initHidden(self, batch_size, device):
         return torch.zeros(batch_size, self.state_size).to(device)
 
 class LSTM(nn.Module):
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, input_shape, output_size, model_hparams):
         super(LSTM, self).__init__()
 
         # Save stuff
@@ -97,8 +102,11 @@ class LSTM(nn.Module):
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
 
+        self.input_size = math.prod(input_shape)
+        self.output_size = output_size
+
         # Recurrent model
-        self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True)
+        self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
 
         # Classification model
         layers = []
@@ -123,7 +131,6 @@ class LSTM(nn.Module):
     def forward(self, input, time_pred):
 
         # Setup array
-        all_out = []
         pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
@@ -132,12 +139,12 @@ class LSTM(nn.Module):
         out, hidden = self.lstm(input, hidden)
 
         # Make prediction with fully connected
-        for t in time_pred:
+        all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
+        for i, t in enumerate(time_pred):
             output = self.classifier(out[:,t,:])
-            all_out.append(output)
-            pred = torch.cat((pred, output.argmax(1, keepdim=True)), dim=1)
+            all_out[:,i,...] = output
         
-        return all_out, pred
+        return all_out
 
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
@@ -147,10 +154,12 @@ class ATTN_LSTM(nn.Module):
     def __init__(self, input_size, output_size, model_hparams):
         super(ATTN_LSTM, self).__init__()
 
+        # Save stuff
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
+        self.output_size = output_size
 
         # Recurrent model
         self.lstm = nn.LSTM(input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
@@ -190,7 +199,6 @@ class ATTN_LSTM(nn.Module):
     def forward(self, input, time_pred):
 
         # Setup array
-        all_out = []
         pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
@@ -207,10 +215,11 @@ class ATTN_LSTM(nn.Module):
 
         # Make prediction with fully connected
         output = self.classifier(out)
-        all_out.append(output)
-        pred = torch.cat((pred, output.argmax(1, keepdim=True)), dim=1)
+
+        # Unsqueze to make a single time dimension
+        output = output.unsqueeze(1)
         
-        return all_out, pred
+        return output
 
     def initHidden(self, batch_size, device):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
@@ -243,12 +252,22 @@ class PositionalEncoding(nn.Module):
 
 class Transformer(nn.Module):
     # Do this : https://assets.amazon.science/11/88/6e046cba4241a06e536cc50584b2/gated-transformer-for-decoding-human-brain-eeg-signals.pdf
+    """Transformer for EEG
 
-    def __init__(self, input_size, output_size, model_hparams):
+    Args:
+        nn ([type]): [description]
+
+    TODO:
+        * Adaptive pooling to be able to use this with any input length (time)
+        * Find a way to add time embedding to the input without it not working
+        * Check model size to make it possible to overfit to the SEDFx dataset
+    """
+
+    def __init__(self, input_shape, output_size, model_hparams):
         super(Transformer, self).__init__()
 
         # Save stuff
-        self.input_size = input_size
+        self.input_size = math.prod(input_shape)
         self.embedding_size = model_hparams['embedding_size']
 
         # Define encoding layers
@@ -298,6 +317,13 @@ class Transformer(nn.Module):
         )
 
     def forward(self, input, time_pred):
+        """
+        Args:
+            input (Tensor): [batch_size, time_steps, input_size]
+            time_pred (Tensor): [batch_size, time_steps]
+        Returns:
+            output (Tensor): [batch_size, 1, output_size]
+        """
 
         # Pass through attention heads
         # out = self.embedding(input)
@@ -311,7 +337,7 @@ class Transformer(nn.Module):
         out = out.view(out.shape[0], -1)
         out = self.classifier(out)
 
-        return [out], out.argmax(1, keepdim=True)
+        return out.unsqueeze(1)
 
 
 class shallow(nn.Module):
@@ -402,82 +428,4 @@ class CRNN(nn.Module):
         # Pass through recurrent layers
         out, pred = self.lstm(cnn_embed_seq, time_pred)
 
-        return out, pred
-
-# class GatedTransformerEncoderLayer(nn.Module):
-#     r"""TransformerEncoderLayer is made up of self-attn and feedforward network.
-#     This standard encoder layer is based on the paper "Attention Is All You Need".
-#     Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
-#     Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Advances in
-#     Neural Information Processing Systems, pages 6000-6010. Users may modify or implement
-#     in a different way during application.
-
-#     Args:
-#         d_model: the number of expected features in the input (required).
-#         nhead: the number of heads in the multiheadattention models (required).
-#         dim_feedforward: the dimension of the feedforward network model (default=2048).
-#         dropout: the dropout value (default=0.1).
-#         activation: the activation function of intermediate layer, relu or gelu (default=relu).
-
-#     Examples::
-#         >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8)
-#         >>> src = torch.rand(10, 32, 512)
-#         >>> out = encoder_layer(src)
-#     """
-
-#     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
-#         super(GatedTransformerEncoderLayer, self).__init__()
-#         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-#         # Implementation of Feedforward model
-#         self.linear1 = nn.Linear(d_model, dim_feedforward)
-#         self.dropout = nn.Dropout(dropout)
-#         self.linear2 = nn.Linear(dim_feedforward, d_model)
-
-#         self.gate1 = nn.GRUCell(d_model, d_model)
-#         self.gate2 = nn.GRUCell(d_model, d_model)
-
-#         self.norm1 = nn.LayerNorm(d_model)
-#         self.norm2 = nn.LayerNorm(d_model)
-#         self.dropout1 = nn.Dropout(dropout)
-#         self.dropout2 = nn.Dropout(dropout)
-
-#         self.activation = nn.functional.relu
-
-#     def __setstate__(self, state):
-#         if 'activation' not in state:
-#             state['activation'] = F.relu
-#         super(GatedTransformerEncoderLayer, self).__setstate__(state)
-
-#     def forward(self, src, src_mask=None, src_key_padding_mask=None):
-#         r"""Pass the input through the encoder layer.
-
-#         Args:
-#             src: the sequence to the encoder layer (required).
-#             src_mask: the mask for the src sequence (optional).
-#             src_key_padding_mask: the mask for the src keys per batch (optional).
-
-#         Shape:
-#             see the docs in Transformer class.
-#         """
-#         # First part
-#         src2 = self.norm1(src)
-#         src2 = self.self_attn(src2, src2, src2, attn_mask=src_mask,
-#                               key_padding_mask=src_key_padding_mask)[0]
-#         # src = src + self.dropout1(src2)
-#         src = self.gate1(
-#             rearrange(src, 'b n d -> (b n) d'),
-#             rearrange(src2, 'b n d -> (b n) d'),
-#         )
-#         src = rearrange(src, '(b n) d -> b n d', b = src2.shape[0])
-
-#         # Second part
-#         src2 = self.norm2(src)
-#         src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
-#         # src = src + self.dropout2(src2)
-#         src = self.gate2(
-#             rearrange(src, 'b n d -> (b n) d'),
-#             rearrange(src2, 'b n d -> (b n) d'),
-#         )
-#         src = rearrange(src, '(b n) d -> b n d', b = src2.shape[0])
-
-#         return src
+        return out.unsqueeze(1)

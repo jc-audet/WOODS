@@ -1,8 +1,10 @@
+"""Defining the model selection strategies"""
+
 import copy
 import numpy as np
 
-from woods.lib import datasets
-from woods.lib import utils
+from woods import datasets
+from woods import utils
 
 ## IDEA: Choose the model which has the less variance between environments?
 
