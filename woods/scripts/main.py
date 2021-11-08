@@ -68,7 +68,11 @@ if __name__ == '__main__':
 
     # assert isinstance(flags.test_env, int) or flags.test_env is None, "Invalid test environment"
     if flags.mode == 'train':
+<<<<<<< HEAD:woods/scripts/main.py
         pass #assert not os.path.isfile(os.path.join(flags.save_path, job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
+=======
+        assert not os.path.isfile(os.path.join(flags.save_path, 'logs', job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
+>>>>>>> e09f9eab727d35cef4d5017704297f7a9e555751:woods/scripts/main.py
     
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)

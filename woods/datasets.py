@@ -280,11 +280,19 @@ class Multi_Domain_Dataset:
               
     def split_data(self, out, labels):
         """ Group data and prediction by environment
+<<<<<<< HEAD:woods/datasets.py
 
         Args:
             out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
             labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
 
+=======
+
+        Args:
+            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+
+>>>>>>> e09f9eab727d35cef4d5017704297f7a9e555751:woods/datasets.py
         Returns:
             Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
             Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))

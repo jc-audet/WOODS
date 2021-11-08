@@ -250,6 +250,25 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(1), :].detach()
         return self.dropout(x)
 
+class shallow(nn.Module):
+    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    
+    def __init__(self, input_size, output_size, model_hparams):
+        super(shallow, self).__init__()
+        from braindecode.models import ShallowFBCSPNet
+        input_window_samples = 750 # lenght of each trial TODO: should be a parameter
+
+        self.model = ShallowFBCSPNet(
+        input_size,
+        output_size,
+        input_window_samples=input_window_samples,
+        final_conv_length='auto',
+        )
+        
+    def forward(self, input, time_pred):
+        out = self.model(input.permute((0, 2, 1)))
+        return [out], out.argmax(1, keepdim=True)
+
 class Transformer(nn.Module):
     # Do this : https://assets.amazon.science/11/88/6e046cba4241a06e536cc50584b2/gated-transformer-for-decoding-human-brain-eeg-signals.pdf
     """Transformer for EEG
@@ -338,6 +357,7 @@ class Transformer(nn.Module):
         out = self.classifier(out)
 
         return out.unsqueeze(1)
+<<<<<<< HEAD:woods/models.py
 
 
 class shallow(nn.Module):
@@ -361,6 +381,8 @@ class shallow(nn.Module):
     def forward(self, input, time_pred):
         out = self.model(input.permute((0, 2, 1)))
         return [out], out.argmax(1, keepdim=True)
+=======
+>>>>>>> e09f9eab727d35cef4d5017704297f7a9e555751:woods/models.py
 
 
 class CRNN(nn.Module):
