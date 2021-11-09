@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd as autograd
 
+import matplotlib.pyplot as plt
+
 OBJECTIVES = [
     'ERM',
     'IRM',
@@ -65,7 +67,22 @@ class ERM(Objective):
         ## Group all inputs and send to device
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
+        # print(all_x.shape)
+
+        # fig, ax = plt.subplots(1, 5)
+        # ax[0].plot(all_x.cpu().numpy()[0,...])
+        # ax[0].set_title('nexus4 ' + str(all_y.cpu().numpy()[0]))
+        # ax[1].plot(all_x.cpu().numpy()[8,...])
+        # ax[1].set_title('s3 ' + str(all_y.cpu().numpy()[8]))
+        # ax[2].plot(all_x.cpu().numpy()[16,...])
+        # ax[2].set_title('s3mini ' + str(all_y.cpu().numpy()[16]))
+        # ax[3].plot(all_x.cpu().numpy()[24,...])
+        # ax[3].set_title('lgwatch ' + str(all_y.cpu().numpy()[24]))
+        # ax[4].plot(all_x.cpu().numpy()[32,...])
+        # ax[4].set_title('gear ' + str(all_y.cpu().numpy()[32]))
+        # plt.legend()
+        # plt.show()
+
         ts = torch.tensor(dataset.PRED_TIME).to(device)
         out = self.predict(all_x, ts, device)
 

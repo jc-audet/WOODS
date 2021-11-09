@@ -656,7 +656,7 @@ def HAR(flags):
                 i += 1
 
     # Delete keys that either 
-    # - is missing one modality (e.g. all sansungold devices only have one modelality for some reason)or 
+    # - is missing one modality (e.g. all sansungold devices only have one modality for some reason)or 
     # - has a number of datapoint that is too low (e.g. gear_2 -> 'i' only has 1 point for some reason)
     to_delete = []
     for device in data_dict.keys():
