@@ -345,7 +345,7 @@ def MI_model():
 def HAR_model():
     """ MI model hparam definition """
     return {
-        'model': 'Transformer',
+        'model': 'shallow',
         'nheads_enc': 8,
         'nlayers_enc': 2,
         'embedding_size': 32

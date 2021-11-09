@@ -7,8 +7,7 @@ from torch import nn
 from torchvision import models
 
 # new package
-from braindecode.models import EEGResNet
-from torchsummary import summary
+from braindecode.models import ShallowFBCSPNet
 
 def get_model(dataset, dataset_hparams):
     """Return the dataset class with the given name."""
@@ -17,8 +16,7 @@ def get_model(dataset, dataset_hparams):
 
     model_fn = globals()[dataset_hparams['model']]
 
-    return model_fn(dataset.INPUT_SHAPE, 
-                    dataset.OUTPUT_SIZE,
+    return model_fn(dataset,
                     dataset_hparams)
 
 class LSTM(nn.Module):
@@ -29,7 +27,7 @@ class LSTM(nn.Module):
         output_size (int): The size of the output.
         model_hparams (dict): The hyperparameters for the model.
     """
-    def __init__(self, input_shape, output_size, model_hparams):
+    def __init__(self, dataset, model_hparams):
         super(LSTM, self).__init__()
 
         # Save stuff
@@ -87,7 +85,7 @@ class LSTM(nn.Module):
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
 class ATTN_LSTM(nn.Module):
-    def __init__(self, input_shape, output_size, model_hparams):
+    def __init__(self, dataset, model_hparams):
         super(ATTN_LSTM, self).__init__()
 
         # Save stuff
@@ -163,7 +161,7 @@ class ATTN_LSTM(nn.Module):
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
 class EEGResnet(nn.Module):
-    def __init__(self, input_shape, output_size, model_hparams):
+    def __init__(self, dataset, model_hparams):
         super(EEGResnet, self).__init__()
 
         # Save stuff
@@ -216,21 +214,24 @@ class PositionalEncoding(nn.Module):
 class shallow(nn.Module):
     # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
     
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, dataset, model_hparams):
         super(shallow, self).__init__()
-        from braindecode.models import ShallowFBCSPNet
-        input_window_samples = 750 # lenght of each trial TODO: should be a parameter
+
+        # Save stuff
+        self.input_size = math.prod(dataset.INPUT_SHAPE)
+        self.output_size = dataset.OUTPUT_SIZE
+        self.seq_len = dataset.SEQ_LEN
 
         self.model = ShallowFBCSPNet(
-        input_size,
-        output_size,
-        input_window_samples=input_window_samples,
+        self.input_size,
+        self.output_size,
+        input_window_samples=self.seq_len,
         final_conv_length='auto',
         )
         
     def forward(self, input, time_pred):
         out = self.model(input.permute((0, 2, 1)))
-        return [out], out.argmax(1, keepdim=True)
+        return out.unsqueeze(1)
 
 class Transformer(nn.Module):
     # Do this : https://assets.amazon.science/11/88/6e046cba4241a06e536cc50584b2/gated-transformer-for-decoding-human-brain-eeg-signals.pdf
@@ -245,7 +246,7 @@ class Transformer(nn.Module):
         * Check model size to make it possible to overfit to the SEDFx dataset
     """
 
-    def __init__(self, input_shape, output_size, model_hparams):
+    def __init__(self, dataset, model_hparams):
         super(Transformer, self).__init__()
 
         # Save stuff
@@ -312,7 +313,7 @@ class Transformer(nn.Module):
         out = self.spatial_conv(out)
         out = out.transpose(1,3).squeeze()
         # out = self.pos_encoder(out)
-        print(out.shape)
+
         out = self.enc_layers(out)
         out = out.unsqueeze(1)
         out = self.feature_extractor(out)

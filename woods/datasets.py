@@ -218,7 +218,7 @@ class Multi_Domain_Dataset:
     """ Abstract class of a multi domain dataset for OOD generalization.
 
     Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SHAPE, OUTPUT_SIZE
-    The data dimension needs to be (batch, time, features_dim)
+    The data dimension needs to be (batch_size, SEQ_LEN, *INPUT_SHAPE)
 
     TODO:
         * Make a package test that checks if every class has 'time_pred' and 'setup'
@@ -231,6 +231,8 @@ class Multi_Domain_Dataset:
     N_WORKERS = 4
     #:string: The setup of the dataset ('seq' or 'step')
     SETUP = None
+    #:int: The sequence length of the dataset
+    SEQ_LEN = None
     #:list: The time steps where predictions are made
     PRED_TIME = [None]
     #:list: The environments of the dataset
@@ -314,6 +316,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
         No download is required as it is purely synthetic
     """
     SETUP = 'seq'
+    SEQ_LEN = 50
     PRED_TIME = [49]
     ENVS = ['no_spur']
     INPUT_SHAPE = [1]
@@ -393,6 +396,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
     SETUP = 'seq'
     INPUT_SHAPE = [1]
     OUTPUT_SIZE = 2
+    SEQ_LEN = 50
     PRED_TIME = [49]
     #:float: Level of noise added to the labels
     LABEL_NOISE = 0.25
@@ -538,12 +542,11 @@ class TMNIST(Multi_Domain_Dataset):
     """
     N_STEPS = 5001
     SETUP = 'seq'
+    SEQ_LEN = 4
     PRED_TIME = [1, 2, 3]
     INPUT_SHAPE = [28,28]
     OUTPUT_SIZE = 2
     ENVS = ['grey']
-    #:int: Length of the sequence
-    SEQ_LEN = 4
 
     def __init__(self, flags, training_hparams):
         super().__init__()
@@ -649,11 +652,10 @@ class TCMNIST(Multi_Domain_Dataset):
         The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     N_STEPS = 5001
+    SEQ_LEN = 4
     PRED_TIME = [1, 2, 3]
     INPUT_SHAPE = [2,28,28]
     OUTPUT_SIZE = 2
-    #:int: Length of the sequence
-    SEQ_LEN = 4
 
     def __init__(self, flags):
         super().__init__()
@@ -738,8 +740,6 @@ class TCMNIST_seq(TCMNIST):
         The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
     SETUP = 'seq'
-    N_STEPS = 2
-
     ## Correlation shift parameters
     #:list: list of different correlation values between the color and the label
     ENVS = [0.1, 0.8, 0.9]
@@ -989,7 +989,8 @@ class Sleep_DB(Multi_Domain_Dataset):
     """
     CHECKPOINT_FREQ = 500
     SETUP = 'seq'
-    PRED_TIME = [3000]
+    SEQ_LEN = 3000
+    PRED_TIME = [2999]
     OUTPUT_SIZE = 6
     #:str: realative path to the hdf5 file
     DATA_FILE = None
@@ -1020,7 +1021,7 @@ class Sleep_DB(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -1125,9 +1126,10 @@ class MI(Sleep_DB):
 
     DATA_FILE = 'MI.h5'
     ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
-    INPUT_SIZE = 22
+    SEQ_LEN = 750
+    PRED_TIME = [749]
+    INPUT_SHAPE = [22]
     OUTPUT_SIZE = 2
-    N_STEPS = 20001
 
     def __init__(self, flags, training_hparams):
         """ Dataset constructor function
@@ -1175,7 +1177,7 @@ class StockVolatility(Multi_Domain_Dataset):
                 # data[e].append(env_data)
 
 
-class video_dataset(Dataset):
+class Video_dataset(Dataset):
     """ Video dataset
 
     Folder structure::
@@ -1289,7 +1291,7 @@ class LSA64(Multi_Domain_Dataset):
     OUTPUT_SIZE = 64
     CHECKPOINT_FREQ = 100
     #:int: number of frames in each video
-    N_FRAMES = 20
+    SEQ_LEN = 20
     #:str: path to the folder containing the data
     DATA_FOLDER = 'LSA64'
 
@@ -1316,21 +1318,21 @@ class LSA64(Multi_Domain_Dataset):
             env_path = os.path.join(flags.data_path, self.DATA_FOLDER, e)
 
             # Get full environment dataset and define in/out split
-            full_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize)
+            full_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
+                in_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=in_split)
                 in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
             # Make validation loaders
-            fast_in_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=in_split)
+            fast_in_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_dataset = video_dataset(env_path, self.N_FRAMES, transform=self.normalize, split=out_split)
+            fast_out_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=out_split)
             fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
@@ -1381,6 +1383,7 @@ class HAR(Multi_Domain_Dataset):
     """
     N_STEPS = 5001
     SETUP = 'seq'
+    SEQ_LEN = 500
     PRED_TIME = [499]
     ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
     INPUT_SHAPE = [6]
