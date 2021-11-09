@@ -9,15 +9,20 @@ from torchvision import models
 # new package
 from braindecode.models import ShallowFBCSPNet
 
-def get_model(dataset, dataset_hparams):
-    """Return the dataset class with the given name."""
-    if dataset_hparams['model'] not in globals():
-        raise NotImplementedError("Dataset not found: {}".format(dataset_hparams['model']))
+def get_model(dataset, model_hparams):
+    """Return the dataset class with the given name
+    
+    Args:
+        dataset (str): name of the dataset
+        model_hparams (dict): model hyperparameters 
+    """
+    if model_hparams['model'] not in globals():
+        raise NotImplementedError("Dataset not found: {}".format(model_hparams['model']))
 
-    model_fn = globals()[dataset_hparams['model']]
+    model_fn = globals()[model_hparams['model']]
 
     return model_fn(dataset,
-                    dataset_hparams)
+                    model_hparams)
 
 class LSTM(nn.Module):
     """ A simple LSTM model
@@ -36,8 +41,8 @@ class LSTM(nn.Module):
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
 
-        self.input_size = math.prod(input_shape)
-        self.output_size = output_size
+        self.input_size = math.prod(dataset.INPUT_SHAPE)
+        self.output_size = dataset.OUTPUT_SIZE
 
         # Recurrent model
         self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
@@ -45,12 +50,12 @@ class LSTM(nn.Module):
         # Classification model
         layers = []
         if self.hidden_depth == 0:
-            layers.append( nn.Linear(self.state_size, output_size) )
+            layers.append( nn.Linear(self.state_size, self.output_size) )
         else:
             layers.append( nn.Linear(self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
-            layers.append( nn.Linear(self.hidden_width, output_size) )
+            layers.append( nn.Linear(self.hidden_width, self.output_size) )
         
         seq_arr = []
         for i, lin in enumerate(layers):
@@ -93,8 +98,8 @@ class ATTN_LSTM(nn.Module):
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
-        self.output_size = output_size
-        self.input_size = math.prod(input_shape)
+        self.output_size = dataset.OUTPUT_SIZE
+        self.input_size = math.prod(dataset.INPUT_SHAPE)
 
         # Recurrent model
         self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
@@ -160,57 +165,6 @@ class ATTN_LSTM(nn.Module):
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
-class EEGResnet(nn.Module):
-    def __init__(self, dataset, model_hparams):
-        super(EEGResnet, self).__init__()
-
-        # Save stuff
-        self.output_size = output_size
-        self.input_size = math.prod(input_shape)
-
-        # Get model from BrainDecode
-        print("hello")
-        self.model = EEGResNet( in_chans=self.input_size,
-                                n_classes=self.output_size,
-                                input_window_samples=3000,
-                                final_pool_length='auto',
-                                n_first_filters=10)
-        summary(self.model.cuda(), input_size=(3000, input_shape[0]))
-        print(self.model)
-
-    def forward(self, input, time_pred):
-
-        print(input.shape)
-        out = self.model(input)
-        print(out.shape)
-
-        return out.unsqueeze(1)
-
-class PositionalEncoding(nn.Module):
-    """ Positional Encoding class
-
-    https://pytorch.org/tutorials/beginner/transformer_tutorial.html
-    """
-
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
-        super().__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        position = torch.arange(0.0, max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0.0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, d_model)
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        """ Apply positional embedding to incoming Torch Tensor
-        Args:
-            x: Tensor, shape [batch_size, seq_len, embedding_dim]
-        """
-        x = x + self.pe[:x.size(1), :].detach()
-        return self.dropout(x)
-
 class shallow(nn.Module):
     # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
     
@@ -233,95 +187,6 @@ class shallow(nn.Module):
         out = self.model(input.permute((0, 2, 1)))
         return out.unsqueeze(1)
 
-class Transformer(nn.Module):
-    # Do this : https://assets.amazon.science/11/88/6e046cba4241a06e536cc50584b2/gated-transformer-for-decoding-human-brain-eeg-signals.pdf
-    """Transformer for EEG
-
-    Args:
-        nn ([type]): [description]
-
-    TODO:
-        * Adaptive pooling to be able to use this with any input length (time)
-        * Find a way to add time embedding to the input without it not working
-        * Check model size to make it possible to overfit to the SEDFx dataset
-    """
-
-    def __init__(self, dataset, model_hparams):
-        super(Transformer, self).__init__()
-
-        # Save stuff
-        self.input_size = math.prod(input_shape)
-        self.embedding_size = model_hparams['embedding_size']
-
-        # Define encoding layers
-        self.pos_encoder = PositionalEncoding(model_hparams['embedding_size'])
-        enc_layer = nn.TransformerEncoderLayer(d_model=model_hparams['embedding_size'], nhead=model_hparams['nheads_enc'])
-        # enc_layer = GatedTransformerEncoderLayer(d_model=model_hparams['embedding_size'], nhead=model_hparams['nheads_enc'])
-        self.enc_layers = nn.TransformerEncoder(encoder_layer=enc_layer, num_layers=model_hparams['nlayers_enc'])
-
-        # Classifier
-        n_conv_chs = 16
-        time_conv_size = 50
-        max_pool_size = 12
-        pad_size = 25
-        # spatial conv
-        self.spatial_conv = nn.Sequential(
-            nn.Conv2d(1, model_hparams['embedding_size'], (1, self.input_size))
-        )
-        self.feature_extractor = nn.Sequential(
-            # temporal conv 1
-            nn.Conv2d(1, n_conv_chs, (time_conv_size, 1), padding=(pad_size, 0)),
-            nn.BatchNorm2d(n_conv_chs),
-            nn.GELU(),
-            nn.MaxPool2d((max_pool_size, 1)),
-            # temporal conv 2
-            nn.Conv2d(
-                n_conv_chs, n_conv_chs*2, (time_conv_size, 1),
-                padding=(pad_size, 0)),
-            nn.BatchNorm2d(n_conv_chs*2),
-            nn.GELU(),
-            # nn.MaxPool2d((max_pool_size, 1)),
-            nn.AdaptiveMaxPool2d(max_pool_size),
-            # temporal conv 2
-            nn.Conv2d(
-                n_conv_chs*2, n_conv_chs*4, (time_conv_size, 1),
-                padding=(pad_size, 0)),
-            nn.BatchNorm2d(n_conv_chs*4),
-            nn.GELU(),
-            # nn.MaxPool2d((max_pool_size, 1))
-            nn.AdaptiveMaxPool2d(max_pool_size)
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(9216, 128), # TODO: in_features should works for all EEG datasets
-            nn.GELU(),
-            nn.Linear(128, output_size),
-            nn.LogSoftmax(dim=1)
-        )
-
-    def forward(self, input, time_pred):
-        """
-        Args:
-            input (Tensor): [batch_size, time_steps, input_size]
-            time_pred (Tensor): [batch_size, time_steps]
-        Returns:
-            output (Tensor): [batch_size, 1, output_size]
-        """
-
-        # Pass through attention heads
-        # out = self.embedding(input)
-        out = input.unsqueeze(1)
-        out = self.spatial_conv(out)
-        out = out.transpose(1,3).squeeze()
-        # out = self.pos_encoder(out)
-
-        out = self.enc_layers(out)
-        out = out.unsqueeze(1)
-        out = self.feature_extractor(out)
-        out = out.view(out.shape[0], -1)
-        out = self.classifier(out)
-
-        return out.unsqueeze(1)
-
 class CRNN(nn.Module):
     """ Convolutional Recurrent Neural Network
     https://github.com/HHTseng/video-classification/blob/99ebf204f0b1d737e38bc0d8b65aca128a57d7b1/ResNetCRNN/functions.py#L308
@@ -336,7 +201,7 @@ class CRNN(nn.Module):
         super(CRNN, self).__init__()
 
         # Save stuff
-        self.input_size = input_size
+        self.input_size = math.prod(dataset.INPUT_SHAPE)
         fc_hidden1, fc_hidden2 = model_hparams['fc_hidden']
         self.CNN_embed_dim = model_hparams['CNN_embed_dim']
 

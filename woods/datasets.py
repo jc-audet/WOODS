@@ -212,8 +212,6 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
     def __len__(self):
         return len(self.infinite_iterator)
 
-    
-
 class Multi_Domain_Dataset:
     """ Abstract class of a multi domain dataset for OOD generalization.
 
@@ -588,7 +586,7 @@ class TMNIST(Multi_Domain_Dataset):
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
 
             # Make the training loaders (No testing environment)
-            in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
+            in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
             self.train_names.append(str(e) + '_in')
             self.train_loaders.append(in_loader)
 
@@ -778,7 +776,7 @@ class TCMNIST_seq(TCMNIST):
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
 
             if i != self.test_env:
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(str(e) + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -871,14 +869,11 @@ class TCMNIST_step(TCMNIST):
             # Color i-th frame subset
             colored_images, colored_labels = self.color_dataset(colored_images, colored_labels, i, e, self.LABEL_NOISE)
 
-        for i, e in enumerate(self.ENVS):
-            self.plot_samples(colored_images[i::len(self.ENVS)], colored_labels[i::len(self.ENVS)], str(e))
-
         # Make Tensor dataset and dataloader
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
 
         in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
-        in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
+        in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
         self.train_names = [str(e)+'_in' for e in self.ENVS[:-1]]
         self.train_loaders.append(in_loader)
         fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=252, shuffle=False)
@@ -1021,7 +1016,7 @@ class Sleep_DB(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -1324,7 +1319,7 @@ class LSA64(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=in_split)
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             

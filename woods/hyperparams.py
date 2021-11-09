@@ -156,7 +156,7 @@ def CAP_DB_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 4
+            'batch_size': lambda r: 8
         }
 
 def SEDFx_DB_train(sample):
@@ -318,48 +318,26 @@ def TCMNIST_step_model():
 def CAP_DB_model():
     """ CAP_DB model hparam definition """
     return {
-        'model': 'EEGResnet',
-        'nheads_enc': 8,
-        'nlayers_enc': 2,
-        'embedding_size': 32
+        'model': 'shallow',
     }
 
 def SEDFx_DB_model():
     """ SEDFx_DB model hparam definition """
     return {
-        'model': 'Transformer',
-        'nheads_enc': 8,
-        'nlayers_enc': 2,
-        'embedding_size': 32
+        'model': 'shallow',
     }
 
 def MI_model():
     """ MI model hparam definition """
     return {
-        'model': 'Transformer',
-        'nheads_enc': 8,
-        'nlayers_enc': 2,
-        'embedding_size': 32
+        'model': 'shallow',
     }
 
 def HAR_model():
     """ MI model hparam definition """
     return {
         'model': 'shallow',
-        'nheads_enc': 8,
-        'nlayers_enc': 2,
-        'embedding_size': 32
     }
-
-# def HAR_model():
-#     """ HAR model hparam definition """
-#     return {
-#         'model': 'LSTM',
-#         'hidden_depth': 3, 
-#         'hidden_width': 100,
-#         'recurrent_layers': 2,
-#         'state_size': 100
-#     }
 
 def LSA64_model():
     """ LSA64 model hparam definition """
@@ -375,7 +353,6 @@ def LSA64_model():
         'fc_hidden': (512,512),
         'CNN_embed_dim': 256
     }
-
 
 def get_objective_hparams(objective_name, seed, sample=False):
     """ Get the objective related hyper parameters
