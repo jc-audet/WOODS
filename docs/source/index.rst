@@ -18,6 +18,7 @@ WOODS is a project aimed at investigating the implications of Out-of-Distributio
    :caption: Getting started:
 
    installation.md
+   downloading_datasets.md
    running_a_sweep.md
    adding_an_algorithm.md
    adding_a_dataset.md
