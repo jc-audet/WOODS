@@ -23,7 +23,7 @@ Train a single model using one objective on one dataset with one test environmen
 
 ```sh
 python3 -m woods.scripts.main train \
-        --dataset Spurious_Fourier \
+        --dataset CAP \
         --objective ERM \
         --test_env 0 \
         --data_path /hdd/data

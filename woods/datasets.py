@@ -28,8 +28,8 @@ DATASETS = [
     "TCMNIST_seq",
     "TCMNIST_step",
     ## EEG Dataset
-    "CAP_DB",
-    "SEDFx_DB",
+    "CAP",
+    "SEDFx",
     "MI",
     ## Financial Dataset
     "StockVolatility",
@@ -365,7 +365,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
         self.val_names, self.val_loaders = [], []
         for i, e in enumerate(self.ENVS):
             dataset = torch.utils.data.TensorDataset(signal, labels)
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
 
             in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
             self.train_names.append(e+'_in')
@@ -498,7 +498,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             # Make Tensor dataset
             dataset = torch.utils.data.TensorDataset(env_signal, env_labels)
 
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
             if i != self.test_env:
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(str(e) + '_in')
@@ -580,10 +580,10 @@ class TMNIST(Multi_Domain_Dataset):
         ## Create tensor dataset and dataloader
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
-        for e in self.ENVS:
+        for i, e in enumerate(self.ENVS):
             # Make whole dataset and get splits
             dataset = torch.utils.data.TensorDataset(TMNIST_images, TMNIST_labels)
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
 
             # Make the training loaders (No testing environment)
             in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
@@ -773,7 +773,7 @@ class TCMNIST_seq(TCMNIST):
 
             # Make Tensor dataset and the split
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
 
             if i != self.test_env:
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
@@ -872,7 +872,7 @@ class TCMNIST_step(TCMNIST):
         # Make Tensor dataset and dataloader
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
 
-        in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
+        in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
         in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
         self.train_names = [str(e)+'_in' for e in self.ENVS[:-1]]
         self.train_loaders.append(in_loader)
@@ -1010,7 +1010,7 @@ class Sleep_DB(Multi_Domain_Dataset):
 
             # Get full environment dataset and define in/out split
             full_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e)
-            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
+            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j, sort=True)
             full_dataset.close()
 
             # Make training dataset/loader and append it to training containers
@@ -1056,8 +1056,8 @@ class Sleep_DB(Multi_Domain_Dataset):
 
         return weights
 
-class CAP_DB(Sleep_DB):
-    """ CAP_DB Sleep stage dataset
+class CAP(Sleep_DB):
+    """ CAP Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
     This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
@@ -1075,15 +1075,15 @@ class CAP_DB(Sleep_DB):
     Note:
         This dataset need to be downloaded and preprocessed. This can be done with the download.py script.
     """
-    DATA_FILE = 'physionet.org/CAP_DB.h5'
+    DATA_FILE = 'physionet.org/CAP.h5'
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     INPUT_SHAPE = [19]
 
     def __init__(self, flags, training_hparams):
         super().__init__(flags, training_hparams)
         
-class SEDFx_DB(Sleep_DB):
-    """ SEDFx_DB Sleep stage dataset
+class SEDFx(Sleep_DB):
+    """ SEDFx Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
     This dataset only uses about half of the raw dataset because of the incompatibility of some measurements.
@@ -1099,7 +1099,7 @@ class SEDFx_DB(Sleep_DB):
     Note:
         This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
-    DATA_FILE = 'physionet.org/SEDFx_DB.h5'
+    DATA_FILE = 'physionet.org/SEDFx.h5'
     ENVS = ['Age 20-40', 'Age 40-60', 'Age 60-80','Age 80-100']
     INPUT_SHAPE = [4]
 
@@ -1263,6 +1263,7 @@ class LSA64(Multi_Domain_Dataset):
     This dataset is composed of videos of different signers.
 
     You can read more on the data itself and it's provenance from it's source:
+
         http://facundoq.github.io/datasets/lsa64/
 
     Args:
@@ -1281,7 +1282,7 @@ class LSA64(Multi_Domain_Dataset):
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [19]
-    ENVS = ['001']#, '002', '003', '004']#, '005', '006', '007', '008', '009', '010']
+    ENVS = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
     INPUT_SHAPE = [3, 224, 224]
     OUTPUT_SIZE = 64
     CHECKPOINT_FREQ = 100
@@ -1301,6 +1302,7 @@ class LSA64(Multi_Domain_Dataset):
         ## Save stuff
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
         self.normalize = transforms.Compose([transforms.ToTensor(),
                                              transforms.Normalize( mean=[0.485, 0.456, 0.406],
                                                                    std=[0.229, 0.224, 0.225])])
@@ -1314,7 +1316,7 @@ class LSA64(Multi_Domain_Dataset):
 
             # Get full environment dataset and define in/out split
             full_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize)
-            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, sort=True)
+            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j, sort=True)
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
@@ -1322,7 +1324,7 @@ class LSA64(Multi_Domain_Dataset):
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
-            
+
             # Make validation loaders
             fast_in_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
@@ -1426,7 +1428,7 @@ class HAR(Multi_Domain_Dataset):
 
             # Get full environment dataset and define in/out split
             full_dataset = torch.utils.data.TensorDataset(data, labels)
-            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction)
+            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction, seed=j)
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:

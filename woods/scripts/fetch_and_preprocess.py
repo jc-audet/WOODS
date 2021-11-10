@@ -47,10 +47,11 @@ from moabb import utils
 # For LSA64 dataset
 from mega import Mega
 
-class PhysioNet():
+class CAP():
     """ Fetch the data from the PhysioNet website and preprocess it 
 
     The download is automatic but if you want to manually download::
+
         wget -r -N -c -np https://physionet.org/files/capslpdb/1.0.0/
 
     Args:
@@ -101,7 +102,7 @@ class PhysioNet():
     ]
 
     def __init__(self, flags):
-        super(PhysioNet, self).__init__()
+        super(CAP, self).__init__()
 
         ## Download 
         download_process = subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/capslpdb/1.0.0/', '-P', flags.data_path])
@@ -170,6 +171,7 @@ class PhysioNet():
         self.remove_useless(flags)
 
     def remove_useless(self, flags):
+        """ Remove useless files """
 
         for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/*')):
             print("Removing: ", file)
@@ -184,6 +186,7 @@ class PhysioNet():
         os.remove(os.path.join(flags.data_path, 'physionet.org/robots.txt'))
 
     def string_2_label(self, string):
+        """ Convert string to label """
         
         label_dict = {  'W':0,
                         'S1':1,
@@ -197,6 +200,7 @@ class PhysioNet():
         return labels
 
     def read_annotation(self, txt_path):
+        """ Read annotation file for the CAP dataset"""
 
         # Initialize storage
         labels = []
@@ -236,7 +240,11 @@ class PhysioNet():
         return labels, times
 
     def gather_EEG(self, flags):
-
+        """ Gets the intersection of common channels across all machines 
+        
+        Returns:
+            list: list of channels (strings)
+        """
         machine_id = 0
         machines = {}
         edf_file = []
@@ -306,6 +314,7 @@ class SEDFx_DB():
     """ Fetch the PhysioNet Sleep-EDF Database Expanded Dataset and preprocess it
     
     The download is automatic but if you want to manually download::
+
         wget -r -N -c -np https://physionet.org/files/sleep-edfx/1.0.0/
         
     Args:
@@ -420,9 +429,10 @@ class SEDFx_DB():
                         hf[age_group]['labels'][-labels.shape[0]:,:] = labels
 
         # # Remove useless files
-        # self.remove_useless(flags)
+        self.remove_useless(flags)
 
     def remove_useless(self, flags):
+        """ Remove useless files """
 
         for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/*')):
             print("Removing: ", file)
@@ -437,6 +447,7 @@ class SEDFx_DB():
         os.remove(os.path.join(flags.data_path, 'physionet.org/robots.txt'))
 
     def string_2_label(self, string):
+        """ Convert string to label """
         
         label_dict = {  'W':0,
                         'S1':1,
@@ -450,6 +461,7 @@ class SEDFx_DB():
         return labels
 
     def read_annotation(self, txt_path):
+        """ Read annotation file """
 
         # Initialize storage
         labels = []
@@ -489,6 +501,11 @@ class SEDFx_DB():
         return labels, times
 
     def gather_EEG(self, flags):
+        """ Gets the intersection of common channels across all machines 
+        
+        Returns:
+            list: list of channels (strings)
+        """
 
         machine_id = 0
         machines = {}
@@ -615,6 +632,7 @@ def HAR(flags):
 
     Note:
         You need to manually download the HAR dataset from the source and place it in the data folder in order to preprocess it yourself:
+
             https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
 
     Args:
@@ -844,6 +862,7 @@ def LSA64(flags):
 
     Note:
         You need to manually download the HAR dataset from the source and place it in the data folder in order to preprocess it yourself:
+
             https://mega.nz/file/FQJGCYba#uJKGKLW1VlpCpLCrGVu89wyQnm9b4sKquCOEAjW5zMo
 
     Args:
@@ -955,6 +974,7 @@ class MI():
                 hf[group]['labels'][-y.shape[0]:,:] = y.reshape([-1,1])
     
     def relabel(self,l):
+        """ Converts labels from str to int """
         if l == 'left_hand': return 0
         elif l == 'right_hand': return 1
         else: return 2
@@ -970,11 +990,11 @@ if __name__ == '__main__':
     for k,v in sorted(vars(flags).items()):
         print("\t{}: {}".format(k, v))
 
-    if 'PhysioNet' in flags.dataset:
-        PhysioNet(flags)
+    if 'CAP' in flags.dataset:
+        CAP(flags)
 
-    if 'SEDFx_DB' in flags.dataset:
-        SEDFx_DB(flags)
+    if 'SEDFx' in flags.dataset:
+        SEDFx(flags)
     
     if 'MI' in flags.dataset:
         MI(flags)

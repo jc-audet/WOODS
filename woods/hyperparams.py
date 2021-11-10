@@ -138,8 +138,8 @@ def TCMNIST_step_train(sample):
             'batch_size': lambda r: 64
         }
 
-def CAP_DB_train(sample):
-    """ CAP_DB model hparam definition 
+def CAP_train(sample):
+    """ CAP model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -159,8 +159,8 @@ def CAP_DB_train(sample):
             'batch_size': lambda r: 8
         }
 
-def SEDFx_DB_train(sample):
-    """ SEDFx_DB model hparam definition 
+def SEDFx_train(sample):
+    """ SEDFx model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -236,7 +236,7 @@ def LSA64_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 8
+            'batch_size': lambda r: 2
         }
 
 def get_model_hparams(dataset_name):
@@ -315,14 +315,14 @@ def TCMNIST_step_model():
         'state_size': 32
     }
 
-def CAP_DB_model():
-    """ CAP_DB model hparam definition """
+def CAP_model():
+    """ CAP model hparam definition """
     return {
         'model': 'shallow',
     }
 
-def SEDFx_DB_model():
-    """ SEDFx_DB model hparam definition """
+def SEDFx_model():
+    """ SEDFx model hparam definition """
     return {
         'model': 'shallow',
     }

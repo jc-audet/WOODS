@@ -6,8 +6,6 @@ import numpy as np
 from woods import datasets
 from woods import utils
 
-## IDEA: Choose the model which has the less variance between environments?
-
 def ensure_dict_path(dict, key):
     """Ensure that a path of a nested dictionnary exists. 
     

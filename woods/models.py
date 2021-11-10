@@ -21,8 +21,7 @@ def get_model(dataset, model_hparams):
 
     model_fn = globals()[model_hparams['model']]
 
-    return model_fn(dataset,
-                    model_hparams)
+    return model_fn(dataset, model_hparams)
 
 class LSTM(nn.Module):
     """ A simple LSTM model
@@ -162,12 +161,12 @@ class ATTN_LSTM(nn.Module):
         # Classification model
         layers = []
         if self.hidden_depth == 0:
-            layers.append( nn.Linear(self.state_size, output_size) )
+            layers.append( nn.Linear(self.state_size, self.output_size) )
         else:
             layers.append( nn.Linear(self.state_size, self.hidden_width) )
             for i in range(self.hidden_depth-1):
                 layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
-            layers.append( nn.Linear(self.hidden_width, output_size) )
+            layers.append( nn.Linear(self.hidden_width, self.output_size) )
         
         seq_arr = []
         for i, lin in enumerate(layers):
@@ -237,7 +236,7 @@ class shallow(nn.Module):
     """
     # ref: https://github.com/braindecode/braindecode
     
-    def __init__(self, dataset, model_hparams, input_size):
+    def __init__(self, dataset, model_hparams, input_size=None):
         super(shallow, self).__init__()
 
         ## Save stuff
@@ -309,11 +308,11 @@ class CRNN(nn.Module):
 
         # Define CNN embedding
         self.cnn_fc = nn.Sequential(
-            nn.Linear(resnet.fc.in_features, fc_hidden1),
-            nn.BatchNorm1d(fc_hidden1, momentum=0.01),
-            nn.Linear(fc_hidden1, fc_hidden2),
-            nn.BatchNorm1d(fc_hidden2, momentum=0.01),
-            nn.Linear(fc_hidden2, self.CNN_embed_dim),
+            nn.Linear(resnet.fc.in_features, self.fc_hidden1),
+            nn.BatchNorm1d(self.fc_hidden1, momentum=0.01),
+            nn.Linear(self.fc_hidden1, self.fc_hidden2),
+            nn.BatchNorm1d(self.fc_hidden2, momentum=0.01),
+            nn.Linear(self.fc_hidden2, self.CNN_embed_dim),
         )
 
         # Define recurrent layers
@@ -342,6 +341,6 @@ class CRNN(nn.Module):
         # cnn_embed_seq = torch.stack(cnn_embed_seq, dim=1)
 
         # Pass through recurrent layers
-        out, pred = self.lstm(cnn_embed_seq, time_pred)
-
-        return out.unsqueeze(1)
+        out = self.lstm(cnn_embed_seq, time_pred)
+        
+        return out
