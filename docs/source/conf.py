@@ -77,7 +77,7 @@ def run_apidoc(app):
             "--separate",
             "-o",
             "source",
-            os.get_cwd(),
+            os.path.join("woods"),
         ]
     )
 
