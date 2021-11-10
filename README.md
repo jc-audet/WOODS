@@ -3,7 +3,6 @@
 </p>
 
 --------------------------------------------------------------------------------
-[![Inline docs](https://woods.readthedocs.io/en/latest/)]
 Repository aiming to benchmark OOD performance of temporal data.
 
 ## Quick Start
