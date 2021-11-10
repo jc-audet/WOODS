@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>woods.models module &mdash; WOODS  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="woods.objectives module" href="woods.objectives.html" />
+    <link rel="prev" title="woods.model_selection module" href="woods.model_selection.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> WOODS
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Quick Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#installing-requirements">Installing requirements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="installation.html#with-conda">With Conda</a></li>
+<li class="toctree-l3"><a class="reference internal" href="installation.html#with-venv">With venv</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#clone-locally">Clone locally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#run-tests">Run tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="running_a_sweep.html">Running a  Sweep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="running_a_sweep.html#downloading-the-data">Downloading the data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="running_a_sweep.html#direct-preprocessed-download">Direct Preprocessed Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="running_a_sweep.html#source-download-and-preprocess">Source Download and Preprocess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="running_a_sweep.html#datasets-info">Datasets Info</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="running_a_sweep.html#running-the-sweep">Running the sweep</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running_a_sweep.html#compiling-the-results">Compiling the results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running_a_sweep.html#advanced-usage">Advanced usage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="adding_an_algorithm.html">Adding an Algorithm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="adding_an_algorithm.html#defining-the-algorithm">Defining the Algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_an_algorithm.html#adding-necessary-pieces">Adding necessary pieces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_an_algorithm.html#run-some-tests">Run some tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_an_algorithm.html#try-the-algorithm">Try the algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_an_algorithm.html#run-a-sweep">Run a sweep</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="adding_a_dataset.html">Adding a Dataset</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="adding_a_dataset.html#defining-the-algorithm">Defining the Algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_a_dataset.html#adding-necessary-pieces">Adding necessary pieces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_a_dataset.html#run-some-tests">Run some tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_a_dataset.html#try-the-algorithm">Try the algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="adding_a_dataset.html#run-a-sweep">Run a sweep</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="woods.html">WOODS</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="woods.command_launchers.html">woods.command_launchers module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.command_launchers.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.command_launchers.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.datasets.html">woods.datasets module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.datasets.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.datasets.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.hyperparams.html">woods.hyperparams module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.hyperparams.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.hyperparams.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.model_selection.html">woods.model_selection module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.model_selection.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.model_selection.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">woods.models module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.objectives.html">woods.objectives module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.objectives.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.objectives.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.train.html">woods.train module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.train.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.train.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.train_step.html">woods.train_step module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="woods.utils.html">woods.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.utils.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.utils.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="woods.scripts.html">woods.scripts</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="woods.scripts.compile_results.html">woods.scripts.compile_results module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.scripts.download.html">woods.scripts.download module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.scripts.fetch_and_preprocess.html">woods.scripts.fetch_and_preprocess module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="woods.scripts.fetch_and_preprocess.html#summary">Summary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="woods.scripts.fetch_and_preprocess.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="woods.scripts.hparams_sweep.html">woods.scripts.hparams_sweep module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="woods.scripts.hparams_sweep.html#summary">Summary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="woods.scripts.hparams_sweep.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="woods.scripts.main.html">woods.scripts.main module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="woods.scripts.visualize_results.html">woods.scripts.visualize_results module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WOODS</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="woods.html">woods</a> &raquo;</li>
+      <li>woods.models module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/woods.models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-woods.models">
+<span id="woods-models-module"></span><h1>woods.models module<a class="headerlink" href="#module-woods.models" title="Permalink to this headline"></a></h1>
+<p>Defining the architectures used for benchmarking algorithms</p>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline"></a></h2>
+<p>Classes:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#woods.models.ATTN_LSTM" title="woods.models.ATTN_LSTM"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ATTN_LSTM</span></code></a></p></td>
+<td><p>A simple LSTM model with self attention</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#woods.models.CRNN" title="woods.models.CRNN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CRNN</span></code></a></p></td>
+<td><p>Convolutional Recurrent Neural Network</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#woods.models.LSTM" title="woods.models.LSTM"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LSTM</span></code></a></p></td>
+<td><p>A simple LSTM model</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#woods.models.shallow" title="woods.models.shallow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shallow</span></code></a></p></td>
+<td><p>The Shallow Net model</p></td>
+</tr>
+</tbody>
+</table>
+<p>Functions:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#woods.models.get_model" title="woods.models.get_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_model</span></code></a></p></td>
+<td><p>Return the dataset class with the given name</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="reference">
+<h2>Reference<a class="headerlink" href="#reference" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.models.get_model">
+<span class="sig-prename descclassname"><span class="pre">woods.models.</span></span><span class="sig-name descname"><span class="pre">get_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_hparams</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.get_model" title="Permalink to this definition"></a></dt>
+<dd><p>Return the dataset class with the given name</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<em>str</em>) – name of the dataset</p></li>
+<li><p><strong>model_hparams</strong> (<em>dict</em>) – model hyperparameters</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="woods.models.LSTM">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">woods.models.</span></span><span class="sig-name descname"><span class="pre">LSTM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_hparams</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.LSTM" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<p>A simple LSTM model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference internal" href="woods.datasets.html#woods.datasets.Multi_Domain_Dataset" title="woods.datasets.Multi_Domain_Dataset"><em>Multi_Domain_Dataset</em></a>) – dataset that we will be training on</p></li>
+<li><p><strong>model_hparams</strong> (<em>dict</em>) – The hyperparameters for the model.</p></li>
+<li><p><strong>input_size</strong> (<em>int</em><em>, </em><em>optional</em>) – The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.LSTM.state_size">
+<span class="sig-name descname"><span class="pre">state_size</span></span><a class="headerlink" href="#woods.models.LSTM.state_size" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the hidden state of the LSTM.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.LSTM.recurrent_layers">
+<span class="sig-name descname"><span class="pre">recurrent_layers</span></span><a class="headerlink" href="#woods.models.LSTM.recurrent_layers" title="Permalink to this definition"></a></dt>
+<dd><p>The number of recurrent layers stacked on each other.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.LSTM.hidden_depth">
+<span class="sig-name descname"><span class="pre">hidden_depth</span></span><a class="headerlink" href="#woods.models.LSTM.hidden_depth" title="Permalink to this definition"></a></dt>
+<dd><p>The number of hidden layers of the classifier MLP (after LSTM).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.LSTM.hidden_width">
+<span class="sig-name descname"><span class="pre">hidden_width</span></span><a class="headerlink" href="#woods.models.LSTM.hidden_width" title="Permalink to this definition"></a></dt>
+<dd><p>The width of the hidden layers of the classifier MLP (after LSTM).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<p>All attributes need to be in the model_hparams dictionary.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="woods.models.LSTM.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_pred</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.LSTM.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Forward pass of the model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>torch.Tensor</em>) – The input to the model.</p></li>
+<li><p><strong>time_pred</strong> (<em>torch.Tensor</em>) – The time prediction of the input.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The output of the model.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="woods.models.LSTM.initHidden">
+<span class="sig-name descname"><span class="pre">initHidden</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.LSTM.initHidden" title="Permalink to this definition"></a></dt>
+<dd><p>Initialize the hidden state of the LSTM with a normal distribution</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_size</strong> (<em>int</em>) – The batch size of the model.</p></li>
+<li><p><strong>device</strong> (<em>torch.device</em>) – The device to use.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.LSTM.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><a class="headerlink" href="#woods.models.LSTM.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">woods.models.</span></span><span class="sig-name descname"><span class="pre">ATTN_LSTM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_hparams</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.ATTN_LSTM" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<p>A simple LSTM model with self attention</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference internal" href="woods.datasets.html#woods.datasets.Multi_Domain_Dataset" title="woods.datasets.Multi_Domain_Dataset"><em>Multi_Domain_Dataset</em></a>) – dataset that we will be training on</p></li>
+<li><p><strong>model_hparams</strong> (<em>dict</em>) – The hyperparameters for the model.</p></li>
+<li><p><strong>input_size</strong> (<em>int</em><em>, </em><em>optional</em>) – The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.state_size">
+<span class="sig-name descname"><span class="pre">state_size</span></span><a class="headerlink" href="#woods.models.ATTN_LSTM.state_size" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the hidden state of the LSTM.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.recurrent_layers">
+<span class="sig-name descname"><span class="pre">recurrent_layers</span></span><a class="headerlink" href="#woods.models.ATTN_LSTM.recurrent_layers" title="Permalink to this definition"></a></dt>
+<dd><p>The number of recurrent layers stacked on each other.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.hidden_depth">
+<span class="sig-name descname"><span class="pre">hidden_depth</span></span><a class="headerlink" href="#woods.models.ATTN_LSTM.hidden_depth" title="Permalink to this definition"></a></dt>
+<dd><p>The number of hidden layers of the classifier MLP (after LSTM).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.hidden_width">
+<span class="sig-name descname"><span class="pre">hidden_width</span></span><a class="headerlink" href="#woods.models.ATTN_LSTM.hidden_width" title="Permalink to this definition"></a></dt>
+<dd><p>The width of the hidden layers of the classifier MLP (after LSTM).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<p>All attributes need to be in the model_hparams dictionary.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_pred</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.ATTN_LSTM.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Forward pass of the model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>torch.Tensor</em>) – The input to the model.</p></li>
+<li><p><strong>time_pred</strong> (<em>torch.Tensor</em>) – The time prediction of the input.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The output of the model.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.initHidden">
+<span class="sig-name descname"><span class="pre">initHidden</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.ATTN_LSTM.initHidden" title="Permalink to this definition"></a></dt>
+<dd><p>Initialize the hidden state of the LSTM with a normal distribution</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch_size</strong> (<em>int</em>) – The batch size of the model.</p></li>
+<li><p><strong>device</strong> (<em>torch.device</em>) – The device to use.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.ATTN_LSTM.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><a class="headerlink" href="#woods.models.ATTN_LSTM.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="woods.models.shallow">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">woods.models.</span></span><span class="sig-name descname"><span class="pre">shallow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_hparams</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.shallow" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<p>The Shallow Net model</p>
+<dl class="simple">
+<dt>This is from the Braindecode package:</dt><dd><p><a class="reference external" href="https://github.com/braindecode/braindecode">https://github.com/braindecode/braindecode</a></p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference internal" href="woods.datasets.html#woods.datasets.Multi_Domain_Dataset" title="woods.datasets.Multi_Domain_Dataset"><em>Multi_Domain_Dataset</em></a>) – dataset that we will be training on</p></li>
+<li><p><strong>model_hparams</strong> (<em>dict</em>) – The hyperparameters for the model.</p></li>
+<li><p><strong>input_size</strong> (<em>int</em><em>, </em><em>optional</em>) – The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.shallow.seq_len">
+<span class="sig-name descname"><span class="pre">seq_len</span></span><a class="headerlink" href="#woods.models.shallow.seq_len" title="Permalink to this definition"></a></dt>
+<dd><p>The length of the sequences.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="woods.models.shallow.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_pred</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.shallow.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Forward pass of the model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>torch.Tensor</em>) – The input to the model.</p></li>
+<li><p><strong>time_pred</strong> (<em>torch.Tensor</em>) – The time prediction of the input.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.shallow.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><a class="headerlink" href="#woods.models.shallow.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="woods.models.CRNN">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">woods.models.</span></span><span class="sig-name descname"><span class="pre">CRNN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_hparams</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.CRNN" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<p>Convolutional Recurrent Neural Network</p>
+<dl class="simple">
+<dt>This is taken inspired from the repository:</dt><dd><p><a class="reference external" href="https://github.com/HHTseng/video-classification/">https://github.com/HHTseng/video-classification/</a></p>
+</dd>
+</dl>
+<p>But here we use the ResNet50 architecture pretrained on ImageNet, and we use the ATTN_LSTM model on top of the outputs of the ResNet50 to make predictions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference internal" href="woods.datasets.html#woods.datasets.Multi_Domain_Dataset" title="woods.datasets.Multi_Domain_Dataset"><em>Multi_Domain_Dataset</em></a>) – dataset that we will be training on</p></li>
+<li><p><strong>model_hparams</strong> (<em>dict</em>) – The hyperparameters for the model.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.CRNN.fc_hidden1">
+<span class="sig-name descname"><span class="pre">fc_hidden1</span></span><a class="headerlink" href="#woods.models.CRNN.fc_hidden1" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the first hidden layer of the CNN embedding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.CRNN.fc_hidden2">
+<span class="sig-name descname"><span class="pre">fc_hidden2</span></span><a class="headerlink" href="#woods.models.CRNN.fc_hidden2" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the second hidden layer of the CNN embedding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.CRNN.CNN_embed_dim">
+<span class="sig-name descname"><span class="pre">CNN_embed_dim</span></span><a class="headerlink" href="#woods.models.CRNN.CNN_embed_dim" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the CNN embedding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="woods.models.CRNN.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_pred</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.models.CRNN.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Forward pass through CRNN
+:param input: Tensor, shape [batch_size, seq_len, input_size]
+:param time_pred: Tensor, time prediction indexes</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="woods.models.CRNN.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><a class="headerlink" href="#woods.models.CRNN.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="woods.model_selection.html" class="btn btn-neutral float-left" title="woods.model_selection module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="woods.objectives.html" class="btn btn-neutral float-right" title="woods.objectives module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Jean-Christophe Gagnon-Audet.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -71,13 +71,13 @@ def run_apidoc(app):
         [
             "better-apidoc",
             "-t",
-            "_apidoc_templates",
+            "../_apidoc_templates",
             "--force",
             "--no-toc",
             "--separate",
             "-o",
             "source",
-            os.path.join("woods"),
+            os.path.join('..','..',"woods"),
         ]
     )
 

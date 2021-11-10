@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>woods.hyperparams module &mdash; WOODS  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> WOODS
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Quick Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#installing-requirements">Installing requirements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../installation.html#with-conda">With Conda</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../installation.html#with-venv">With venv</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#clone-locally">Clone locally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#run-tests">Run tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../running_a_sweep.html">Running a  Sweep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../running_a_sweep.html#downloading-the-data">Downloading the data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../running_a_sweep.html#direct-preprocessed-download">Direct Preprocessed Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../running_a_sweep.html#source-download-and-preprocess">Source Download and Preprocess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../running_a_sweep.html#datasets-info">Datasets Info</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../running_a_sweep.html#running-the-sweep">Running the sweep</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../running_a_sweep.html#compiling-the-results">Compiling the results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../running_a_sweep.html#advanced-usage">Advanced usage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../adding_an_algorithm.html">Adding an Algorithm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../adding_an_algorithm.html#defining-the-algorithm">Defining the Algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_an_algorithm.html#adding-necessary-pieces">Adding necessary pieces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_an_algorithm.html#run-some-tests">Run some tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_an_algorithm.html#try-the-algorithm">Try the algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_an_algorithm.html#run-a-sweep">Run a sweep</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../adding_a_dataset.html">Adding a Dataset</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../adding_a_dataset.html#defining-the-algorithm">Defining the Algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_a_dataset.html#adding-necessary-pieces">Adding necessary pieces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_a_dataset.html#run-some-tests">Run some tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_a_dataset.html#try-the-algorithm">Try the algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../adding_a_dataset.html#run-a-sweep">Run a sweep</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../woods.html">WOODS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../woods.command_launchers.html">woods.command_launchers module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.command_launchers.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.command_launchers.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.datasets.html">woods.datasets module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.datasets.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.datasets.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.hyperparams.html">woods.hyperparams module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.hyperparams.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.hyperparams.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.model_selection.html">woods.model_selection module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.model_selection.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.model_selection.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.models.html">woods.models module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.models.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.models.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.objectives.html">woods.objectives module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.objectives.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.objectives.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.train.html">woods.train module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.train.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.train.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.train_step.html">woods.train_step module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.utils.html">woods.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.utils.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.utils.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../woods.scripts.html">woods.scripts</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../woods.scripts.compile_results.html">woods.scripts.compile_results module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.scripts.download.html">woods.scripts.download module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.scripts.fetch_and_preprocess.html">woods.scripts.fetch_and_preprocess module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../woods.scripts.fetch_and_preprocess.html#summary">Summary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../woods.scripts.fetch_and_preprocess.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.scripts.hparams_sweep.html">woods.scripts.hparams_sweep module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../woods.scripts.hparams_sweep.html#summary">Summary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../woods.scripts.hparams_sweep.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.scripts.main.html">woods.scripts.main module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../woods.scripts.visualize_results.html">woods.scripts.visualize_results module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">WOODS</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>woods.hyperparams module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/woods.hyperparams.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-woods.hyperparams">
+<span id="woods-hyperparams-module"></span><h1>woods.hyperparams module<a class="headerlink" href="#module-woods.hyperparams" title="Permalink to this headline"></a></h1>
+<p>Defining hyper parameters and their distributions for HPO</p>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline"></a></h2>
+<p>Functions:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.ANDMask_hyper" title="woods.hyperparams.ANDMask_hyper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ANDMask_hyper</span></code></a></p></td>
+<td><p>ANDMask objective hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.Basic_Fourier_model" title="woods.hyperparams.Basic_Fourier_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Basic_Fourier_model</span></code></a></p></td>
+<td><p>Spurious Fourier model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.Basic_Fourier_train" title="woods.hyperparams.Basic_Fourier_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Basic_Fourier_train</span></code></a></p></td>
+<td><p>Basic Fourier model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#woods.hyperparams.CAP_model" title="woods.hyperparams.CAP_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CAP_model</span></code></a></p></td>
+<td><p>CAP model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#woods.hyperparams.CAP_train" title="woods.hyperparams.CAP_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CAP_train</span></code></a></p></td>
+<td><p>CAP model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.ERM_hyper" title="woods.hyperparams.ERM_hyper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ERM_hyper</span></code></a></p></td>
+<td><p>ERM objective hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.HAR_model" title="woods.hyperparams.HAR_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HAR_model</span></code></a></p></td>
+<td><p>MI model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.HAR_train" title="woods.hyperparams.HAR_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HAR_train</span></code></a></p></td>
+<td><p>HAR model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.IGA_hyper" title="woods.hyperparams.IGA_hyper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">IGA_hyper</span></code></a></p></td>
+<td><p>IGA objective hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.IRM_hyper" title="woods.hyperparams.IRM_hyper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">IRM_hyper</span></code></a></p></td>
+<td><p>IRM objective hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.LSA64_model" title="woods.hyperparams.LSA64_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LSA64_model</span></code></a></p></td>
+<td><p>LSA64 model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.LSA64_train" title="woods.hyperparams.LSA64_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LSA64_train</span></code></a></p></td>
+<td><p>LSA64 model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.MI_model" title="woods.hyperparams.MI_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MI_model</span></code></a></p></td>
+<td><p>MI model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.MI_train" title="woods.hyperparams.MI_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MI_train</span></code></a></p></td>
+<td><p>MI model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.SD_hyper" title="woods.hyperparams.SD_hyper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SD_hyper</span></code></a></p></td>
+<td><p>SD objective hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#woods.hyperparams.SEDFx_model" title="woods.hyperparams.SEDFx_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SEDFx_model</span></code></a></p></td>
+<td><p>SEDFx model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#woods.hyperparams.SEDFx_train" title="woods.hyperparams.SEDFx_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SEDFx_train</span></code></a></p></td>
+<td><p>SEDFx model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.Spurious_Fourier_model" title="woods.hyperparams.Spurious_Fourier_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Spurious_Fourier_model</span></code></a></p></td>
+<td><p>Spurious Fourier model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.Spurious_Fourier_train" title="woods.hyperparams.Spurious_Fourier_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Spurious_Fourier_train</span></code></a></p></td>
+<td><p>Spurious Fourier model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.TCMNIST_seq_model" title="woods.hyperparams.TCMNIST_seq_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TCMNIST_seq_model</span></code></a></p></td>
+<td><p>TCMNIST_seq model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.TCMNIST_seq_train" title="woods.hyperparams.TCMNIST_seq_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TCMNIST_seq_train</span></code></a></p></td>
+<td><p>TCMNIST_seq model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.TCMNIST_step_model" title="woods.hyperparams.TCMNIST_step_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TCMNIST_step_model</span></code></a></p></td>
+<td><p>TCMNIST_step model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.TCMNIST_step_train" title="woods.hyperparams.TCMNIST_step_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TCMNIST_step_train</span></code></a></p></td>
+<td><p>TCMNIST_step model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.TMNIST_model" title="woods.hyperparams.TMNIST_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TMNIST_model</span></code></a></p></td>
+<td><p>TMNIST model hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.TMNIST_train" title="woods.hyperparams.TMNIST_train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TMNIST_train</span></code></a></p></td>
+<td><p>TMNIST model hparam definition</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.VREx_hyper" title="woods.hyperparams.VREx_hyper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VREx_hyper</span></code></a></p></td>
+<td><p>VREx objective hparam definition</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.get_model_hparams" title="woods.hyperparams.get_model_hparams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_model_hparams</span></code></a></p></td>
+<td><p>Get the model related hyper parameters</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.get_objective_hparams" title="woods.hyperparams.get_objective_hparams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_objective_hparams</span></code></a></p></td>
+<td><p>Get the objective related hyper parameters</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../woods.hyperparams.html#woods.hyperparams.get_training_hparams" title="woods.hyperparams.get_training_hparams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_training_hparams</span></code></a></p></td>
+<td><p>Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="reference">
+<h2>Reference<a class="headerlink" href="#reference" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.get_training_hparams">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">get_training_hparams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.get_training_hparams" title="Permalink to this definition"></a></dt>
+<dd><p>Get training related hyper parameters (class_balance, weight_decay, lr, batch_size)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_name</strong> (<em>str</em>) – dataset that is gonna be trained on for the run</p></li>
+<li><p><strong>seed</strong> (<em>int</em>) – seed used if hyper parameter is sampled</p></li>
+<li><p><strong>sample</strong> (<em>bool</em><em>, </em><em>optional</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – Dataset name not found</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Dictionnary with hyper parameters values</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.Basic_Fourier_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">Basic_Fourier_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.Basic_Fourier_train" title="Permalink to this definition"></a></dt>
+<dd><p>Basic Fourier model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.Spurious_Fourier_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">Spurious_Fourier_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.Spurious_Fourier_train" title="Permalink to this definition"></a></dt>
+<dd><p>Spurious Fourier model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.TMNIST_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">TMNIST_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.TMNIST_train" title="Permalink to this definition"></a></dt>
+<dd><p>TMNIST model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.TCMNIST_seq_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">TCMNIST_seq_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.TCMNIST_seq_train" title="Permalink to this definition"></a></dt>
+<dd><p>TCMNIST_seq model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.TCMNIST_step_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">TCMNIST_step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.TCMNIST_step_train" title="Permalink to this definition"></a></dt>
+<dd><p>TCMNIST_step model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.CAP_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">CAP_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.CAP_train" title="Permalink to this definition"></a></dt>
+<dd><p>CAP model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.SEDFx_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">SEDFx_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.SEDFx_train" title="Permalink to this definition"></a></dt>
+<dd><p>SEDFx model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.MI_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">MI_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.MI_train" title="Permalink to this definition"></a></dt>
+<dd><p>MI model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.HAR_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">HAR_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.HAR_train" title="Permalink to this definition"></a></dt>
+<dd><p>HAR model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.LSA64_train">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">LSA64_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.LSA64_train" title="Permalink to this definition"></a></dt>
+<dd><p>LSA64 model hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.get_model_hparams">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">get_model_hparams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.get_model_hparams" title="Permalink to this definition"></a></dt>
+<dd><p>Get the model related hyper parameters</p>
+<p>Each dataset has their own model hyper parameters definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_name</strong> (<em>str</em>) – dataset that is gonna be trained on for the run</p></li>
+<li><p><strong>seed</strong> (<em>int</em>) – seed used if hyper parameter is sampled</p></li>
+<li><p><strong>sample</strong> (<em>bool</em><em>, </em><em>optional</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – Dataset name not found</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Dictionnary with hyper parameters values</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.Basic_Fourier_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">Basic_Fourier_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.Basic_Fourier_model" title="Permalink to this definition"></a></dt>
+<dd><p>Spurious Fourier model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.Spurious_Fourier_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">Spurious_Fourier_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.Spurious_Fourier_model" title="Permalink to this definition"></a></dt>
+<dd><p>Spurious Fourier model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.TMNIST_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">TMNIST_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.TMNIST_model" title="Permalink to this definition"></a></dt>
+<dd><p>TMNIST model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.TCMNIST_seq_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">TCMNIST_seq_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.TCMNIST_seq_model" title="Permalink to this definition"></a></dt>
+<dd><p>TCMNIST_seq model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.TCMNIST_step_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">TCMNIST_step_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.TCMNIST_step_model" title="Permalink to this definition"></a></dt>
+<dd><p>TCMNIST_step model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.CAP_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">CAP_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.CAP_model" title="Permalink to this definition"></a></dt>
+<dd><p>CAP model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.SEDFx_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">SEDFx_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.SEDFx_model" title="Permalink to this definition"></a></dt>
+<dd><p>SEDFx model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.MI_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">MI_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.MI_model" title="Permalink to this definition"></a></dt>
+<dd><p>MI model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.HAR_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">HAR_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.HAR_model" title="Permalink to this definition"></a></dt>
+<dd><p>MI model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.LSA64_model">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">LSA64_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.LSA64_model" title="Permalink to this definition"></a></dt>
+<dd><p>LSA64 model hparam definition</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.get_objective_hparams">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">get_objective_hparams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objective_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.get_objective_hparams" title="Permalink to this definition"></a></dt>
+<dd><p>Get the objective related hyper parameters</p>
+<p>Each objective has their own model hyper parameters definitions</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objective_name</strong> (<em>str</em>) – objective that is gonna be trained on for the run</p></li>
+<li><p><strong>seed</strong> (<em>int</em>) – seed used if hyper parameter is sampled</p></li>
+<li><p><strong>sample</strong> (<em>bool</em><em>, </em><em>optional</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – Objective name not found</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Dictionnary with hyper parameters values</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.ERM_hyper">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">ERM_hyper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.ERM_hyper" title="Permalink to this definition"></a></dt>
+<dd><p>ERM objective hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.IRM_hyper">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">IRM_hyper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.IRM_hyper" title="Permalink to this definition"></a></dt>
+<dd><p>IRM objective hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.VREx_hyper">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">VREx_hyper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.VREx_hyper" title="Permalink to this definition"></a></dt>
+<dd><p>VREx objective hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.SD_hyper">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">SD_hyper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.SD_hyper" title="Permalink to this definition"></a></dt>
+<dd><p>SD objective hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.IGA_hyper">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">IGA_hyper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.IGA_hyper" title="Permalink to this definition"></a></dt>
+<dd><p>IGA objective hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="woods.hyperparams.ANDMask_hyper">
+<span class="sig-prename descclassname"><span class="pre">woods.hyperparams.</span></span><span class="sig-name descname"><span class="pre">ANDMask_hyper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#woods.hyperparams.ANDMask_hyper" title="Permalink to this definition"></a></dt>
+<dd><p>ANDMask objective hparam definition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sample</strong> (<em>bool</em>) – If ‘’True’’, hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ‘’False’’ where the default value is chosen.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Jean-Christophe Gagnon-Audet.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
