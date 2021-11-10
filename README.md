@@ -1,23 +1,22 @@
 <p align='center'>
-  <img width='70%' src='./assets/banner.png' />
+  <img width='100%' src='./assets/banner.png' />
 </p>
 
 --------------------------------------------------------------------------------
 
-Repository aiming to benchmark OOD performance of temporal data.
+A set of Out-of-Distribution Generalization Benchmarks for Sequential Prediction Tasks
 
-## Quick Start
+# Quick Start
 
-### Download
-
-Some datasets require downloads before running any training scripts notably the PhysioNet dataset which requires a download (~50G) and preprocessing (~1h30)
+## Download
+Some datasets require downloads in order to be used. We provide the download script to directly download our own preprocessed versions of the datasets which are ready for use. If you want to look into the preprocessing yourself, check the `fetch_and_preprocess.py` script. You can provide a specific dataset to download, or provide nothing to download all of them.
 
 ```sh
-python3 -m woods.scripts.download \
-        --data_path ./data
+python3 -m woods.scripts.download {dataset} \
+        --data_path /path/to/data/directory
 ```
 
-### Train a model
+## Train a model
 
 Train a single model using one objective on one dataset with one test environment
 
