@@ -6,7 +6,7 @@
 WOODS
 =================================
 
-.. image:: https://github.com/jc-audet/WOODS/blob/main/assets/banner.png
+.. image:: assets/banner.png
     :width: 600
     :align: center
 
