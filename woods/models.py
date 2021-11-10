@@ -28,26 +28,37 @@ class LSTM(nn.Module):
     """ A simple LSTM model
 
     Args:
-        input_shape (tuple): The shape of the input data.
-        output_size (int): The size of the output.
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
         model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+
+    Attributes:
+        state_size (int): The size of the hidden state of the LSTM.
+        recurrent_layers (int): The number of recurrent layers stacked on each other.
+        hidden_depth (int): The number of hidden layers of the classifier MLP (after LSTM).
+        hidden_width (int): The width of the hidden layers of the classifier MLP (after LSTM).
+    
+    Notes:
+        All attributes need to be in the model_hparams dictionary.
     """
-    def __init__(self, dataset, model_hparams):
+    def __init__(self, dataset, model_hparams, input_size=None):
         super(LSTM, self).__init__()
 
-        # Save stuff
+        ## Save stuff
+        # Model parameters
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
         self.recurrent_layers = model_hparams['recurrent_layers']
 
-        self.input_size = math.prod(dataset.INPUT_SHAPE)
+        # Dataset parameters
+        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
 
-        # Recurrent model
+        ## Recurrent model
         self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
 
-        # Classification model
+        ## Classification model
         layers = []
         if self.hidden_depth == 0:
             layers.append( nn.Linear(self.state_size, self.output_size) )
@@ -59,8 +70,6 @@ class LSTM(nn.Module):
         
         seq_arr = []
         for i, lin in enumerate(layers):
-            nn.init.xavier_uniform_(lin.weight)
-            nn.init.zeros_(lin.bias)
             seq_arr.append(lin)
             if i != self.hidden_depth:
                 seq_arr.append(nn.ReLU(True))
@@ -68,6 +77,15 @@ class LSTM(nn.Module):
         self.classifier = nn.Sequential(*seq_arr)
 
     def forward(self, input, time_pred):
+        """ Forward pass of the model
+
+        Args:
+            input (torch.Tensor): The input to the model.
+            time_pred (torch.Tensor): The time prediction of the input.
+
+        Returns:
+            torch.Tensor: The output of the model.
+        """
 
         # Setup array
         pred = torch.zeros(input.shape[0], 0).to(input.device)
@@ -86,20 +104,45 @@ class LSTM(nn.Module):
         return all_out
 
     def initHidden(self, batch_size, device):
+        """ Initialize the hidden state of the LSTM with a normal distribution
+
+        Args:
+            batch_size (int): The batch size of the model.
+            device (torch.device): The device to use.
+        """
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
 class ATTN_LSTM(nn.Module):
-    def __init__(self, dataset, model_hparams):
+    """ A simple LSTM model with self attention
+
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+
+    Attributes:
+        state_size (int): The size of the hidden state of the LSTM.
+        recurrent_layers (int): The number of recurrent layers stacked on each other.
+        hidden_depth (int): The number of hidden layers of the classifier MLP (after LSTM).
+        hidden_width (int): The width of the hidden layers of the classifier MLP (after LSTM).
+
+    Notes:
+        All attributes need to be in the model_hparams dictionary.
+    """
+    def __init__(self, dataset, model_hparams, input_size=None):
         super(ATTN_LSTM, self).__init__()
 
-        # Save stuff
+        ## Save stuff
+        # Model parameters
         self.state_size = model_hparams['state_size']
+        self.recurrent_layers = model_hparams['recurrent_layers']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
-        self.recurrent_layers = model_hparams['recurrent_layers']
+
+        # Dataset parameters
+        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
-        self.input_size = math.prod(dataset.INPUT_SHAPE)
 
         # Recurrent model
         self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
@@ -128,8 +171,6 @@ class ATTN_LSTM(nn.Module):
         
         seq_arr = []
         for i, lin in enumerate(layers):
-            nn.init.xavier_uniform_(lin.weight)
-            nn.init.zeros_(lin.bias)
             seq_arr.append(lin)
             if i != self.hidden_depth:
                 seq_arr.append(nn.ReLU(True))
@@ -137,6 +178,15 @@ class ATTN_LSTM(nn.Module):
         self.classifier = nn.Sequential(*seq_arr)
 
     def forward(self, input, time_pred):
+        """ Forward pass of the model
+
+        Args:
+            input (torch.Tensor): The input to the model.
+            time_pred (torch.Tensor): The time prediction of the input.
+
+        Returns:
+            torch.Tensor: The output of the model.
+        """
 
         # Setup array
         pred = torch.zeros(input.shape[0], 0).to(input.device)
@@ -162,20 +212,41 @@ class ATTN_LSTM(nn.Module):
         return output
 
     def initHidden(self, batch_size, device):
+        """ Initialize the hidden state of the LSTM with a normal distribution
+
+        Args:
+            batch_size (int): The batch size of the model.
+            device (torch.device): The device to use.
+        """
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
 
 class shallow(nn.Module):
-    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    """ The Shallow Net model
+
+    This is from the Braindecode package:
+        https://github.com/braindecode/braindecode
     
-    def __init__(self, dataset, model_hparams):
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+
+    Attributes:
+        seq_len (int): The length of the sequences.
+    """
+    # ref: https://github.com/braindecode/braindecode
+    
+    def __init__(self, dataset, model_hparams, input_size):
         super(shallow, self).__init__()
 
-        # Save stuff
-        self.input_size = math.prod(dataset.INPUT_SHAPE)
+        ## Save stuff
+        # Dataset parameters
+        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
 
+        # Define model
         self.model = ShallowFBCSPNet(
         self.input_size,
         self.output_size,
@@ -184,14 +255,33 @@ class shallow(nn.Module):
         )
         
     def forward(self, input, time_pred):
+        """ Forward pass of the model
+
+        Args:
+            input (torch.Tensor): The input to the model.
+            time_pred (torch.Tensor): The time prediction of the input.
+        """
         out = self.model(input.permute((0, 2, 1)))
         return out.unsqueeze(1)
 
 class CRNN(nn.Module):
     """ Convolutional Recurrent Neural Network
-    https://github.com/HHTseng/video-classification/blob/99ebf204f0b1d737e38bc0d8b65aca128a57d7b1/ResNetCRNN/functions.py#L308
+
+    This is taken inspired from the repository:
+        https://github.com/HHTseng/video-classification/
+
+    But here we use the ResNet50 architecture pretrained on ImageNet, and we use the ATTN_LSTM model on top of the outputs of the ResNet50 to make predictions.
+
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+
+    Attributes:
+        fc_hidden1 (int): The size of the first hidden layer of the CNN embedding.
+        fc_hidden2 (int): The size of the second hidden layer of the CNN embedding.
+        CNN_embed_dim (int): The size of the CNN embedding.
     """
-    def __init__(self, input_size, output_size, model_hparams):
+    def __init__(self, dataset, model_hparams, input_size=None):
         """ Initialize CRNN
         Args:
             input_size: int, size of input
@@ -200,13 +290,16 @@ class CRNN(nn.Module):
         """
         super(CRNN, self).__init__()
 
-        # Save stuff
-        self.input_size = math.prod(dataset.INPUT_SHAPE)
-        fc_hidden1, fc_hidden2 = model_hparams['fc_hidden']
+        ## Save stuff
+        # Model parameters
+        self.fc_hidden1, self.fc_hidden2 = model_hparams['fc_hidden']
         self.CNN_embed_dim = model_hparams['CNN_embed_dim']
+        # Data parameters
+        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.output_size = dataset.OUTPUT_SIZE
+
 
         # Define Resnet model
-        # self.network = torchvision.models.resnet50(pretrained=True)
         resnet = models.resnet50(pretrained=True)
         self.n_outputs = resnet.fc.in_features
         modules = list(resnet.children())[:-1]      # delete the last fc layer.
@@ -224,8 +317,7 @@ class CRNN(nn.Module):
         )
 
         # Define recurrent layers
-        self.lstm = ATTN_LSTM(self.CNN_embed_dim, output_size, model_hparams)
-        # nn.LSTM(CNN_embed_dim, model_hparams['state_size'], model_hparams['recurrent_layers'], batch_first=True)
+        self.lstm = ATTN_LSTM(dataset, model_hparams, self.CNN_embed_dim)
 
     def forward(self, input, time_pred):
         """ Forward pass through CRNN
