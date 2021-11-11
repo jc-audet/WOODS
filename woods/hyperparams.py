@@ -138,8 +138,8 @@ def TCMNIST_step_train(sample):
             'batch_size': lambda r: 64
         }
 
-def CAP_train(sample):
-    """ CAP model hparam definition 
+def CAP_DB_train(sample):
+    """ CAP_DB model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -159,29 +159,12 @@ def CAP_train(sample):
             'batch_size': lambda r: 8
         }
 
-def SEDFx_train(sample):
-    """ SEDFx model hparam definition 
+def SEDFx_DB_train(sample):
+    """ SEDFx_DB model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
-    if sample:
-        return {
-            'class_balance': lambda r: True,
-            'weight_decay': lambda r: 0.,
-            'lr': lambda r: 10**r.uniform(-5, -3),
-            'batch_size': lambda r: int(2**r.uniform(3, 4))
-        }
-    else:
-        return {
-            'class_balance': lambda r: True,
-            'weight_decay': lambda r: 0,
-            'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 8
-        }
-
-def MI_train(sample):
-    """ MI model hparam definition """
     if sample:
         return {
             'class_balance': lambda r: True,
@@ -236,10 +219,10 @@ def LSA64_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 2
+            'batch_size': lambda r: 8
         }
 
-def get_model_hparams(dataset_name):
+def get_model_hparams(dataset_name, seed, sample=False):
     """ Get the model related hyper parameters
 
     Each dataset has their own model hyper parameters definition
@@ -261,98 +244,238 @@ def get_model_hparams(dataset_name):
     else:
         hyper_function = globals()[dataset_model]
 
-    hparams = hyper_function()
+    hparams = hyper_function(sample)
+
+    for k in hparams.keys():
+        hparams[k] = hparams[k](np.random.RandomState(seed))
     
     return hparams
 
-def Basic_Fourier_model():
-    """ Spurious Fourier model hparam definition """
-    return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
-    }
+def Basic_Fourier_model(sample):
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: 0,
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
 
-def Spurious_Fourier_model():
-    """ Spurious Fourier model hparam definition """
-    return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
-    }
+def Spurious_Fourier_model(sample):
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: 0,
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
 
-def TMNIST_model():
-    """ TMNIST model hparam definition """
-    return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
-    }
+def TMNIST_model(sample):
+    """ TMNIST model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
+        }
+    else:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
+            'hidden_width': lambda r: 20,
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
+        }
 
-def TCMNIST_seq_model():
-    """ TCMNIST_seq model hparam definition """
-    return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
-    }
+def TCMNIST_seq_model(sample):
+    """ TCMNIST_seq model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
+        }
+    else:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
+            'hidden_width': lambda r: 20,
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
+        }
 
-def TCMNIST_step_model():
-    """ TCMNIST_step model hparam definition """
-    return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
-    }
+def TCMNIST_step_model(sample):
+    """ TCMNIST_step model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
+        }
+    else:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
+            'hidden_width': lambda r: 20,
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
+        }
 
-def CAP_model():
-    """ CAP model hparam definition """
-    return {
-        'model': 'shallow',
-    }
+def CAP_DB_model(sample):
+    """ CAP_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+    else:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
 
-def SEDFx_model():
-    """ SEDFx model hparam definition """
-    return {
-        'model': 'shallow',
-    }
+def SEDFx_DB_model(sample):
+    """ SEDFx_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+    else:
+        return {
+            'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
 
-def MI_model():
-    """ MI model hparam definition """
-    return {
-        'model': 'shallow',
-    }
+def HAR_model(sample):
+    """ HAR model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
+        }
+    else:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: 1, 
+            'hidden_width': lambda r: 20,
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 32
+        }
 
-def HAR_model():
-    """ MI model hparam definition """
-    return {
-        'model': 'shallow',
-    }
+def LSA64_model(sample):
+    """ LSA64 model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'LSTM',
+            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
+            'state_size': lambda r: int(2**r.uniform(5, 7))
+        }
+    else:
+        return {
+            'model': lambda r: 'CRNN',
+            # Classifier
+            'hidden_depth': lambda r: 1,
+            'hidden_width': lambda r: 64,
+            # LSTM
+            'recurrent_layers': lambda r: 2,
+            'state_size': lambda r: 128,
+            # Resnet encoder
+            'fc_hidden': lambda r: (512,512),
+            'CNN_embed_dim': lambda r: 256
+        }
 
-def LSA64_model():
-    """ LSA64 model hparam definition """
-    return {
-        'model': 'CRNN',
-        # Classifier
-        'hidden_depth': 1,
-        'hidden_width': 64,
-        # LSTM
-        'recurrent_layers': 2,
-        'state_size': 128,
-        # Resnet encoder
-        'fc_hidden': (512,512),
-        'CNN_embed_dim': 256
-    }
+def Fish_model(sample):
+    """ Fish model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: int(r.choice([0, 1, 2])),
+            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
+            'state_size': lambda r: 10
+        }
+    else:
+        return {
+            'model': lambda r: 'RNN',
+            'hidden_depth': lambda r: 0,
+            'hidden_width': lambda r: 20,
+            'state_size': lambda r: 10
+        }
+
 
 def get_objective_hparams(objective_name, seed, sample=False):
     """ Get the objective related hyper parameters
@@ -470,3 +593,41 @@ def ANDMask_hyper(sample):
         return {
             'tau': lambda r: 1
         }
+
+
+def Fish_hyper(sample):
+    """ Fish objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'meta_lr': lambda r: 0.5
+        }
+    else:
+        return {
+            'meta_lr': lambda r:r.choice([0.05, 0.1, 0.5])
+        }
+        
+        
+        
+def SANDMask_hyper(sample):
+    """ SANDMask objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'tau': lambda r: r.uniform(0.0,1.),
+            'k': lambda r: 10**r.uniform(-3, 5),
+            'betas': lambda r: r.uniform(0.9,0.999)
+        }
+    else:
+        return {
+            'tau': lambda r: 1,
+            'k': lambda r: 1e+1,
+            'betas': lambda r: 0.9
+        }        
+
