@@ -975,7 +975,7 @@ class EEG_dataset(Dataset):
         """ Close the hdf5 file link """
         self.hdf.close()
 
-class Sleep_DB(Multi_Domain_Dataset):
+class EEG_DB(Multi_Domain_Dataset):
     """ Class for Sleep Staging datasets with their data stored in a HDF5 file
         
     Args:
@@ -1056,7 +1056,7 @@ class Sleep_DB(Multi_Domain_Dataset):
 
         return weights
 
-class CAP(Sleep_DB):
+class CAP(EEG_DB):
     """ CAP Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
@@ -1066,6 +1066,7 @@ class CAP(Sleep_DB):
     final preprocessed data only include the channels that were in common between those 5 machines.
 
     You can read more on the data itself and it's provenance on Physionet.org:
+
         https://physionet.org/content/capslpdb/1.0.0/
 
     Args:
@@ -1082,7 +1083,7 @@ class CAP(Sleep_DB):
     def __init__(self, flags, training_hparams):
         super().__init__(flags, training_hparams)
         
-class SEDFx(Sleep_DB):
+class SEDFx(EEG_DB):
     """ SEDFx Sleep stage dataset
 
     The task is to classify the sleep stage from EEG and other modalities of signals.
@@ -1090,6 +1091,7 @@ class SEDFx(Sleep_DB):
     We split the dataset in 5 environments to train on, each of them containing the data taken from a given group age.
 
     You can read more on the data itself and it's provenance on Physionet.org:
+
          https://physionet.org/content/sleep-edfx/1.0.0/
 
     Args:
@@ -1106,7 +1108,7 @@ class SEDFx(Sleep_DB):
     def __init__(self, flags, training_hparams):
         super().__init__(flags, training_hparams)
        
-class MI(Sleep_DB):
+class MI(EEG_DB):
     """ MI datasets
 
     The task is to classify the motor imaginary from EEG and other modalities of signals.
@@ -1114,12 +1116,13 @@ class MI(Sleep_DB):
         ['Cho2017', 'PhysionetMI', 'BNCI2014001']
 
     You can read more on the data itself and it's provenance on: 
-        http://moabb.neurotechx.com/docs/api.html#motor-imagery-datasets
+
+        http://moabb.neurotechx.com/docs/index.html
 
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
 
-    DATA_FILE = 'MI.h5'
+    DATA_FILE = 'MI/MI.h5'
     ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
     SEQ_LEN = 750
     PRED_TIME = [749]
@@ -1365,6 +1368,7 @@ class HAR(Multi_Domain_Dataset):
     The goal is to classify those activities (stand, sit, walk, bike, stairs up, stairs down).
 
     You can read more on the data itself and it's provenance from it's source:
+
         https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
 
     Args:
