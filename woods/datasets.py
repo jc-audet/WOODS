@@ -967,6 +967,7 @@ class EEG_dataset(Dataset):
         split_idx = self.split[idx]
         
         seq = torch.as_tensor(self.data[split_idx, ...])
+        seq = (seq - seq.mean()) / seq.std() # z-score normalization 
         labels = torch.as_tensor(self.targets[split_idx])
 
         return (seq, labels)
@@ -1113,7 +1114,7 @@ class MI(EEG_DB):
 
     The task is to classify the motor imaginary from EEG and other modalities of signals.
     The raw data comes from the three MI Databases:  
-        ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+       [ 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
 
     You can read more on the data itself and it's provenance on: 
 
@@ -1123,10 +1124,11 @@ class MI(EEG_DB):
     """
 
     DATA_FILE = 'MI/MI.h5'
-    ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+    ENVS = [ 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
     SEQ_LEN = 750
     PRED_TIME = [749]
-    INPUT_SHAPE = [22]
+    INPUT_SHAPE = [21]
+    INPUT_SIZE  = 21
     OUTPUT_SIZE = 2
 
     def __init__(self, flags, training_hparams):

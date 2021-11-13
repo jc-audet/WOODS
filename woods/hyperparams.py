@@ -180,6 +180,23 @@ def SEDFx_DB_train(sample):
             'batch_size': lambda r: 8
         }
 
+def MI_train(sample):
+    """ MI model hparam definition """
+    if sample:
+        return {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 4))
+        }
+    else:
+        return {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**-3,
+            'batch_size': lambda r: 8
+        }
+
 def HAR_train(sample):
     """ HAR model hparam definition 
     
@@ -399,6 +416,27 @@ def SEDFx_DB_model(sample):
     else:
         return {
             'model': lambda r: 'Transformer',
+            'nheads_enc': lambda r: 8,
+            'nlayers_enc': lambda r: 2,
+            'embedding_size': lambda r: 32
+        }
+
+def MI_model(sample):
+    """ MI model hparam definition
+
+    Args:
+    sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'model': lambda r: 'deep4',
+            'nheads_enc': 8,
+            'nlayers_enc': 2,
+            'embedding_size': 32
+        }
+    else:
+        return {
+            'model':lambda r: 'deep4',
             'nheads_enc': lambda r: 8,
             'nlayers_enc': lambda r: 2,
             'embedding_size': lambda r: 32

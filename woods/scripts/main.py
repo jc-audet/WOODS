@@ -71,7 +71,7 @@ if __name__ == '__main__':
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
     objective_hparams = hyperparams.get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
-    model_hparams = hyperparams.get_model_hparams(flags.dataset)
+    model_hparams = hyperparams.get_model_hparams(flags.dataset, flags.hparams_seed)
 
     print('HParams:')
     for k, v in sorted(training_hparams.items()):
