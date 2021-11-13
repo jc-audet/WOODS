@@ -239,6 +239,25 @@ def LSA64_train(sample):
             'batch_size': lambda r: 2
         }
 
+def StockVolatility_train(sample):
+    """ StockVolatility hparam definition """
+    if sample:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 4))
+        }
+    else:
+        hparams = {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 10**-4,
+            'batch_size': lambda r: 32
+        }
+
+    return hparams
+
 def get_model_hparams(dataset_name):
     """ Get the model related hyper parameters
 
@@ -352,6 +371,16 @@ def LSA64_model():
         # Resnet encoder
         'fc_hidden': (512,512),
         'CNN_embed_dim': 256
+    }
+
+def StockVolatility_model():
+    """ StockVolatility model hparam definition """
+    return {
+        'model': 'LSTM',
+        'hidden_depth': 1, 
+        'hidden_width': 20,
+        'recurrent_layers': 2,
+        'state_size': 32
     }
 
 def get_objective_hparams(objective_name, seed, sample=False):

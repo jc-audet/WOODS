@@ -22,7 +22,7 @@ Train a model using one objective on one dataset with one test environment. For 
 
 ```sh
 python3 -m woods.scripts.main train \
-        --dataset TCMNIST_seq \
+        --dataset StockVolatility \
         --objective ERM \
         --test_env 0 \
         --data_path /path/to/data/directory

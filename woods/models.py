@@ -6,6 +6,8 @@ import torch
 from torch import nn
 from torchvision import models
 
+import matplotlib.pyplot as plt
+
 # new package
 from braindecode.models import ShallowFBCSPNet
 
@@ -72,7 +74,6 @@ class LSTM(nn.Module):
             seq_arr.append(lin)
             if i != self.hidden_depth:
                 seq_arr.append(nn.ReLU(True))
-        seq_arr.append(nn.LogSoftmax(dim=1))
         self.classifier = nn.Sequential(*seq_arr)
 
     def forward(self, input, time_pred):
@@ -99,6 +100,18 @@ class LSTM(nn.Module):
         for i, t in enumerate(time_pred):
             output = self.classifier(out[:,t,:])
             all_out[:,i,...] = output
+
+
+        # viz = torch.zeros((input.shape[0], input.shape[1], self.output_size)).to(input.device)
+        # for i in range(input.shape[1]):
+        #     output = self.classifier(out[:,i,:])
+        #     viz[:,i,...] = output
+        # plt.figure()
+        # plt.plot(input[50,:,0].cpu().detach().numpy())
+        # plt.plot(viz[50,:,0].cpu().detach().numpy())
+        # plt.ylim([0,1])
+        # plt.show()
+
         
         return all_out
 

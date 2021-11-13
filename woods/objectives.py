@@ -67,21 +67,6 @@ class ERM(Objective):
         ## Group all inputs and send to device
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        # print(all_x.shape)
-
-        # fig, ax = plt.subplots(1, 5)
-        # ax[0].plot(all_x.cpu().numpy()[0,...])
-        # ax[0].set_title('nexus4 ' + str(all_y.cpu().numpy()[0]))
-        # ax[1].plot(all_x.cpu().numpy()[8,...])
-        # ax[1].set_title('s3 ' + str(all_y.cpu().numpy()[8]))
-        # ax[2].plot(all_x.cpu().numpy()[16,...])
-        # ax[2].set_title('s3mini ' + str(all_y.cpu().numpy()[16]))
-        # ax[3].plot(all_x.cpu().numpy()[24,...])
-        # ax[3].set_title('lgwatch ' + str(all_y.cpu().numpy()[24]))
-        # ax[4].plot(all_x.cpu().numpy()[32,...])
-        # ax[4].set_title('gear ' + str(all_y.cpu().numpy()[32]))
-        # plt.legend()
-        # plt.show()
 
         ts = torch.tensor(dataset.PRED_TIME).to(device)
         out = self.predict(all_x, ts, device)
@@ -91,7 +76,7 @@ class ERM(Objective):
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx])
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx], labels_split[i,:,t_idx])
 
         objective = env_losses.mean()
 

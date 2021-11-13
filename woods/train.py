@@ -65,12 +65,20 @@ def train(flags, training_hparams, model, objective, dataset, device):
 
             record[str(step)] = checkpoint_record
 
-            t.add_row([step] 
-                    + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
-                    + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
-                    + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
-                    + ["{:.2f}".format(np.mean(step_times))] 
-                    + ["{:.2f}".format(val_time)])
+            if dataset.TASK == 'regression':
+                t.add_row([step] 
+                        + ["{:.1e} :: {:.1e}".format(record[str(step)][str(e)+'_in_loss'], record[str(step)][str(e)+'_out_loss']) for e in dataset.ENVS] 
+                        + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
+                        + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
+                        + ["{:.2f}".format(np.mean(step_times))] 
+                        + ["{:.2f}".format(val_time)])
+            else:
+                t.add_row([step] 
+                        + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
+                        + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
+                        + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
+                        + ["{:.2f}".format(np.mean(step_times))] 
+                        + ["{:.2f}".format(val_time)])
 
             step_times = [] 
             print("\n".join(t.get_string().splitlines()[-2:-1]))
@@ -123,8 +131,10 @@ def get_split_accuracy_seq(objective, dataset, loader, device):
             pred = all_out.argmax(dim=2)
             nb_correct += pred.eq(target).cpu().sum()
             nb_item += target.numel()
+
+        show_value = nb_correct.item() / nb_item
             
-    return nb_correct.item() / nb_item, losses.item() / len(loader)
+    return show_value, losses.item() / len(loader)
 
 def get_split_accuracy_step(objective, dataset, loader, device):
 

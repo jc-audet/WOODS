@@ -22,7 +22,7 @@ DATASETS = [
     # 1D datasets
     'Basic_Fourier',
     'Spurious_Fourier',
-    # Small images
+    # Small read_images
     "TMNIST",
     # Small correlation shift dataset
     "TCMNIST_seq",
@@ -215,7 +215,7 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
 class Multi_Domain_Dataset:
     """ Abstract class of a multi domain dataset for OOD generalization.
 
-    Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SHAPE, OUTPUT_SIZE
+    Every multi domain dataset must redefine the important attributes: SETUP, PRED_TIME, ENVS, INPUT_SHAPE, OUTPUT_SIZE, TASK
     The data dimension needs to be (batch_size, SEQ_LEN, *INPUT_SHAPE)
 
     TODO:
@@ -229,6 +229,8 @@ class Multi_Domain_Dataset:
     N_WORKERS = 4
     #:string: The setup of the dataset ('seq' or 'step')
     SETUP = None
+    #:string: The type of prediction task ('classification' of 'regression')
+    TASK = None
     #:int: The sequence length of the dataset
     SEQ_LEN = None
     #:list: The time steps where predictions are made
@@ -242,6 +244,15 @@ class Multi_Domain_Dataset:
 
     def __init__(self):
         pass
+
+    def loss_fn(self, input, target):
+        """ Computes the loss 
+        
+        Args:
+            input (Tensor): prediction tensor
+            target (Tensor): Target tensor
+        """
+        return self.loss(self.log_prob(input), target)
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -314,6 +325,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
         No download is required as it is purely synthetic
     """
     SETUP = 'seq'
+    TASK = 'classification'
     SEQ_LEN = 50
     PRED_TIME = [49]
     ENVS = ['no_spur']
@@ -349,8 +361,8 @@ class Basic_Fourier(Multi_Domain_Dataset):
         for i in range(0, 50, 2):
             offset_signal_0 = copy.deepcopy(signal_0)[i:i-50]
             offset_signal_1 = copy.deepcopy(signal_1)[i:i-50]
-            split_signal_0 = offset_signal_0.reshape(-1,50,1).clone().detach().float()
-            split_signal_1 = offset_signal_1.reshape(-1,50,1).clone().detach().float()
+            split_signal_0 = torch.tensor(offset_signal_0.reshape(-1,50,1)).float()
+            split_signal_1 = torch.tensor(offset_signal_1.reshape(-1,50,1)).float()
             all_signal_0 = torch.cat((all_signal_0, split_signal_0), dim=0)
             all_signal_1 = torch.cat((all_signal_1, split_signal_1), dim=0)
         signal = torch.cat((all_signal_0, all_signal_1), dim=0)
@@ -376,6 +388,10 @@ class Basic_Fourier(Multi_Domain_Dataset):
             fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=1028, shuffle=False)
             self.val_names.append(e+'_out')
             self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
         
 class Spurious_Fourier(Multi_Domain_Dataset):
     """ Spurious_Fourier dataset
@@ -392,6 +408,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         No download is required as it is purely synthetic
     """
     SETUP = 'seq'
+    TASK = 'classification'
     INPUT_SHAPE = [1]
     OUTPUT_SIZE = 2
     SEQ_LEN = 50
@@ -423,8 +440,27 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         ## Define the spurious Fourier spectrum (one direct and the inverse)
         self.direct_fourier_0 = copy.deepcopy(self.fourier_0)
         self.direct_fourier_1 = copy.deepcopy(self.fourier_1)
-        self.direct_fourier_0[250] = 0.5
+        self.direct_fourier_0[200] = 0.5
         self.direct_fourier_1[400] = 0.5
+
+        def conv(signal):
+            blurred_signal = np.zeros_like(signal)
+            for i in range(1, np.shape(blurred_signal)[0]-1):
+                blurred_signal[i] = np.mean(signal[i-1:i+1])
+            return blurred_signal
+
+        plt.figure()
+        freq = np.linspace(0, 60, num=len(self.direct_fourier_0))
+        signal_0 = self.direct_fourier_0
+        for i in range(50):
+            signal_0 = conv(signal_0)
+        plt.plot(freq, signal_0)
+        signal_1 = self.direct_fourier_1
+        for i in range(50):
+            signal_1 = conv(signal_1)
+        plt.plot(freq, signal_1)
+        plt.yticks([])
+        plt.show()
 
         self.inverse_fourier_0 = copy.deepcopy(self.fourier_0)
         self.inverse_fourier_1 = copy.deepcopy(self.fourier_1)
@@ -510,6 +546,10 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=4000, shuffle=False)
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
     
     def super_sample(self, signal_0, signal_1):
         """ Sample signals frames with a bunch of offsets """
@@ -597,6 +637,10 @@ class TMNIST(Multi_Domain_Dataset):
             fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
+            
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
 
     def plot_samples(TMNIST_images, TMNIST_labels):
         fig, axs = plt.subplots(3,4)
@@ -787,6 +831,10 @@ class TCMNIST_seq(TCMNIST):
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
 
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+
     def color_dataset(self, images, labels, p, d):
         """ Color the dataset
 
@@ -882,6 +930,10 @@ class TCMNIST_step(TCMNIST):
         fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=252, shuffle=False)
         self.val_names.append([str(e)+'_out' for e in self.ENVS])
         self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
 
     def color_dataset(self, images, labels, env_id, p, d):
         """ Color a single step 'env_id' of the dataset
@@ -1036,6 +1088,10 @@ class EEG_DB(Multi_Domain_Dataset):
             self.val_loaders.append(fast_in_loader)
             self.val_names.append(e + '_out')
             self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
     
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1152,28 +1208,93 @@ class StockVolatility(Multi_Domain_Dataset):
         * https://medium.com/analytics-vidhya/univariate-forecasting-for-the-volatility-of-the-stock-data-using-deep-learning-6c8a4df7edf9
     """
     N_STEPS = 5001
-    SETUP = 'step'
-    PRED_TIME = [3000]
-
-    # Choisir une maniere de split en [3,10] environment
+    SETUP = 'seq'
+    TASK = 'regression'
+    PRED_TIME = [2]
     ENVS = ['2000-2004', '2005-2009', '2010-2014', '2015-2020']
-    INPUT_SHAPE = [1000000]
+    INPUT_SHAPE = [1]
     OUTPUT_SIZE = 1
-    CHECKPOINT_FREQ = 500
+    CHECKPOINT_FREQ = 100
+    DATA_FILE = 'StockVolatility/StockVolatility.h5'
 
     def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
         super().__init__()
-        pass
 
-        # data = [Dataloader for e in self.ENVS]
-        ## Pour tous les index 
-            # Prendre tous les donnees de l'index
-            # Faire des trucs de preprocessing si besoin
-            # split en chunk d'annnee en fonction de self.ENVS
-            ## Pour tous les chunks e
-                # env_data = split les chunks en sequence de X jours
-                # data[e].append(env_data)
 
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        # Save stuff
+        self.test_env = flags.test_env
+        self.batch_size = training_hparams['batch_size']
+
+        ## Define loss function
+        self.loss = nn.MSELoss()
+
+        ## Create tensor dataset and dataloader
+        self.val_names, self.val_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        for j, e in enumerate(self.ENVS):
+
+            with h5py.File(os.path.join(flags.data_path, self.DATA_FILE), 'r') as f:
+                # Load data
+                data = torch.tensor(f[e]['data'][...])
+                labels = torch.tensor(f[e]['labels'][...])
+            
+
+            # Get full environment dataset and define in/out split
+            full_dataset = torch.utils.data.TensorDataset(data, labels)
+            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction)
+
+            # Make training dataset/loader and append it to training containers
+            if j != flags.test_env:
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
+                self.train_names.append(e + '_in')
+                self.train_loaders.append(in_loader)
+
+            # Make validation loaders
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False,
+                                                         num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False,
+                                                          num_workers=self.N_WORKERS, pin_memory=True)
+
+            # Append to val containers
+            self.val_names.append(e + '_in')
+            self.val_loaders.append(fast_in_loader)
+            self.val_names.append(e + '_out')
+            self.val_loaders.append(fast_out_loader)
+    
+    def loss_fn(self, input, target):
+        input = input.squeeze(1)
+        return self.loss(input,target)
+
+    def split_data(self, out, labels):
+        """ Group data and prediction by environment
+
+        Args:
+            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+
+        Returns:
+            Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+            Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+        """
+        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+        out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
+        labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).to(labels.device)
+        all_logits_idx = 0
+        for i in range(n_train_env):
+            out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+            labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
+            all_logits_idx += self.batch_size
+        return out_split, labels_split
 
 class Video_dataset(Dataset):
     """ Video dataset
@@ -1342,6 +1463,10 @@ class LSA64(Multi_Domain_Dataset):
             self.val_names.append(e + '_out')
             self.val_loaders.append(fast_out_loader)
 
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+
     def get_class_weight(self):
         """Compute class weight for class balanced training
 
@@ -1449,3 +1574,7 @@ class HAR(Multi_Domain_Dataset):
             self.val_loaders.append(fast_in_loader)
             self.val_names.append(e + '_out')
             self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))

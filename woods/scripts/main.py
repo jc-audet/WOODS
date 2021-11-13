@@ -70,6 +70,7 @@ if __name__ == '__main__':
     
     ## Getting hparams
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
+    training_hparams['device'] = device
     objective_hparams = hyperparams.get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
     model_hparams = hyperparams.get_model_hparams(flags.dataset)
 
@@ -107,8 +108,8 @@ if __name__ == '__main__':
     print("Number of parameters = ", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     # Define training aid
-    loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
-    # loss_fn = nn.NLLLoss()
+    # loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
+    loss_fn = dataset.loss_fn
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
 
     ## Initialize some Objective
@@ -124,14 +125,18 @@ if __name__ == '__main__':
         ## Save stuff
         if flags.save:
             hparams = {}
+            del training_hparams['device']
             hparams.update(training_hparams)
             hparams.update(model_hparams)
             hparams.update(objective_hparams)
             record['hparams'] = hparams
             record['flags'] = vars(flags)
+            os.makedirs(os.path.join(flags.save_path, 'logs'), exist_ok=True)
             with open(os.path.join(flags.save_path, 'logs', job_name+'.json'), 'w') as f:
                 json.dump(record, f)
+            os.makedirs(os.path.join(flags.save_path, 'models'), exist_ok=True)
             torch.save(model.state_dict(), os.path.join(flags.save_path, 'models', job_name+'.pt'))
+            os.makedirs(os.path.join(flags.save_path, 'outputs'), exist_ok=True)
             with open(os.path.join(flags.save_path, 'outputs', job_name+'.txt'), 'w') as f:
                 f.write('HParams:\n')
                 for k, v in sorted(training_hparams.items()):
@@ -151,21 +156,24 @@ if __name__ == '__main__':
 
         # Get accuracies
         loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
-        if dataset.get_setup() == 'seq':
-            val_start = time.time()
-            record = get_accuracies_seq(model, loss_fn, dataset, device)
-            val_time = time.time() - val_start
-        elif dataset.get_setup() == 'step':
-            record = get_accuracies_seq(model, loss_fn, dataset, device)
-        elif dataset.get_setup() == 'language':
-            raise NotImplementedError("Language benchmarks and models aren't implemented yet")
+        val_start = time.time()
+        record = get_accuracies(objective, dataset, device)
+        val_time = time.time() - val_start
 
         train_names, _ = dataset.get_train_loaders()
         t = utils.setup_pretty_table(flags)
-        t.add_row(['Eval'] 
-                + ["{:.2f} :: {:.2f}".format(record[str(e)+'_in_acc'], record[str(e)+'_out_acc']) for e in dataset.get_envs()] 
-                + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))] 
-                + ['.']
-                + ['.'] 
-                + ["{:.2f}".format(val_time)])
+        if dataset.TASK == 'regression':
+            t.add_row(['eval'] 
+                    + ["{:.1e} :: {:.1e}".format(record[str(e)+'_in_loss'], record[str(e)+'_out_loss']) for e in dataset.ENVS] 
+                    + ["{:.1e}".format(np.average([record[str(e)+'_loss'] for e in train_names]))]  
+                    + ['.']
+                    + ['.'] 
+                    + ["{:.2f}".format(val_time)])
+        else:
+            t.add_row(['eval'] 
+                    + ["{:.2f} :: {:.2f}".format(record[str(e)+'_in_acc'], record[str(e)+'_out_acc']) for e in dataset.ENVS] 
+                    + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))]  
+                    + ['.']
+                    + ['.'] 
+                    + ["{:.2f}".format(val_time)])
         print("\n".join(t.get_string().splitlines()[-2:]))
