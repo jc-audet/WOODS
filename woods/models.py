@@ -7,7 +7,7 @@ from torch import nn
 from torchvision import models
 
 # new package
-from braindecode.models import ShallowFBCSPNet
+from braindecode.models import ShallowFBCSPNet, Deep4Net, EEGResNet
 
 def get_model(dataset, model_hparams):
     """Return the dataset class with the given name
@@ -22,6 +22,87 @@ def get_model(dataset, model_hparams):
     model_fn = globals()[model_hparams['model']]
 
     return model_fn(dataset, model_hparams)
+
+
+class shallow(nn.Module):
+    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    
+    def __init__(self, dataset, model_hparams):
+        super(shallow, self).__init__()
+
+        # Save stuff
+        self.input_size = dataset.INPUT_SIZE #math.prod(dataset.INPUT_SHAPE)
+        self.output_size = dataset.OUTPUT_SIZE
+        self.seq_len = dataset.SEQ_LEN
+
+        self.model = ShallowFBCSPNet(
+        self.input_size,
+        self.output_size,
+        input_window_samples=self.seq_len,
+        final_conv_length='auto',
+        )
+        
+    def forward(self, input, time_pred):
+        out = self.model(input.permute((0, 2, 1)))
+        return out.unsqueeze(1)
+
+class EEGResNet_bd(nn.Module):
+    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    
+    def __init__(self, dataset, model_hparams):
+        super(EEGResNet_bd, self).__init__()
+
+        # Save stuff
+        self.input_size = dataset.INPUT_SIZE #math.prod(dataset.INPUT_SHAPE)
+        self.output_size = dataset.OUTPUT_SIZE
+        self.seq_len = dataset.SEQ_LEN
+
+        self.model = EEGResNet(
+        self.input_size,
+        self.output_size,
+        input_window_samples=self.seq_len,
+        n_first_filters=12, #TBF
+        n_layers_per_block=2,
+        final_pool_length = 'auto'
+        # final_conv_length='auto',
+        )
+        
+    def forward(self, input, time_pred):
+        out = self.model(input.permute((0, 2, 1)))
+        return out.unsqueeze(1)
+
+class deep4(nn.Module):
+    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    
+    def __init__(self, dataset, model_hparams):
+        super(deep4, self).__init__()
+
+        # Save stuff
+        self.input_size = dataset.INPUT_SIZE #math.prod(dataset.INPUT_SHAPE)
+        self.output_size = dataset.OUTPUT_SIZE
+        self.seq_len = dataset.SEQ_LEN
+
+        self.model = Deep4Net(
+        self.input_size,
+        self.output_size,
+        input_window_samples=self.seq_len,
+        final_conv_length='auto',
+        n_filters_time=32,
+        n_filters_spat=32,
+        filter_time_length=10,
+        pool_time_length=3,
+        pool_time_stride=3,
+        n_filters_2=64,
+        filter_length_2=10,
+        n_filters_3=128,
+        filter_length_3=10,
+        n_filters_4=256,
+        filter_length_4=10
+        )
+        
+    def forward(self, input, time_pred):
+        out = self.model(input.permute((0, 2, 1)))
+        return out.unsqueeze(1)
 
 class LSTM(nn.Module):
     """ A simple LSTM model
