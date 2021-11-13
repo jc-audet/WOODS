@@ -963,7 +963,7 @@ class MI():
         groups = ['PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
         X = [X_src1, X_src2, X_src3]
         Y = [y_src1, y_src2, y_src3]
-        with h5py.File(os.path.join(self.path, 'MI/MI4.h5'), 'a') as hf:
+        with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
                 g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(common_channels)))
@@ -971,7 +971,7 @@ class MI():
         
         ## Save data to h5 file
         for group, x, y in zip(groups,X,Y):
-            with h5py.File(os.path.join(self.path, 'MI/MI4.h5'), 'a') as hf:
+            with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
                 hf[group]['data'].resize((hf[group]['data'].shape[0] + x.shape[0]), axis = 0)
                 hf[group]['data'][-x.shape[0]:,:,:] = x.transpose((0,2,1))
                 hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y.shape[0]), axis = 0)
