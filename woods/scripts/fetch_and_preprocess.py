@@ -934,7 +934,7 @@ class MI():
         print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src2.shape))
         print ("Source dataset 2 include labels: {}".format(np.unique(label_src2)))
         X_src3, label_src3, m_src3 = prgm_2classes.get_data(dataset=ds_src3, subjects=list(range(1,40)))  
-        print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
+        print("Third source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
         print ("Source dataset 3 include labels: {}".format(np.unique(label_src3)))
 
         y_src1 = np.array([self.relabel(l) for l in label_src1])
