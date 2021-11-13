@@ -966,7 +966,7 @@ class MI():
         with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
-                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(src3_channels)))
+                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(common_channels)))
                 g.create_dataset('labels', data=dummy_labels.astype('float32'), dtype='int_', maxshape=(None,1))
         
         ## Save data to h5 file
