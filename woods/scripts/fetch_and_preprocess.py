@@ -934,7 +934,7 @@ class MI():
         print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src2.shape))
         print ("Source dataset 2 include labels: {}".format(np.unique(label_src2)))
         X_src3, label_src3, m_src3 = prgm_2classes.get_data(dataset=ds_src3, subjects=list(range(1,40)))  
-        print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
+        print("Third source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
         print ("Source dataset 3 include labels: {}".format(np.unique(label_src3)))
 
         y_src1 = np.array([self.relabel(l) for l in label_src1])
@@ -958,20 +958,20 @@ class MI():
         X_src3 = X_src3[:, :, :window_size]
 
         ## Create group in h5 file
-        dummy_data = np.zeros((0,window_size,len(src3_channels)))
+        dummy_data = np.zeros((0,window_size,len(common_channels)))
         dummy_labels = np.zeros((0,1))
         groups = ['PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
         X = [X_src1, X_src2, X_src3]
         Y = [y_src1, y_src2, y_src3]
-        with h5py.File(os.path.join(self.path, 'MI/MI3.h5'), 'a') as hf:
+        with h5py.File(os.path.join(self.path, 'MI/MI4.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
-                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(src3_channels)))
+                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(common_channels)))
                 g.create_dataset('labels', data=dummy_labels.astype('float32'), dtype='int_', maxshape=(None,1))
         
         ## Save data to h5 file
         for group, x, y in zip(groups,X,Y):
-            with h5py.File(os.path.join(self.path, 'MI/MI3.h5'), 'a') as hf:
+            with h5py.File(os.path.join(self.path, 'MI/MI4.h5'), 'a') as hf:
                 hf[group]['data'].resize((hf[group]['data'].shape[0] + x.shape[0]), axis = 0)
                 hf[group]['data'][-x.shape[0]:,:,:] = x.transpose((0,2,1))
                 hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y.shape[0]), axis = 0)
