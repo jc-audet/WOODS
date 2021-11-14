@@ -138,8 +138,8 @@ def TCMNIST_step_train(sample):
             'batch_size': lambda r: 64
         }
 
-def CAP_train(sample):
-    """ CAP model hparam definition 
+def CAP_DB_train(sample):
+    """ CAP_DB model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -159,8 +159,8 @@ def CAP_train(sample):
             'batch_size': lambda r: 8
         }
 
-def SEDFx_train(sample):
-    """ SEDFx model hparam definition 
+def SEDFx_DB_train(sample):
+    """ SEDFx_DB model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -192,8 +192,8 @@ def MI_train(sample):
     else:
         return {
             'class_balance': lambda r: True,
-            'weight_decay': lambda r: 0,
-            'lr': lambda r: 10**-4,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**-3,
             'batch_size': lambda r: 8
         }
 
@@ -236,7 +236,7 @@ def LSA64_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 2
+            'batch_size': lambda r: 8
         }
 
 def StockVolatility_train(sample):
@@ -280,12 +280,16 @@ def get_model_hparams(dataset_name):
     else:
         hyper_function = globals()[dataset_model]
 
-    hparams = hyper_function()
+    hparams = hyper_function(sample)
     
     return hparams
 
 def Basic_Fourier_model():
-    """ Spurious Fourier model hparam definition """
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -295,7 +299,11 @@ def Basic_Fourier_model():
     }
 
 def Spurious_Fourier_model():
-    """ Spurious Fourier model hparam definition """
+    """ Spurious Fourier model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -305,7 +313,11 @@ def Spurious_Fourier_model():
     }
 
 def TMNIST_model():
-    """ TMNIST model hparam definition """
+    """ TMNIST model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -315,7 +327,11 @@ def TMNIST_model():
     }
 
 def TCMNIST_seq_model():
-    """ TCMNIST_seq model hparam definition """
+    """ TCMNIST_seq model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -325,7 +341,11 @@ def TCMNIST_seq_model():
     }
 
 def TCMNIST_step_model():
-    """ TCMNIST_step model hparam definition """
+    """ TCMNIST_step model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -334,32 +354,52 @@ def TCMNIST_step_model():
         'state_size': 32
     }
 
-def CAP_model():
-    """ CAP model hparam definition """
+def CAP_DB_model():
+    """ CAP_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
-        'model': 'shallow',
+        'model': 'deep4'
     }
 
-def SEDFx_model():
-    """ SEDFx model hparam definition """
+def SEDFx_DB_model():
+    """ SEDFx_DB model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
-        'model': 'shallow',
+        'model': 'deep4'
     }
 
 def MI_model():
-    """ MI model hparam definition """
+    """ MI model hparam definition
+
+    Args:
+    sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
-        'model': 'shallow',
+        'model': 'deep4'
     }
 
 def HAR_model():
-    """ MI model hparam definition """
+    """ HAR model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
-        'model': 'shallow',
+        'model': 'deep4',
     }
 
 def LSA64_model():
-    """ LSA64 model hparam definition """
+    """ LSA64 model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'CRNN',
         # Classifier
@@ -374,7 +414,11 @@ def LSA64_model():
     }
 
 def StockVolatility_model():
-    """ StockVolatility model hparam definition """
+    """ StockVolatility model hparam definition 
+
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -499,3 +543,41 @@ def ANDMask_hyper(sample):
         return {
             'tau': lambda r: 1
         }
+
+
+def Fish_hyper(sample):
+    """ Fish objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'meta_lr': lambda r: 0.5
+        }
+    else:
+        return {
+            'meta_lr': lambda r:r.choice([0.05, 0.1, 0.5])
+        }
+        
+        
+        
+def SANDMask_hyper(sample):
+    """ SANDMask objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'tau': lambda r: r.uniform(0.0,1.),
+            'k': lambda r: 10**r.uniform(-3, 5),
+            'betas': lambda r: r.uniform(0.9,0.999)
+        }
+    else:
+        return {
+            'tau': lambda r: 1,
+            'k': lambda r: 1e+1,
+            'betas': lambda r: 0.9
+        }        
+

@@ -981,7 +981,7 @@ class TCMNIST_step(TCMNIST):
             labels_split[i,...] = labels[:,i,...].unsqueeze(1)
         return out_split, labels_split
 
-class EEG_dataset(Dataset):
+class H5_dataset(Dataset):
     """ HDF5 dataset for EEG data
 
     The HDF5 file is expected to have the following nested dict structure::
@@ -1019,6 +1019,7 @@ class EEG_dataset(Dataset):
         split_idx = self.split[idx]
         
         seq = torch.as_tensor(self.data[split_idx, ...])
+        seq = (seq - seq.mean()) / seq.std() # z-score normalization 
         labels = torch.as_tensor(self.targets[split_idx])
 
         return (seq, labels)
@@ -1061,25 +1062,25 @@ class EEG_DB(Multi_Domain_Dataset):
         for j, e in enumerate(self.ENVS):
 
             # Get full environment dataset and define in/out split
-            full_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e)
+            full_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j, sort=True)
             full_dataset.close()
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
+                in_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
             # # Get in/out hdf5 dataset
-            # out_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
+            # out_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
 
             # Make validation loaders
-            fast_in_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
+            fast_in_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_dataset = EEG_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
+            fast_out_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_FILE), e, split=out_split)
             fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
@@ -1169,7 +1170,7 @@ class MI(EEG_DB):
 
     The task is to classify the motor imaginary from EEG and other modalities of signals.
     The raw data comes from the three MI Databases:  
-        ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+       [ 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
 
     You can read more on the data itself and it's provenance on: 
 
@@ -1179,10 +1180,10 @@ class MI(EEG_DB):
     """
 
     DATA_FILE = 'MI/MI.h5'
-    ENVS = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+    ENVS = [ 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
     SEQ_LEN = 750
     PRED_TIME = [749]
-    INPUT_SHAPE = [22]
+    INPUT_SHAPE = [21]
     OUTPUT_SIZE = 2
 
     def __init__(self, flags, training_hparams):

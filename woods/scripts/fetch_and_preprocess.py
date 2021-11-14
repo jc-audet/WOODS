@@ -40,7 +40,7 @@ from torchvision.transforms._transforms_video import (
 from pytorchvideo.transforms import UniformTemporalSubsample
 
 # For MI dataset
-from moabb.datasets import BNCI2014001, Cho2017, PhysionetMI
+from moabb.datasets import BNCI2014001, PhysionetMI, Lee2019_MI
 from moabb.paradigms import MotorImagery
 from moabb import utils
 
@@ -960,25 +960,29 @@ class MI():
         utils.set_download_dir(self.path)
 
         # Datasets
-        ds_src1 = Cho2017()
-        ds_src2 = PhysionetMI()
-        ds_src3 = BNCI2014001()
+        ds_src1 = PhysionetMI()
+        ds_src2 = BNCI2014001()
+        ds_src3 = Lee2019_MI()
 
+        #find common channels and freq. filtering
         fmin, fmax = 4, 32
-        raw = ds_src3.get_data(subjects=[1])[1]['session_T']['run_1']
+        raw = ds_src2.get_data(subjects=[1])[1]['session_T']['run_1']
+        src2_channels = raw.pick_types(eeg=True).ch_names
+        raw = ds_src3.get_data(subjects=[1])[1]['session_2']['train']
         src3_channels = raw.pick_types(eeg=True).ch_names
+        common_channels = set(src2_channels) & set(src3_channels)
         sfreq = 250.
-        prgm_2classes = MotorImagery(n_classes=2, channels=src3_channels, resample=sfreq, fmin=fmin, fmax=fmax)
-        prgm_4classes = MotorImagery(n_classes=4, channels=src3_channels, resample=sfreq, fmin=fmin, fmax=fmax)
+        prgm_2classes = MotorImagery(n_classes=2, channels=common_channels, resample=sfreq, fmin=fmin, fmax=fmax)
+        prgm_4classes = MotorImagery(n_classes=4, channels=common_channels, resample=sfreq, fmin=fmin, fmax=fmax)
 
         print("Fetching data")
-        X_src1, label_src1, m_src1 = prgm_2classes.get_data(dataset=ds_src1, subjects=[subj for subj in range(1,53) if subj not in [32,46,49]])  # three subjects [32,46,49] were removed in the moabb implementation (see:http://moabb.neurotechx.com/docs/_modules/moabb/datasets/gigadb.html#Cho2017)
+        X_src1, label_src1, m_src1 = prgm_4classes.get_data(dataset=ds_src1, subjects=list(range(1,110)))  
         print("First source dataset has {} trials with {} electrodes and {} time samples".format(*X_src1.shape))
-        print ("\nSource dataset 1 include labels: {}".format(np.unique(label_src1)))
-        X_src2, label_src2, m_src2 = prgm_4classes.get_data(dataset=ds_src2, subjects=list(range(1,110)))  
+        print ("Source dataset 1 include labels: {}".format(np.unique(label_src1)))
+        X_src2, label_src2, m_src2 = prgm_4classes.get_data(dataset=ds_src2, subjects=list(range(1,10)))  
         print("Second source dataset has {} trials with {} electrodes and {} time samples".format(*X_src2.shape))
         print ("Source dataset 2 include labels: {}".format(np.unique(label_src2)))
-        X_src3, label_src3, m_src3 = prgm_4classes.get_data(dataset=ds_src3, subjects=list(range(1,10)))  
+        X_src3, label_src3, m_src3 = prgm_2classes.get_data(dataset=ds_src3, subjects=list(range(1,40)))  
         print("Third source dataset has {} trials with {} electrodes and {} time samples".format(*X_src3.shape))
         print ("Source dataset 3 include labels: {}".format(np.unique(label_src3)))
 
@@ -991,10 +995,10 @@ class MI():
 
         # Deleting trials of "other labels"
         print("Deleting trials from 'other labels'")
+        X_src1 = np.delete(X_src1,y_src1==2,0)
+        y_src1 = np.delete(y_src1,y_src1==2,0)
         X_src2 = np.delete(X_src2,y_src2==2,0)
         y_src2 = np.delete(y_src2,y_src2==2,0)
-        X_src3 = np.delete(X_src3,y_src3==2,0)
-        y_src3 = np.delete(y_src3,y_src3==2,0)
 
         ## windowing trails
         window_size = min(X_src1.shape[2], X_src2.shape[2], X_src3.shape[2])
@@ -1003,20 +1007,20 @@ class MI():
         X_src3 = X_src3[:, :, :window_size]
 
         ## Create group in h5 file
-        dummy_data = np.zeros((0,window_size,len(src3_channels)))
+        dummy_data = np.zeros((0,window_size,len(common_channels)))
         dummy_labels = np.zeros((0,1))
-        groups = ['Cho2017', 'PhysionetMI', 'BNCI2014001']
+        groups = ['PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
         X = [X_src1, X_src2, X_src3]
         Y = [y_src1, y_src2, y_src3]
-        with h5py.File(os.path.join(self.path, 'MI.h5'), 'a') as hf:
+        with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
-                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(src3_channels)))
+                g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(common_channels)))
                 g.create_dataset('labels', data=dummy_labels.astype('float32'), dtype='int_', maxshape=(None,1))
         
         ## Save data to h5 file
         for group, x, y in zip(groups,X,Y):
-            with h5py.File(os.path.join(self.path, 'MI.h5'), 'a') as hf:
+            with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
                 hf[group]['data'].resize((hf[group]['data'].shape[0] + x.shape[0]), axis = 0)
                 hf[group]['data'][-x.shape[0]:,:,:] = x.transpose((0,2,1))
                 hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y.shape[0]), axis = 0)
