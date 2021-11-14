@@ -197,9 +197,9 @@ def setup_pretty_table(flags):
 
     max_width = {}
     min_width = {}
-    # for n in t.field_names:
-    #     max_width.update({n: 15})
-    #     min_width.update({n: 15})
+    for n in t.field_names:
+        max_width.update({n: 15})
+        min_width.update({n: 15})
     t._min_width = min_width
     t._max_width = max_width
     t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])

@@ -443,24 +443,24 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         self.direct_fourier_0[200] = 0.5
         self.direct_fourier_1[400] = 0.5
 
-        def conv(signal):
-            blurred_signal = np.zeros_like(signal)
-            for i in range(1, np.shape(blurred_signal)[0]-1):
-                blurred_signal[i] = np.mean(signal[i-1:i+1])
-            return blurred_signal
+        # def conv(signal):
+        #     blurred_signal = np.zeros_like(signal)
+        #     for i in range(1, np.shape(blurred_signal)[0]-1):
+        #         blurred_signal[i] = np.mean(signal[i-1:i+1])
+        #     return blurred_signal
 
-        plt.figure()
-        freq = np.linspace(0, 60, num=len(self.direct_fourier_0))
-        signal_0 = self.direct_fourier_0
-        for i in range(50):
-            signal_0 = conv(signal_0)
-        plt.plot(freq, signal_0)
-        signal_1 = self.direct_fourier_1
-        for i in range(50):
-            signal_1 = conv(signal_1)
-        plt.plot(freq, signal_1)
-        plt.yticks([])
-        plt.show()
+        # plt.figure()
+        # freq = np.linspace(0, 60, num=len(self.direct_fourier_0))
+        # signal_0 = self.direct_fourier_0
+        # for i in range(50):
+        #     signal_0 = conv(signal_0)
+        # plt.plot(freq, signal_0)
+        # signal_1 = self.direct_fourier_1
+        # for i in range(50):
+        #     signal_1 = conv(signal_1)
+        # plt.plot(freq, signal_1)
+        # plt.yticks([])
+        # plt.show()
 
         self.inverse_fourier_0 = copy.deepcopy(self.fourier_0)
         self.inverse_fourier_1 = copy.deepcopy(self.fourier_1)
@@ -1322,17 +1322,18 @@ class Video_dataset(Dataset):
         transform (callable, optional): Optional transform to be applied
             on a sample.
     """
-    def __init__(self, data_path, n_frames, transform=None, split=None):
-        self.data_path = data_path
+    def __init__(self, data_paths, n_frames, transform=None, split=None):
+        self.data_paths = data_paths
         self.n_frames = n_frames
         self.transform = transform
         self.targets = []
 
         self.folders = []
-        for label in os.listdir(self.data_path):
-            for rep in os.listdir(os.path.join(self.data_path, label)):
-                self.folders.append(os.path.join(self.data_path, label, rep))
-                self.targets.append(int(label)-1)
+        for speaker in self.data_paths:
+            for label in os.listdir(speaker):
+                for rep in os.listdir(os.path.join(speaker, label)):
+                    self.folders.append(os.path.join(speaker, label, rep))
+                    self.targets.append(int(label)-1)
 
         self.split = list(range(len(self.folders))) if split==None else split
 
@@ -1406,7 +1407,7 @@ class LSA64(Multi_Domain_Dataset):
     N_STEPS = 5001
     SETUP = 'seq'
     PRED_TIME = [19]
-    ENVS = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+    ENVS = [['001', '002'], ['003', '004'], ['005', '006'], ['007', '008'], ['009', '010']]
     INPUT_SHAPE = [3, 224, 224]
     OUTPUT_SIZE = 64
     CHECKPOINT_FREQ = 100
@@ -1435,32 +1436,35 @@ class LSA64(Multi_Domain_Dataset):
         self.val_names, self.val_loaders = [], []
         self.train_names, self.train_loaders = [], []
         for j, e in enumerate(self.ENVS):
+            datasets = []
 
-            env_path = os.path.join(flags.data_path, self.DATA_FOLDER, e)
+            env_name = e[0] + '-' + e[1]
+            env_paths = []
+            for speaker in e:
+                env_paths.append(os.path.join(flags.data_path, self.DATA_FOLDER, speaker))
 
-            # Get full environment dataset and define in/out split
-            full_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize)
+            full_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j, sort=True)
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=in_split)
+                in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
-                self.train_names.append(e + '_in')
+                self.train_names.append(env_name + '_in')
                 self.train_loaders.append(in_loader)
 
             # Make validation loaders
-            fast_in_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=in_split)
+            fast_in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
             fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            fast_out_dataset = Video_dataset(env_path, self.SEQ_LEN, transform=self.normalize, split=out_split)
+            fast_out_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=out_split)
             fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
             # Append to val containers
-            self.val_names.append(e + '_in')
+            self.val_names.append(env_name + '_in')
             self.val_loaders.append(fast_in_loader)
-            self.val_names.append(e + '_out')
+            self.val_names.append(env_name + '_out')
             self.val_loaders.append(fast_out_loader)
 
         # Define loss function
