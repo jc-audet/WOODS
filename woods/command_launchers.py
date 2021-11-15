@@ -4,6 +4,7 @@ TODO:
     Check Joblib library for parallel compute?"""
 import os
 import time
+import math
 import subprocess
 from multiprocessing import Pool
 
@@ -55,9 +56,7 @@ def slurm_launcher(commands):
         commands (List): List of list of string that consists of a python script call
     """
     mem_per_run = int(float(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS"]) // 1000)
-    print(int(os.environ["SLURM_NTASKS"]))
-    print(float(os.environ['SLURM_MEM_PER_NODE']))
-    print(mem_per_run)
+    mem_per_run = 10*math.floor(mem_per_run/10)
     with Pool(processes=int(os.environ["SLURM_NTASKS"])) as pool:
 
         processes = []
