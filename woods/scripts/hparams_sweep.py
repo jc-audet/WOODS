@@ -34,7 +34,7 @@ def make_args_list(flags):
                     if flags['unique_test_env'] is not None:
                         test_envs = flags['unique_test_env']
                     else:
-                        test_envs = range(datasets.num_environments(dataset))
+                        test_envs = datasets.get_sweep_envs(dataset)
                     for test_env in test_envs:
                         train_args = {}
                         train_args['objective'] = obj
@@ -50,6 +50,8 @@ def make_args_list(flags):
     for train_args in train_args_list:  
         command = ['python3', '-m woods.scripts.main train', '--sample_hparams', '--save']
         for k, v in sorted(train_args.items()):
+            if k == 'test_env' and v == 'None':
+                continue
             if isinstance(v, list):
                 v = ' '.join([str(v_) for v_ in v])
             elif isinstance(v, str):
@@ -65,7 +67,7 @@ if __name__ == '__main__':
     # Setup arguments
     parser.add_argument('--objective', nargs='+', type=str, choices=objectives.OBJECTIVES)
     parser.add_argument('--dataset', nargs='+', type=str, choices=datasets.DATASETS)
-    parser.add_argument('--unique_test_env', nargs='+', type=int)
+    parser.add_argument('--unique_test_env', nargs='+')
     # Hyperparameters argument
     parser.add_argument('--n_hparams', type=int, default=20)
     parser.add_argument('--n_trials', type=int, default=3)
@@ -75,10 +77,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
     flags = parser.parse_args()
-
-    # Check stuff
-    if flags.unique_test_env is not None:
-        assert len(flags.dataset) == 1, 'unique_test_env is only supported for single dataset'
 
     # Get args in a dict
     flags_dict = vars(flags)
@@ -99,10 +97,9 @@ if __name__ == '__main__':
             json.dump(flags_to_save, fp)
             
         # Create folders
-        os.mkdir(os.path.join(flags.save_path, 'logs'))
-        os.mkdir(os.path.join(flags.save_path, 'models'))
-        os.mkdir(os.path.join(flags.save_path, 'outputs'))
-
+        os.makedirs(os.path.join(flags.save_path, 'logs'), exist_ok=True)
+        os.makedirs(os.path.join(flags.save_path, 'models'), exist_ok=True)
+        os.makedirs(os.path.join(flags.save_path, 'outputs'), exist_ok=True)
 
     # Create command list and train_arguments
     command_list, train_args = make_args_list(flags_dict)

@@ -153,10 +153,10 @@ class CAP():
 
                 # Reshape and scale the data
                 sc = mne.decoding.Scaler(scalings='mean')
-                env_data = sc.fit_transform(env_data)
+                # env_data = sc.fit_transform(env_data)
                 env_data = np.transpose(env_data, (0,2,1))
 
-                with h5py.File(os.path.join(flags.data_path, 'physionet.org/CAP_DB.h5'), 'a') as hf:
+                with h5py.File(os.path.join(flags.data_path, 'physionet.org/CAP.h5'), 'a') as hf:
                     if j == 0:
                         g = hf.create_group('Machine' + str(i))
                         g.create_dataset('data', data=env_data.astype('float32'), dtype='float32', maxshape=(None, 3000, 19))
@@ -310,7 +310,7 @@ class CAP():
 
         return list(set.intersection(*_table))
     
-class SEDFx_DB():
+class SEDFx():
     """ Fetch the PhysioNet Sleep-EDF Database Expanded Dataset and preprocess it
     
     The download is automatic but if you want to manually download::
@@ -322,7 +322,7 @@ class SEDFx_DB():
     """
 
     def __init__(self, flags):
-        super(SEDFx_DB, self).__init__()
+        super(SEDFx, self).__init__()
 
         ## Download 
         download_process = subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/sleep-edfx/1.0.0/', '-P', flags.data_path])
@@ -333,11 +333,11 @@ class SEDFx_DB():
 
         ## Set labels
         label_dict = {  'Sleep stage W':0,
-                'Sleep stage 1':1,
-                'Sleep stage 2':2,
-                'Sleep stage 3':3,
-                'Sleep stage 4':4,
-                'Sleep stage R':5}
+                        'Sleep stage 1':1,
+                        'Sleep stage 2':2,
+                        'Sleep stage 3':3,
+                        'Sleep stage 4':4,
+                        'Sleep stage R':5}
 
         ## Get subjects from xls file
         SC_dict = {}
@@ -419,10 +419,10 @@ class SEDFx_DB():
 
                     # Reshape and scale the data
                     sc = mne.decoding.Scaler(scalings='mean')
-                    input_data = sc.fit_transform(input_data)
+                    # input_data = sc.fit_transform(input_data)
                     input_data = np.transpose(input_data, (0,2,1))
                     
-                    with h5py.File(os.path.join(flags.data_path, 'physionet.org/SEDFx_DB.h5'), 'a') as hf:
+                    with h5py.File(os.path.join(flags.data_path, 'physionet.org/SEDFx.h5'), 'a') as hf:
                         hf[age_group]['data'].resize((hf[age_group]['data'].shape[0] + input_data.shape[0]), axis = 0)
                         hf[age_group]['data'][-input_data.shape[0]:,:,:] = input_data
                         hf[age_group]['labels'].resize((hf[age_group]['labels'].shape[0] + labels.shape[0]), axis = 0)
@@ -434,13 +434,23 @@ class SEDFx_DB():
     def remove_useless(self, flags):
         """ Remove useless files """
 
-        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0/*')):
+        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry/*')):
             print("Removing: ", file)
             os.remove(file)
-        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0'))
-        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/capslpdb/1.0.0'))
-        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/capslpdb'))
-        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/capslpdb'))
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/sleep-telemetry'))
+        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/*')):
+            print("Removing: ", file)
+            os.remove(file)
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/sleep-cassette'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/sleep-cassette'))
+        for file in glob.glob(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0/*')):
+            print("Removing: ", file)
+            os.remove(file)
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx/1.0.0'))
+        print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx'))
+        os.rmdir(os.path.join(flags.data_path, 'physionet.org/files/sleep-edfx'))
         print("Removing Folder: ", os.path.join(flags.data_path, 'physionet.org/files'))
         os.rmdir(os.path.join(flags.data_path, 'physionet.org/files'))
         print("Removing: ", os.path.join(flags.data_path, 'physionet.org/robots.txt'))
@@ -650,16 +660,6 @@ def StockVolatility(flags):
 
         for i in range(0, len(labels[indx]), 1):
             chunked_labels[indx].append(data[indx][i:i + 1])
-
-    # for indx, val in enumerate(chunked_data):
-    #     for indx2, val2 in enumerate(chunked_data[indx]):
-    #         for indx3, val3 in enumerate(chunked_data[indx][indx2]):
-    #             chunked_data[indx][indx2][indx3] = float(chunked_data[indx][indx2][indx3])
-
-    # for indx, val in enumerate(chunked_labels):
-    #     for indx2, val2 in enumerate(chunked_labels[indx]):
-    #         for indx3, val3 in enumerate(chunked_labels[indx][indx2]):
-    #             chunked_labels[indx][indx2][indx3] = float(chunked_labels[indx][indx2][indx3])
 
     for indx, val in enumerate(chunked_data):
         chunked_data[indx] = np.expand_dims(np.array(chunked_data[indx]), axis=-1)

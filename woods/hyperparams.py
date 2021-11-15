@@ -138,8 +138,8 @@ def TCMNIST_step_train(sample):
             'batch_size': lambda r: 64
         }
 
-def CAP_DB_train(sample):
-    """ CAP_DB model hparam definition 
+def CAP_train(sample):
+    """ CAP model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -159,8 +159,8 @@ def CAP_DB_train(sample):
             'batch_size': lambda r: 8
         }
 
-def SEDFx_DB_train(sample):
-    """ SEDFx_DB model hparam definition 
+def SEDFx_train(sample):
+    """ SEDFx model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -280,16 +280,12 @@ def get_model_hparams(dataset_name):
     else:
         hyper_function = globals()[dataset_model]
 
-    hparams = hyper_function(sample)
+    hparams = hyper_function()
     
     return hparams
 
 def Basic_Fourier_model():
-    """ Spurious Fourier model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ Spurious Fourier model hparam definition """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -299,11 +295,7 @@ def Basic_Fourier_model():
     }
 
 def Spurious_Fourier_model():
-    """ Spurious Fourier model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ Spurious Fourier model hparam definition """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -313,11 +305,7 @@ def Spurious_Fourier_model():
     }
 
 def TMNIST_model():
-    """ TMNIST model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ TMNIST model hparam definition """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -327,11 +315,7 @@ def TMNIST_model():
     }
 
 def TCMNIST_seq_model():
-    """ TCMNIST_seq model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ TCMNIST_seq model hparam definition """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -341,11 +325,7 @@ def TCMNIST_seq_model():
     }
 
 def TCMNIST_step_model():
-    """ TCMNIST_step model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ TCMNIST_step model hparam definition """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
@@ -354,52 +334,32 @@ def TCMNIST_step_model():
         'state_size': 32
     }
 
-def CAP_DB_model():
-    """ CAP_DB model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+def CAP_model():
+    """ CAP model hparam definition """
     return {
         'model': 'deep4'
     }
 
-def SEDFx_DB_model():
-    """ SEDFx_DB model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+def SEDFx_model():
+    """ SEDFx model hparam definition """
     return {
         'model': 'deep4'
     }
 
 def MI_model():
-    """ MI model hparam definition
-
-    Args:
-    sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ MI model hparam definition"""
     return {
         'model': 'deep4'
     }
 
 def HAR_model():
-    """ HAR model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ HAR model hparam definition """
     return {
         'model': 'deep4',
     }
 
 def LSA64_model():
-    """ LSA64 model hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ LSA64 model hparam definition """
     return {
         'model': 'CRNN',
         # Classifier
@@ -414,11 +374,7 @@ def LSA64_model():
     }
 
 def StockVolatility_model():
-    """ StockVolatility model hparam definition 
-
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
+    """ StockVolatility model hparam definition """
     return {
         'model': 'LSTM',
         'hidden_depth': 1, 
