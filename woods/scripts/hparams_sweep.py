@@ -93,14 +93,15 @@ if __name__ == '__main__':
             existing_config = json.load(f)
         assert existing_config == flags_to_save, 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'
     else:
-        with open(os.path.join(flags.save_path,'sweep_config.json'), 'w') as fp:
-            json.dump(flags_to_save, fp)
-            
         # Create folders
+        os.makedirs(flags.save_path, exist_ok=True)
         os.makedirs(os.path.join(flags.save_path, 'logs'), exist_ok=True)
         os.makedirs(os.path.join(flags.save_path, 'models'), exist_ok=True)
         os.makedirs(os.path.join(flags.save_path, 'outputs'), exist_ok=True)
 
+        with open(os.path.join(flags.save_path,'sweep_config.json'), 'w') as fp:
+            json.dump(flags_to_save, fp)
+            
     # Create command list and train_arguments
     command_list, train_args = make_args_list(flags_dict)
 
