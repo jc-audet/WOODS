@@ -266,14 +266,14 @@ class Multi_Domain_Dataset:
     def __init__(self):
         pass
 
-    def loss_fn(self, input, target):
+    def loss_fn(self, output, target):
         """ Computes the loss 
         
         Args:
-            input (Tensor): prediction tensor
+            output (Tensor): prediction tensor
             target (Tensor): Target tensor
         """
-        return self.loss(self.log_prob(input), target)
+        return self.loss(self.log_prob(output), target)
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -937,10 +937,9 @@ class TCMNIST_step(TCMNIST):
     def __init__(self, flags, training_hparams):
         super(TCMNIST_step, self).__init__(flags)
 
+        # Check stuff
         if flags.test_env is not None:
             assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
-        else:
-            warnings.warn("You don't have any test environment")
 
         ## Save stuff
         self.test_env = flags.test_env
@@ -952,7 +951,8 @@ class TCMNIST_step(TCMNIST):
         self.val_names, self.val_loaders = [], []
 
         # Permute env/steps
-        self.ENVS[-1], self.ENVS[self.test_env] = self.ENVS[self.test_env], self.ENVS[-1]
+        if self.test_env is not None:
+            self.ENVS[-1], self.ENVS[self.test_env] = self.ENVS[self.test_env], self.ENVS[-1]
 
         ## Make the color datasets
         # Stack a second color channel
@@ -1156,6 +1156,15 @@ class EEG_DB(Multi_Domain_Dataset):
 
         return weights
 
+    def loss_fn(self, output, target):
+        """ Computes the loss 
+        
+        Args:
+            output (Tensor): prediction tensor
+            target (Tensor): Target tensor
+        """
+        return self.loss(output, target)
+
 class CAP(EEG_DB):
     """ CAP Sleep stage dataset
 
@@ -1176,6 +1185,8 @@ class CAP(EEG_DB):
     Note:
         This dataset need to be downloaded and preprocessed. This can be done with the download.py script.
     """
+    ## Training parameters
+    N_STEPS = 10001
     ## Dataset parameters
     TASK = 'classification'
     SEQ_LEN = 3000
@@ -1210,7 +1221,7 @@ class SEDFx(EEG_DB):
         This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
     ## Training parameters
-    N_STEPS = 15001
+    N_STEPS = 10001
     
     ## Dataset parameters
     TASK = 'classification'
@@ -1240,6 +1251,8 @@ class MI(EEG_DB):
 
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
+    ## Training parameters
+    N_STEPS = 10001
     ## Dataset parameters
     TASK = 'classification'
     SEQ_LEN = 750

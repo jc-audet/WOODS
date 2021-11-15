@@ -193,7 +193,10 @@ def setup_pretty_table(flags):
     if setup == 'seq':
         t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
     if setup == 'step':
-        t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+        if flags.test_env is not None:
+            t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+        else:
+            t.field_names = ['Env'] + [str(e) for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
 
     max_width = {}
     min_width = {}
