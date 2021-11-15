@@ -307,31 +307,31 @@ def Spurious_Fourier_model():
 def TMNIST_model():
     """ TMNIST model hparam definition """
     return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
+        'model': 'MNIST_LSTM',
+        'hidden_depth': 3, 
+        'hidden_width': 64,
+        'recurrent_layers': 1,
+        'state_size': 128
     }
 
 def TCMNIST_seq_model():
     """ TCMNIST_seq model hparam definition """
     return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
+        'model': 'MNIST_LSTM',
+        'hidden_depth': 3, 
+        'hidden_width': 64,
+        'recurrent_layers': 1,
+        'state_size': 128
     }
 
 def TCMNIST_step_model():
     """ TCMNIST_step model hparam definition """
     return {
-        'model': 'LSTM',
-        'hidden_depth': 1, 
-        'hidden_width': 20,
-        'recurrent_layers': 2,
-        'state_size': 32
+        'model': 'MNIST_LSTM',
+        'hidden_depth': 3, 
+        'hidden_width': 64,
+        'recurrent_layers': 1,
+        'state_size': 128
     }
 
 def CAP_model():

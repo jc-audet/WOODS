@@ -615,7 +615,7 @@ class TMNIST(Multi_Domain_Dataset):
     TASK = 'classification'
     SEQ_LEN = 4
     PRED_TIME = [1, 2, 3]
-    INPUT_SHAPE = [28,28]
+    INPUT_SHAPE = [1,28,28]
     OUTPUT_SIZE = 2
 
     ## Environment parameters
@@ -632,7 +632,9 @@ class TMNIST(Multi_Domain_Dataset):
         self.batch_size = training_hparams['batch_size']
 
         ## Import original MNIST data
-        MNIST_tfrm = transforms.Compose([ transforms.ToTensor() ])
+        MNIST_tfrm = transforms.Compose([ 
+            transforms.ToTensor(),
+            ])
 
         # Get MNIST data
         train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
@@ -643,7 +645,7 @@ class TMNIST(Multi_Domain_Dataset):
         MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
         # Create sequences of 3 digits
-        TMNIST_images = MNIST_images.reshape(-1,self.SEQ_LEN,1,28,28)
+        TMNIST_images = MNIST_images.reshape(-1,self.SEQ_LEN,1,28,28) / 255.
 
         # With their corresponding label
         TMNIST_labels = MNIST_labels.reshape(-1,self.SEQ_LEN)
@@ -754,7 +756,7 @@ class TCMNIST(Multi_Domain_Dataset):
         MNIST_labels = torch.cat((train_ds.targets, test_ds.targets))
 
         # Create sequences of 3 digits
-        self.TCMNIST_images = MNIST_images.reshape(-1, self.SEQ_LEN, 28, 28)
+        self.TCMNIST_images = MNIST_images.reshape(-1, self.SEQ_LEN, 28, 28) / 255.
 
         # With their corresponding label
         TCMNIST_labels = MNIST_labels.reshape(-1, self.SEQ_LEN)
@@ -1065,7 +1067,8 @@ class H5_dataset(Dataset):
         split_idx = self.split[idx]
         
         seq = torch.as_tensor(self.data[split_idx, ...])
-        seq = (seq - seq.mean()) / seq.std() # z-score normalization 
+        seq = (seq - seq.mean(dim=0, keepdim=True)) / seq.std(dim=0, keepdim=True) # z-score normalization 
+        # seq = (seq - seq.mean()) / seq.std() # z-score normalization 
         labels = torch.as_tensor(self.targets[split_idx])
 
         return (seq, labels)
