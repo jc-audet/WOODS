@@ -55,6 +55,7 @@ def slurm_launcher(commands):
         commands (List): List of list of string that consists of a python script call
     """
     mem_per_run = int(float(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS"]) // 1000)
+    print(mem_per_run)
     with Pool(processes=int(os.environ["SLURM_NTASKS"])) as pool:
 
         processes = []
