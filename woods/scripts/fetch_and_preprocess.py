@@ -44,9 +44,6 @@ from moabb.datasets import BNCI2014001, PhysionetMI, Lee2019_MI
 from moabb.paradigms import MotorImagery
 from moabb import utils
 
-# For LSA64 dataset
-from mega import Mega
-
 class CAP():
     """ Fetch the data from the PhysioNet website and preprocess it 
 
