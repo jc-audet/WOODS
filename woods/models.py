@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torchvision import models
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 # new package
@@ -33,7 +34,7 @@ class shallow(nn.Module):
         super(shallow, self).__init__()
 
         # Save stuff
-        self.input_size = math.prod(dataset.INPUT_SHAPE)
+        self.input_size = np.prod(dataset.INPUT_SHAPE)
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
 
@@ -55,7 +56,7 @@ class EEGResNet_bd(nn.Module):
         super(EEGResNet_bd, self).__init__()
 
         # Save stuff
-        self.input_size = dataset.INPUT_SIZE #math.prod(dataset.INPUT_SHAPE)
+        self.input_size = np.prod(dataset.INPUT_SHAPE)
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
 
@@ -80,7 +81,7 @@ class deep4(nn.Module):
         super(deep4, self).__init__()
 
         # Save stuff
-        self.input_size = math.prod(dataset.INPUT_SHAPE)
+        self.input_size = np.prod(dataset.INPUT_SHAPE)
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
 
@@ -134,7 +135,7 @@ class LSTM(nn.Module):
         self.recurrent_layers = model_hparams['recurrent_layers']
 
         # Dataset parameters
-        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
 
         ## Recurrent model
@@ -234,7 +235,7 @@ class ATTN_LSTM(nn.Module):
         self.hidden_width = model_hparams['hidden_width']
 
         # Dataset parameters
-        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
 
         # Recurrent model
@@ -335,7 +336,7 @@ class shallow(nn.Module):
 
         ## Save stuff
         # Dataset parameters
-        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
 
@@ -388,7 +389,7 @@ class CRNN(nn.Module):
         self.fc_hidden1, self.fc_hidden2 = model_hparams['fc_hidden']
         self.CNN_embed_dim = model_hparams['CNN_embed_dim']
         # Data parameters
-        self.input_size = math.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
 
 
