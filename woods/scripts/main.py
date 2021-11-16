@@ -95,7 +95,7 @@ if __name__ == '__main__':
     _, in_loaders = dataset.get_train_loaders()
 
     # Make some checks about the dataset
-    if len(in_loaders) == 1:
+    if datasets.num_environments(flags.dataset) == 1:
         assert flags.objective == 'ERM', "Dataset has only one environment, cannot compute multi-environment penalties"
 
     ## Setting trial seed

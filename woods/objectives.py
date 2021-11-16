@@ -81,7 +81,7 @@ class ERM(Objective):
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx], labels_split[i,:,t_idx])
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx,:], labels_split[i,:,t_idx])
 
         objective = env_losses.mean()
 
@@ -140,12 +140,11 @@ class IRM(ERM):
         out_split, labels_split = dataset.split_data(out, all_y)
 
         penalty = 0
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
-                penalty += self._irm_penalty(out_split[i, :, t_idx, :], labels_split[i,:,t_idx])
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
+                env_losses[i] += self.loss_fn(out_split[i,:,t_idx,:], labels_split[i,:,t_idx]) 
+                penalty += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
 
         penalty = penalty / out_split.shape[0]
         objective = env_losses.mean() + (penalty_weight * penalty)
@@ -194,10 +193,9 @@ class VREx(ERM):
 
         out_split, labels_split = dataset.split_data(out, all_y)
 
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
         mean = env_losses.mean()
@@ -242,10 +240,9 @@ class SD(ERM):
         out_split, labels_split = dataset.split_data(out, all_y)
 
         penalty = 0
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
                 penalty += (out_split[i, :, t_idx, :] ** 2).mean()
 
@@ -301,10 +298,9 @@ class ANDMask(ERM):
 
         out_split, labels_split = dataset.split_data(out, all_y)
 
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
         param_gradients = [[] for _ in self.model.parameters()]
@@ -345,14 +341,14 @@ class IGA(ERM):
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
         ts = torch.tensor(dataset.PRED_TIME).to(device)
+
         out = self.predict(all_x, ts, device)
 
         out_split, labels_split = dataset.split_data(out, all_y)
 
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
         # Get the gradients
@@ -363,7 +359,7 @@ class IGA(ERM):
                                         create_graph=True)
 
             grads.append(env_grad)
-            
+
         # Compute the mean loss and mean loss gradient
         mean_loss = env_losses.mean()
         mean_grad = autograd.grad(mean_loss, self.model.parameters(), 
@@ -381,8 +377,6 @@ class IGA(ERM):
         self.optimizer.zero_grad()
         objective.backward()
         self.optimizer.step()
-        
-        
         
 class Fish(Objective):
     """
@@ -426,18 +420,17 @@ class Fish(Objective):
 
         out_split, labels_split = dataset.split_data(out, all_y)
 
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn_inner(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
         param_gradients = [[] for _ in self.model_inner.parameters()]
         for env_loss in env_losses:
-
             env_grads = autograd.grad(env_loss, self.model_inner.parameters(), retain_graph=True)
             for grads, env_grad in zip(param_gradients, env_grads):
                 grads.append(env_grad)
+                
       # Compute the meta penalty and update objective 
         mean_loss = env_losses.mean()
         meta_grad = autograd.grad(mean_loss, self.model.parameters(), 
@@ -453,9 +446,6 @@ class Fish(Objective):
         self.optimizer.zero_grad()
         objective.backward()
         self.optimizer.step()
-        
-        
-
         
 class SANDMask(ERM):
     """
@@ -509,14 +499,14 @@ class SANDMask(ERM):
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
         ts = torch.tensor(dataset.PRED_TIME).to(device)
+
         out = self.predict(all_x, ts, device)
 
         out_split, labels_split = dataset.split_data(out, all_y)
 
-        env_losses = torch.zeros(len(minibatches_device)).to(device)
-        for i, (x, y) in enumerate(minibatches_device):
-
-            for t_idx in range(y.shape[1]):     # Number of time steps
+        env_losses = torch.zeros(out_split.shape).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
         param_gradients = [[] for _ in self.model.parameters()]
