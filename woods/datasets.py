@@ -8,7 +8,7 @@ import warnings
 
 import scipy.io
 import numpy as np
-from scipy import fft
+from scipy import fft, signal
 import matplotlib.pyplot as plt
 
 import torch
@@ -16,7 +16,6 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
-import matplotlib.pyplot as plt
 
 DATASETS = [
     # 1D datasets
@@ -1066,7 +1065,9 @@ class H5_dataset(Dataset):
 
         split_idx = self.split[idx]
         
-        seq = torch.as_tensor(self.data[split_idx, ...])
+        seq = self.data[split_idx, ...]
+        seq = signal.detrend(seq, axis=0) # detrending
+        seq = torch.as_tensor(seq, dtype=torch.float32)
         seq = (seq - seq.mean(dim=0, keepdim=True)) / seq.std(dim=0, keepdim=True) # z-score normalization 
         # seq = (seq - seq.mean()) / seq.std() # z-score normalization 
         labels = torch.as_tensor(self.targets[split_idx])
@@ -1074,7 +1075,7 @@ class H5_dataset(Dataset):
         return (seq, labels)
 
     def close(self):
-        """ Close the hdf5 file link """
+        """ Close the hdf5 file link """    
         self.hdf.close()
 
 class EEG_DB(Multi_Domain_Dataset):
@@ -1196,7 +1197,7 @@ class CAP(EEG_DB):
     PRED_TIME = [2999]
     INPUT_SHAPE = [19]
     OUTPUT_SIZE = 6
-    DATA_PATH = 'physionet.org/CAP.h5'
+    DATA_PATH = 'CAP/CAP.h5'
 
     ## Environment parameters
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
@@ -1232,7 +1233,7 @@ class SEDFx(EEG_DB):
     PRED_TIME = [2999]
     INPUT_SHAPE = [4]
     OUTPUT_SIZE = 6
-    DATA_PATH = 'physionet.org/SEDFx.h5'
+    DATA_PATH = 'SEDFx/SEDFx.h5'
 
     ## Environment parameters
     ENVS = ['Age 20-40', 'Age 40-60', 'Age 60-80','Age 80-100']
@@ -1258,8 +1259,8 @@ class MI(EEG_DB):
     N_STEPS = 10001
     ## Dataset parameters
     TASK = 'classification'
-    SEQ_LEN = 750
-    PRED_TIME = [749]
+    SEQ_LEN = 752
+    PRED_TIME = [751]
     INPUT_SHAPE = [21]
     OUTPUT_SIZE = 2
     DATA_PATH = 'MI/MI.h5'

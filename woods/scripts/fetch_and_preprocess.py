@@ -153,7 +153,9 @@ class CAP():
                 # env_data = sc.fit_transform(env_data)
                 env_data = np.transpose(env_data, (0,2,1))
 
-                with h5py.File(os.path.join(flags.data_path, 'physionet.org/CAP.h5'), 'a') as hf:
+                preprocessed_path = os.path.join(flags.data_path, 'CAP')
+                os.makedirs(preprocessed_path, exist_ok=True)
+                with h5py.File(os.path.join(preprocessed_path, 'CAP.h5'), 'a') as hf:
                     if j == 0:
                         g = hf.create_group('Machine' + str(i))
                         g.create_dataset('data', data=env_data.astype('float32'), dtype='float32', maxshape=(None, 3000, 19))
@@ -419,7 +421,9 @@ class SEDFx():
                     # input_data = sc.fit_transform(input_data)
                     input_data = np.transpose(input_data, (0,2,1))
                     
-                    with h5py.File(os.path.join(flags.data_path, 'physionet.org/SEDFx.h5'), 'a') as hf:
+                    preprocessed_path = os.path.join(flags.data_path, 'SEDFx')
+                    os.makedirs(preprocessed_path, exist_ok=True)
+                    with h5py.File(os.path.join(preprocessed_path, 'SEDFx.h5'), 'a') as hf:
                         hf[age_group]['data'].resize((hf[age_group]['data'].shape[0] + input_data.shape[0]), axis = 0)
                         hf[age_group]['data'][-input_data.shape[0]:,:,:] = input_data
                         hf[age_group]['labels'].resize((hf[age_group]['labels'].shape[0] + labels.shape[0]), axis = 0)
