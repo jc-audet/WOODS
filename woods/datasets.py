@@ -1511,7 +1511,7 @@ class LSA64(Multi_Domain_Dataset):
     DATA_PATH = 'LSA64'
 
     ## Environment parameters
-    ENVS = [['001', '002'], ['003', '004'], ['005', '006'], ['007', '008'], ['009', '010']]
+    ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
@@ -1536,11 +1536,9 @@ class LSA64(Multi_Domain_Dataset):
         for j, e in enumerate(self.ENVS):
             datasets = []
 
-            env_name = e[0] + '-' + e[1]
             env_paths = []
-            for speaker in e:
+            for speaker in e.split('-'):
                 env_paths.append(os.path.join(flags.data_path, self.DATA_PATH, speaker))
-
             full_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize)
             in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j)
 
@@ -1548,21 +1546,21 @@ class LSA64(Multi_Domain_Dataset):
             if j != flags.test_env:
                 in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
-                self.train_names.append(env_name + '_in')
+                self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
 
             # Make validation loaders
             fast_in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
-            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=32, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             fast_out_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=out_split)
-            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=32, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
             # Append to val containers
-            self.val_names.append(env_name + '_in')
+            self.val_names.append(e + '_in')
             self.val_loaders.append(fast_in_loader)
-            self.val_names.append(env_name + '_out')
+            self.val_names.append(e + '_out')
             self.val_loaders.append(fast_out_loader)
 
         # Define loss function

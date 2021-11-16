@@ -77,7 +77,6 @@ class ERM(Objective):
         out = self.predict(all_x, ts, device)
 
         out_split, labels_split = dataset.split_data(out, all_y)
-
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
