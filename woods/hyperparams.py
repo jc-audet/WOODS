@@ -434,8 +434,8 @@ def IRM_hyper(sample):
         }
     else:
         return {
-            'penalty_weight': lambda r: 1e4,
-            'anneal_iters': lambda r: 10
+            'penalty_weight': lambda r: 1e2,
+            'anneal_iters': lambda r: 500
         }
 
 def VREx_hyper(sample):
@@ -451,8 +451,8 @@ def VREx_hyper(sample):
         }
     else:
         return {
-            'penalty_weight': lambda r: 1e4,
-            'anneal_iters': lambda r: 10
+            'penalty_weight': lambda r: 1e2,
+            'anneal_iters': lambda r: 500
         }
 
 def SD_hyper(sample):
@@ -463,7 +463,7 @@ def SD_hyper(sample):
     """
     if sample:
         return {
-            'penalty_weight': lambda r: 10**r.uniform(-2,2)
+            'penalty_weight': lambda r: 10**r.uniform(-5,-1)
         }
     else:
         return {
