@@ -212,7 +212,7 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
         batch_sampler = torch.utils.data.BatchSampler(sampler, batch_size, drop_last=True)
 
         self.infinite_iterator = iter(
-            torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers)
+            torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=True)
         )
 
     def __iter__(self):
