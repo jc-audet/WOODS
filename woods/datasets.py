@@ -202,7 +202,7 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
         batch_size (int): Batch size of the dataset
         num_workers (int, optional): Number of workers to use for the data loading. Defaults to 0.
     """
-    def __init__(self, dataset, batch_size, num_workers=0):
+    def __init__(self, dataset, batch_size, num_workers=0, pin_memory=False):
         super(InfiniteLoader, self).__init__()
 
         self.dataset = dataset
@@ -212,7 +212,7 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
         batch_sampler = torch.utils.data.BatchSampler(sampler, batch_size, drop_last=True)
 
         self.infinite_iterator = iter(
-            torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=True)
+            torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=pin_memory)
         )
 
     def __iter__(self):
@@ -1103,7 +1103,7 @@ class EEG_DB(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_PATH), e, split=in_split)
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -1495,8 +1495,8 @@ class LSA64(Multi_Domain_Dataset):
     DATA_PATH = 'LSA64'
 
     ## Environment parameters
-    # ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
-    ENVS = ['001', '003', '005', '007', '009']
+    ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
+    # ENVS = ['001', '003', '005', '007', '009']
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
@@ -1530,7 +1530,7 @@ class LSA64(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
 
@@ -1653,7 +1653,7 @@ class HAR(Multi_Domain_Dataset):
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
