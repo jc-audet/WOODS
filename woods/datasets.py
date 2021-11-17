@@ -471,29 +471,17 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         self.direct_fourier_0[200] = 0.5
         self.direct_fourier_1[400] = 0.5
 
-        # def conv(signal):
-        #     blurred_signal = np.zeros_like(signal)
-        #     for i in range(1, np.shape(blurred_signal)[0]-1):
-        #         blurred_signal[i] = np.mean(signal[i-1:i+1])
-        #     return blurred_signal
+        def conv(signal):
+            blurred_signal = np.zeros_like(signal)
+            for i in range(1, np.shape(blurred_signal)[0]-1):
+                blurred_signal[i] = np.mean(signal[i-1:i+1])
+            return blurred_signal
 
-        # plt.figure()
-        # freq = np.linspace(0, 60, num=len(self.direct_fourier_0))
-        # signal_0 = self.direct_fourier_0
-        # for i in range(50):
-        #     signal_0 = conv(signal_0)
-        # plt.plot(freq, signal_0)
-        # signal_1 = self.direct_fourier_1
-        # for i in range(50):
-        #     signal_1 = conv(signal_1)
-        # plt.plot(freq, signal_1)
-        # plt.yticks([])
-        # plt.show()
 
         self.inverse_fourier_0 = copy.deepcopy(self.fourier_0)
         self.inverse_fourier_1 = copy.deepcopy(self.fourier_1)
         self.inverse_fourier_0[400] = 0.5
-        self.inverse_fourier_1[250] = 0.5
+        self.inverse_fourier_1[200] = 0.5
 
         ## Create the sequences for direct and inverse
         direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)
@@ -1065,11 +1053,7 @@ class H5_dataset(Dataset):
 
         split_idx = self.split[idx]
         
-        seq = self.data[split_idx, ...]
-        seq = signal.detrend(seq, axis=0) # detrending
-        seq = torch.as_tensor(seq, dtype=torch.float32)
-        seq = (seq - seq.mean(dim=0, keepdim=True)) / seq.std(dim=0, keepdim=True) # z-score normalization 
-        # seq = (seq - seq.mean()) / seq.std() # z-score normalization 
+        seq = torch.as_tensor(self.data[split_idx, ...])
         labels = torch.as_tensor(self.targets[split_idx])
 
         return (seq, labels)
@@ -1119,7 +1103,7 @@ class EEG_DB(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_PATH), e, split=in_split)
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -1190,7 +1174,7 @@ class CAP(EEG_DB):
         This dataset need to be downloaded and preprocessed. This can be done with the download.py script.
     """
     ## Training parameters
-    N_STEPS = 10001
+    N_STEPS = 5001
     ## Dataset parameters
     TASK = 'classification'
     SEQ_LEN = 3000
@@ -1511,7 +1495,8 @@ class LSA64(Multi_Domain_Dataset):
     DATA_PATH = 'LSA64'
 
     ## Environment parameters
-    ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
+    # ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
+    ENVS = ['001', '003', '005', '007', '009']
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):

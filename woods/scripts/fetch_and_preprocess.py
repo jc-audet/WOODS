@@ -27,7 +27,7 @@ import pyedflib
 from woods.datasets import DATASETS
 
 # Preprocessing tools imports
-from scipy.signal import resample
+from scipy.signal import resample, detrend
 from sklearn.preprocessing import scale
 
 # Torch import
@@ -43,6 +43,8 @@ from pytorchvideo.transforms import UniformTemporalSubsample
 from moabb.datasets import BNCI2014001, PhysionetMI, Lee2019_MI
 from moabb.paradigms import MotorImagery
 from moabb import utils
+
+import matplotlib.pyplot as plt
 
 class CAP():
     """ Fetch the data from the PhysioNet website and preprocess it 
@@ -148,11 +150,13 @@ class CAP():
                 env_data = np.append(env_data, seq, axis=0)
                 env_labels = np.append(env_labels, labels, axis=0)
 
-                # Reshape and scale the data
+                # Detrend, scale and reshape the data
                 sc = mne.decoding.Scaler(scalings='mean')
-                # env_data = sc.fit_transform(env_data)
+                env_data = detrend(env_data, axis=2) # detrending
+                env_data = sc.fit_transform(env_data) # Normalizing
                 env_data = np.transpose(env_data, (0,2,1))
 
+                # Save the data
                 preprocessed_path = os.path.join(flags.data_path, 'CAP')
                 os.makedirs(preprocessed_path, exist_ok=True)
                 with h5py.File(os.path.join(preprocessed_path, 'CAP.h5'), 'a') as hf:
@@ -166,7 +170,7 @@ class CAP():
                         hf['Machine' + str(i)]['labels'].resize((hf['Machine' + str(i)]['labels'].shape[0] + env_labels.shape[0]), axis = 0)
                         hf['Machine' + str(i)]['labels'][-env_labels.shape[0]:,:] = env_labels
         
-        # Remove useless files
+        ## Remove useless files
         self.remove_useless(flags)
 
     def remove_useless(self, flags):
@@ -326,7 +330,7 @@ class SEDFx():
         ## Download 
         download_process = subprocess.Popen(['wget', '-r', '-N', '-c', '-np', 'https://physionet.org/files/sleep-edfx/1.0.0/', '-P', flags.data_path])
         download_process.wait()
-        
+
         ## Process data into machines
         common_channels = self.gather_EEG(flags)
 
@@ -364,7 +368,9 @@ class SEDFx():
         dummy_data = np.zeros((0,3000,4))
         dummy_labels = np.zeros((0,1))
         groups = ['Age 20-40', 'Age 40-60', 'Age 60-80', 'Age 80-100']
-        with h5py.File(os.path.join(flags.data_path, 'physionet.org/SEDFx_DB.h5'), 'a') as hf:
+        preprocessed_path = os.path.join(flags.data_path, 'SEDFx')
+        os.makedirs(preprocessed_path, exist_ok=True)
+        with h5py.File(os.path.join(preprocessed_path, 'SEDFx.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
                 g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, 3000, 4))
@@ -418,18 +424,17 @@ class SEDFx():
 
                     # Reshape and scale the data
                     sc = mne.decoding.Scaler(scalings='mean')
-                    # input_data = sc.fit_transform(input_data)
+                    input_data = detrend(input_data, axis=2) # detrending
+                    input_data = sc.fit_transform(input_data) # Normalizing
                     input_data = np.transpose(input_data, (0,2,1))
                     
-                    preprocessed_path = os.path.join(flags.data_path, 'SEDFx')
-                    os.makedirs(preprocessed_path, exist_ok=True)
                     with h5py.File(os.path.join(preprocessed_path, 'SEDFx.h5'), 'a') as hf:
                         hf[age_group]['data'].resize((hf[age_group]['data'].shape[0] + input_data.shape[0]), axis = 0)
                         hf[age_group]['data'][-input_data.shape[0]:,:,:] = input_data
                         hf[age_group]['labels'].resize((hf[age_group]['labels'].shape[0] + labels.shape[0]), axis = 0)
                         hf[age_group]['labels'][-labels.shape[0]:,:] = labels
 
-        # # Remove useless files
+        # Remove useless files
         self.remove_useless(flags)
 
     def remove_useless(self, flags):
