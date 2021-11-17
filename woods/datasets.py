@@ -237,7 +237,7 @@ class Multi_Domain_Dataset:
     #:int: The frequency of results update
     CHECKPOINT_FREQ = 100
     #:int: The number of workers used for fast dataloaders used for validation
-    N_WORKERS = 8
+    N_WORKERS = 4
 
     ## Dataset parameters
     #:string: The setup of the dataset ('seq' or 'step')
