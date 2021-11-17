@@ -237,7 +237,7 @@ class Multi_Domain_Dataset:
     #:int: The frequency of results update
     CHECKPOINT_FREQ = 100
     #:int: The number of workers used for fast dataloaders used for validation
-    N_WORKERS = 4
+    N_WORKERS = 8
 
     ## Dataset parameters
     #:string: The setup of the dataset ('seq' or 'step')
@@ -1481,7 +1481,7 @@ class LSA64(Multi_Domain_Dataset):
     """
     ## Training parameters
     N_STEPS = 5001
-    CHECKPOINT_FREQ = 100
+    CHECKPOINT_FREQ = 500
 
     ## Dataset parameters
     SETUP = 'seq'
@@ -1496,7 +1496,6 @@ class LSA64(Multi_Domain_Dataset):
 
     ## Environment parameters
     ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
-    # ENVS = ['001', '003', '005', '007', '009']
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
