@@ -1431,16 +1431,15 @@ class Video_dataset(Dataset):
         Returns:
             Tensor: images tensor (n_frames, 3, 224, 224)
         """
-        # X = []
-        X = torch.zeros(self.n_frames, 3, 224, 224)
+        X = []
         for i in range(self.n_frames):
             image = Image.open(os.path.join(selected_folder, 'frame_{:06d}.jpg'.format(i)))
 
             if use_transform is not None:
                 image = use_transform(image)
-            X[i,...] = image
-            # X.append(image)
-        # X = torch.stack(X, dim=0)
+
+            X.append(image)
+        X = torch.stack(X, dim=0)
 
         return X
 
