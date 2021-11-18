@@ -395,7 +395,6 @@ class ATTN_LSTM(nn.Module):
             seq_arr.append(lin)
             if i != self.hidden_depth:
                 seq_arr.append(nn.ReLU(True))
-        seq_arr.append(nn.LogSoftmax(dim=1))
         self.classifier = nn.Sequential(*seq_arr)
 
     def forward(self, input, time_pred):
