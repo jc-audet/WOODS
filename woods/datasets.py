@@ -1534,7 +1534,7 @@ class LSA64(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=0)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
 
