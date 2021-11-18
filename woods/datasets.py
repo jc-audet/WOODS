@@ -1432,7 +1432,7 @@ class Video_dataset(Dataset):
             Tensor: images tensor (n_frames, 3, 224, 224)
         """
         # X = []
-        X = torch.zeros(slef.n_frames, 3, 224, 224)
+        X = torch.zeros(self.n_frames, 3, 224, 224)
         for i in range(self.n_frames):
             image = Image.open(os.path.join(selected_folder, 'frame_{:06d}.jpg'.format(i)))
 
