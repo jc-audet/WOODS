@@ -83,7 +83,44 @@ def get_chosen_test_acc(records, selection_name):
         val_acc_arr.append(val_acc_dict[best_seed])
         test_acc_arr.append(test_acc_dict[best_seed])
 
-    return np.mean(val_acc_arr), np.std(val_acc_arr) / np.sqrt(len(val_acc_arr)), np.mean(test_acc_arr), np.std(test_acc_arr) / np.sqrt(len(test_acc_arr))
+    return np.mean(val_acc_arr, axis=0), np.std(val_acc_arr, axis=0) / np.sqrt(len(val_acc_arr)), np.mean(test_acc_arr, axis=0), np.std(test_acc_arr, axis=0) / np.sqrt(len(test_acc_arr))
+
+def IID_validation(records):
+    """ Return the IID validation model section accuracy of a single training run. This is for ONLY for sweeps with no test environments
+
+        max_{step in checkpoint}( mean(train_envs) )
+
+    Args:
+        records ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+
+    # Make copy of record
+    records = copy.deepcopy(records)
+
+    flags = records.pop('flags')
+    hparams = records.pop('hparams')
+    env_name = datasets.get_environments(flags['dataset'])
+
+    val_keys = [str(e)+'_out_acc' for e in env_name]
+
+    val_dict = {}
+    val_arr_dict = {}
+    for step, step_dict in records.items():
+
+        val_array = [step_dict[k] for k in val_keys]
+        val_arr_dict[step] = copy.deepcopy(val_array)
+        val_dict[step] = np.mean(val_array)
+
+    ## Picking the max value from a dict
+    # Fastest:
+    best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
+    # Cleanest:
+    # best_step = max(val_dict, key=val_dict.get)
+    
+    return val_arr_dict[best_step], val_arr_dict[best_step]
 
 def train_domain_validation(records):
     """ Return the train-domain validation model section accuracy of a single training run

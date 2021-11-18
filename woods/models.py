@@ -546,22 +546,43 @@ class CRNN(nn.Module):
             time_pred: Tensor, time prediction indexes
         """
         # Pass through Resnet
-        cnn_embed_seq = torch.zeros((input.shape[0], input.shape[1], self.CNN_embed_dim)).to(input.device)
-        for t in range(input.size(1)):
-            # ResNet CNN
-            with torch.no_grad():
-                x = self.resnet(input[:,t,...])  # ResNet
-                x = x.view(x.size(0), -1)        # flatten output of conv
+        # cnn_embed_seq = torch.zeros((input.shape[0], input.shape[1], self.CNN_embed_dim)).to(input.device)
 
-            # FC layers
-            x = self.cnn_fc(x)
+        # fig, ax = plt.subplots(20, figsize=(10, 10))
+        # for i in range(input.shape[1]):
+        #     ax[i].imshow(input[0, i, ...].permute(1, 2, 0).cpu().numpy())
+        # to_cnn = input.view(input.shape[0]*input.shape[1], *input.shape[2:])
+        # from_cnn = to_cnn.view(input.shape[0], input.shape[1], *input.shape[2:])
+        # fig, ax = plt.subplots(20, figsize=(10, 10))
+        # for i in range(input.shape[1]):
+        #     ax[i].imshow(from_cnn[0, i, ...].permute(1, 2, 0).cpu().numpy())
+        # plt.show()
+        out = input.view(input.shape[0]*input.shape[1], *input.shape[2:])
+        # print(out.shape)
+        out = self.resnet(out)
+        out = out.view(out.shape[0], -1)
+        out = self.cnn_fc(out)
+        # print(out.shape)
+        out = out.view(input.shape[0], input.shape[1], -1)
+        # print(out.shape)
 
-            cnn_embed_seq[:,t,:] = x
+
+        # for t in range(input.size(1)):
+            # # ResNet CNN
+            # with torch.no_grad():
+            #     x = self.resnet(input[:,t,...])  # ResNet
+            #     x = x.view(x.size(0), -1)        # flatten output of conv
+
+            # # FC layers
+            # x = self.cnn_fc(x)
+
+            # cnn_embed_seq[:,t,:] = x
 
         # # swap time and sample dim such that (sample dim, time dim, CNN latent dim)
         # cnn_embed_seq = torch.stack(cnn_embed_seq, dim=1)
 
         # Pass through recurrent layers
-        out = self.lstm(cnn_embed_seq, time_pred)
+        # out = self.lstm(cnn_embed_seq, time_pred)
+        out = self.lstm(out, time_pred)
         
         return out

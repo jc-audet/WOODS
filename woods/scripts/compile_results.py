@@ -17,7 +17,7 @@ from woods import utils
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Collect result of hyper parameter sweep")
-    parser.add_argument('mode', nargs='?', type=str, default=['tables'], choices=['tables', 'hparams'])
+    parser.add_argument('--mode', nargs='?', default='tables', const='tables', choices=['tables', 'hparams', 'IID'])
     parser.add_argument("--results_dirs", type=str, nargs='+', required=True)
     parser.add_argument("--ignore_integrity_check", action='store_true')
     parser.add_argument("--latex", action='store_true')
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 pass
             except IOError:
                 pass
-
+    
     # Choose model selection under study
     model_selection_methods = [ 'train_domain_validation',
                                 'test_domain_validation']
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
             for dataset_name, dataset_dict in records.items():
                 ds = Node(' ' + dataset_name + ' ', ms)
-                envs = datasets.get_environments(dataset_name)
+                envs = datasets.get_sweep_envs(dataset_name)
 
                 for objective_name, objective_dict in dataset_dict.items():
                     obj = Node(' ' + objective_name + ' ', ds)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
             for dataset_name, dataset_dict in records.items():
                 t = PrettyTable()
-                envs = datasets.get_environments(dataset_name)
+                envs = datasets.get_sweep_envs(dataset_name)
                 t.field_names = ['Objective'] + envs + ["Average"]
 
                 for objective_name, objective_dict in dataset_dict.items():
@@ -123,6 +123,44 @@ if __name__ == "__main__":
                     print(utils.get_latex_table(t))
                 else:
                     print(t.get_string(title=ms_method + ' Results for ' + dataset_name))
+
+    elif 'IID' in flags.mode:
+
+        for dataset_name, dataset_dict in records.items():
+            t = PrettyTable()
+            envs = datasets.get_environments(dataset_name)
+            t.field_names = ['Objective'] + envs + ["Average"]
+
+            acc_arr = []
+            obj_results = ['IID ERM']
+
+            val_acc, val_var, test_acc, test_var = model_selection.get_chosen_test_acc(dataset_dict['ERM'][None], 'IID_validation')
+            acc_arr.append(test_acc*100)
+
+            for acc, var in zip(val_acc, val_var):
+                if flags.latex:
+                    obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=acc*100, var=var*100))
+                else:
+                    obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=acc*100, var=var*100))
+                
+            avg_test = np.mean(acc_arr)
+            obj_results.append(" {acc:.2f} ".format(acc=avg_test))
+            t.add_row(obj_results)
+
+            max_width = {}
+            min_width = {}
+            for n in t.field_names:
+                max_width.update({n: 20})
+                min_width.update({n: 20})
+            t._min_width = min_width
+            t._max_width = max_width
+            t.float_format = '.3'
+            
+            if flags.latex:
+                print(utils.get_latex_table(t))
+            else:
+                print(t.get_string(title='IID Results for ' + dataset_name))
+
 
 
 

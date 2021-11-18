@@ -237,7 +237,7 @@ class Multi_Domain_Dataset:
     #:int: The frequency of results update
     CHECKPOINT_FREQ = 100
     #:int: The number of workers used for fast dataloaders used for validation
-    N_WORKERS = 8
+    N_WORKERS = 4
 
     ## Dataset parameters
     #:string: The setup of the dataset ('seq' or 'step')
@@ -390,6 +390,11 @@ class Basic_Fourier(Multi_Domain_Dataset):
             all_signal_0 = torch.cat((all_signal_0, split_signal_0), dim=0)
             all_signal_1 = torch.cat((all_signal_1, split_signal_1), dim=0)
         signal = torch.cat((all_signal_0, all_signal_1), dim=0)
+
+        plt.figure()
+        plt.plot(signal[0,:,0].numpy())
+        plt.plot(signal[-1,:,0].numpy())
+        plt.show()
 
         ## Create the labels
         labels_0 = torch.zeros((all_signal_0.shape[0],1)).long()
@@ -1529,16 +1534,16 @@ class LSA64(Multi_Domain_Dataset):
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
                 in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
-                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=0)
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
 
             # Make validation loaders
             fast_in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
-            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=32, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=16, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             fast_out_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=out_split)
-            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=32, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=16, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
             # Append to val containers
@@ -1608,7 +1613,6 @@ class HAR(Multi_Domain_Dataset):
     ## Environment parameters
     ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
     SWEEP_ENVS = list(range(len(ENVS)))
-
 
     def __init__(self, flags, training_hparams):
         """ Dataset constructor function

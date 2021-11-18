@@ -87,6 +87,9 @@ def train(flags, training_hparams, model, objective, dataset, device):
 
 def get_accuracies(objective, dataset, device):
 
+    # Get model to eval mode
+    objective.model.eval()
+
     # Get loaders and their names
     val_names, val_loaders = dataset.get_val_loaders()
 
@@ -106,6 +109,9 @@ def get_accuracies(objective, dataset, device):
             for i, e in enumerate(name):
                 record.update({ e+'_acc': accuracies[i],
                                 e+'_loss': losses[i]})
+
+    # Get model back to train mode
+    objective.model.train()
     
     return record
 
@@ -133,7 +139,7 @@ def get_split_accuracy_seq(objective, dataset, loader, device):
             nb_item += target.numel()
 
         show_value = nb_correct.item() / nb_item
-            
+
     return show_value, losses.item() / len(loader)
 
 def get_split_accuracy_step(objective, dataset, loader, device):
