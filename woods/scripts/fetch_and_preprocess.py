@@ -1012,6 +1012,17 @@ class MI():
         X_src2 = X_src2[:, :, :window_size]
         X_src3 = X_src3[:, :, :window_size]
 
+        # Detrend, scale and reshape the data
+        print(np.shape(X_src1), np.shape(X_src3), np.shape(X_src3))
+        sc = mne.decoding.Scaler(scalings='mean')
+        X_src1 = detrend(X_src1, axis=2) # detrending
+        X_src2 = detrend(X_src2, axis=2) # detrending
+        X_src3 = detrend(X_src3, axis=2) # detrending
+        X_src1 = sc.fit_transform(X_src1) # Normalizing
+        X_src2 = sc.fit_transform(X_src2) # Normalizing
+        X_src3 = sc.fit_transform(X_src3) # Normalizing
+        print(np.shape(X_src1), np.shape(X_src3), np.shape(X_src3))
+
         ## Create group in h5 file
         dummy_data = np.zeros((0,window_size,len(common_channels)))
         dummy_labels = np.zeros((0,1))
