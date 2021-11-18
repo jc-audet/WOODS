@@ -1127,8 +1127,16 @@ class EEG_DB(Multi_Domain_Dataset):
             self.val_loaders.append(fast_out_loader)
 
         # Define loss function
-        self.log_prob = nn.LogSoftmax(dim=1)
         self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+
+    def loss_fn(self, output, target):
+        """ Computes the loss 
+        
+        Args:
+            output (Tensor): prediction tensor
+            target (Tensor): Target tensor
+        """
+        return self.loss(output, target)
     
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1245,7 +1253,7 @@ class MI(EEG_DB):
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
     ## Training parameters
-    N_STEPS = 10001
+    N_STEPS = 15001
     ## Dataset parameters
     TASK = 'classification'
     SEQ_LEN = 752
@@ -1671,5 +1679,13 @@ class HAR(Multi_Domain_Dataset):
             self.val_loaders.append(fast_out_loader)
 
         # Define loss function
-        self.log_prob = nn.LogSoftmax(dim=1)
         self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+
+    def loss_fn(self, output, target):
+        """ Computes the loss 
+        
+        Args:
+            output (Tensor): prediction tensor
+            target (Tensor): Target tensor
+        """
+        return self.loss(output, target)
