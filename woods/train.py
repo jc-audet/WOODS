@@ -87,9 +87,6 @@ def train(flags, training_hparams, model, objective, dataset, device):
 
 def get_accuracies(objective, dataset, device):
 
-    # Get model to eval mode
-    objective.model.eval()
-
     # Get loaders and their names
     val_names, val_loaders = dataset.get_val_loaders()
 
@@ -110,9 +107,6 @@ def get_accuracies(objective, dataset, device):
                 record.update({ e+'_acc': accuracies[i],
                                 e+'_loss': losses[i]})
 
-    # Get model back to train mode
-    objective.model.train()
-    
     return record
 
 def get_split_accuracy_seq(objective, dataset, loader, device):
