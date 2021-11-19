@@ -15,3 +15,4 @@ torch==1.8.1
 torchvision==0.9.1
 tqdm==4.62.2
 xlrd==2.0.1
+sphinx_markdown_tables
