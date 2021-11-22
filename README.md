@@ -4,6 +4,8 @@
 
 --------------------------------------------------------------------------------
 [![Documentation Status](https://readthedocs.org/projects/mitiq/badge/?version=stable)](https://woods.readthedocs.io/en/latest)
+![Continuous Integration](https://github.com/jc-audet/WOODS/actions/workflows/python-package.yml/badge.svg)
+
 
 A set of Out-of-Distribution Generalization Benchmarks for Sequential Prediction Tasks
 
