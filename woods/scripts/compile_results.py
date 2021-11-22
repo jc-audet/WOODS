@@ -23,6 +23,8 @@ if __name__ == "__main__":
     parser.add_argument("--latex", action='store_true')
     flags = parser.parse_args()
 
+    ## Load records in a nested dictionnary (Dataset > Objective > Test env > Trial Seed > Hparams Seed)
+    records = {}
     # For all directories you want to collect data from
     for results_dir in flags.results_dirs:
 
@@ -32,8 +34,6 @@ if __name__ == "__main__":
         else:
             utils.check_file_integrity(results_dir)
 
-        ## Load records in a nested dictionnary (Dataset > Objective > Test env > Trial Seed > Hparams Seed)
-        records = {}
         for subdir in tqdm.tqdm(os.listdir(os.path.join(results_dir,'logs')), desc="Loading Results"):
             results_path = os.path.join(results_dir, 'logs', subdir)
             try:
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 pass
             except IOError:
                 pass
-    
+
     # Choose model selection under study
     model_selection_methods = [ 'train_domain_validation',
                                 'test_domain_validation']
@@ -86,14 +86,16 @@ if __name__ == "__main__":
 
             for dataset_name, dataset_dict in records.items():
                 t = PrettyTable()
-                envs = datasets.get_sweep_envs(dataset_name)
+                sweep_envs = datasets.get_sweep_envs(dataset_name)
+                all_envs = datasets.get_environments(dataset_name)
+                envs = [all_envs[i] for i in sweep_envs]
                 t.field_names = ['Objective'] + envs + ["Average"]
 
                 for objective_name, objective_dict in dataset_dict.items():
                     acc_arr = []
                     obj_results = [objective_name]
 
-                    for env_id, env_name in enumerate(envs):
+                    for env_id in sweep_envs:
                         # If the environment wasn't part of the sweep, that's fine, we just can't report those results
                         if env_id not in objective_dict.keys():
                             obj_results.append(" X ")
@@ -120,7 +122,7 @@ if __name__ == "__main__":
                 t.float_format = '.3'
                 
                 if flags.latex:
-                    print(utils.get_latex_table(t))
+                    print(utils.get_latex_table(t, caption=ms_method + ' Results for ' + dataset_name))
                 else:
                     print(t.get_string(title=ms_method + ' Results for ' + dataset_name))
 
@@ -157,7 +159,7 @@ if __name__ == "__main__":
             t.float_format = '.3'
             
             if flags.latex:
-                print(utils.get_latex_table(t))
+                print(utils.get_latex_table(t, caption='IID Results for ' + dataset_name))
             else:
                 print(t.get_string(title='IID Results for ' + dataset_name))
 

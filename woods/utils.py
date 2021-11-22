@@ -225,22 +225,25 @@ def get_latex_table(table, caption=None, label=None):
         str: printable latex string
     """
 
-    s = r'\begin{table}' + '\n'
-    s = s + r'\centering' + '\n'
-    s = s + r'\caption{%s}\label{%s}' %(caption, label)
-    s = s + '\n'
-    s = s + r'\begin{tabular}{'
-    s = s + ''.join(['c',]*len(table.field_names)) + '}'
-    s = s + '\n'
-    s = s + ' & '.join(table.field_names)+r' \\ \hline'+'\n'
+    s = r'\begin{center}' + '\n'
+    s += r'\adjustbox{max width=\textwidth}{%' + '\n'
+    s += r'\begin{tabular}{l'
+    s += ''.join(['c',]*len(table.field_names)) + '}' + '\n'
+    s += r'\toprule' + '\n'
+    s += r'\multicolumn{' + str(len(table.field_names)) + r'}{c}{\textbf{' + caption.replace('_', ' ') + r'}} \\' + '\n'
+    s += r'\midrule' + '\n'
+    env_name = [env.replace('_', ' ') for env in table.field_names[1:-1]]
+    s += r'\textbf{Algorithm} & ' + ' & '.join(env_name) + r' & \textbf{Average}' + r'\\' + '\n'
+    s += r'\midrule' + '\n'
     rows = table._format_rows(table._rows, [])
     for i in range(len(rows)):
         row = [str(itm) for itm in rows[i]]
         s = s + ' & '.join(row)
-        if i != len(table._rows)-1:
+        if i != len(table._rows):
             s = s + r'\\'
         s = s + '\n'
-        
-    s = s + r'\end{tabular}' + '\n'
-    s = s + r'\end{table}'
+    s += r'\bottomrule' + '\n'
+    s += r'\end{tabular}}' + '\n'
+    s += r'\end{center}' + '\n'
+
     return s
