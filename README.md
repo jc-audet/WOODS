@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 [![Documentation Status](https://readthedocs.org/projects/mitiq/badge/?version=stable)](https://woods.readthedocs.io/en/latest)
 ![Continuous Integration](https://github.com/jc-audet/WOODS/actions/workflows/python-package.yml/badge.svg)
-
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A set of Out-of-Distribution Generalization Benchmarks for Sequential Prediction Tasks
 
