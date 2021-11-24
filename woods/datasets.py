@@ -1258,12 +1258,12 @@ class MI(EEG_DB):
     TASK = 'classification'
     SEQ_LEN = 752
     PRED_TIME = [751]
-    INPUT_SHAPE = [21]
+    INPUT_SHAPE = [48]
     OUTPUT_SIZE = 2
     DATA_PATH = 'MI/MI.h5'
 
     ## Environment parameters
-    ENVS = [ 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
+    ENVS = [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
