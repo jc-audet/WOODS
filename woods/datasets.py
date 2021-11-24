@@ -1244,7 +1244,7 @@ class MI(EEG_DB):
 
     The task is to classify the motor imaginary from EEG and other modalities of signals.
     The raw data comes from the three MI Databases:  
-       [ 'PhysionetMI', 'BNCI2014001', 'Lee2019_MI']
+       [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
 
     You can read more on the data itself and it's provenance on: 
 
@@ -1253,7 +1253,7 @@ class MI(EEG_DB):
     This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
     ## Training parameters
-    N_STEPS = 15001
+    N_STEPS = 10001
     ## Dataset parameters
     TASK = 'classification'
     SEQ_LEN = 752

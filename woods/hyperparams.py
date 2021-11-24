@@ -187,14 +187,14 @@ def MI_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**r.uniform(-5, -3),
-            'batch_size': lambda r: int(2**r.uniform(3, 4))
+            'batch_size': lambda r: int(2**r.uniform(3, 5))
         }
     else:
         return {
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0.,
             'lr': lambda r: 10**-3,
-            'batch_size': lambda r: 8
+            'batch_size': lambda r: 32
         }
 
 def HAR_train(sample):
