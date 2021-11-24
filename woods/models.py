@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # new package
-from braindecode.models import ShallowFBCSPNet, Deep4Net, EEGResNet
+from braindecode.models import ShallowFBCSPNet, Deep4Net, EEGResNet, EEGNetv4
 
 def get_model(dataset, model_hparams):
     """Return the dataset class with the given name
@@ -106,6 +106,37 @@ class deep4(nn.Module):
     def forward(self, input, time_pred):
         out = self.model(input.permute((0, 2, 1)))
         return out.unsqueeze(1)
+
+
+class EEGNet(nn.Module):
+    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    
+    def __init__(self, dataset, model_hparams):
+        super(EEGNet, self).__init__()
+
+        # Save stuff
+        self.input_size = np.prod(dataset.INPUT_SHAPE)
+        self.output_size = dataset.OUTPUT_SIZE
+        self.seq_len = dataset.SEQ_LEN
+
+        scale = 1
+        self.model = EEGNetv4(
+        self.input_size,
+        self.output_size,
+        input_window_samples=self.seq_len,
+        final_conv_length='auto',
+        F1=8*scale,
+        D=2*scale,
+        F2=16*scale*scale, #usually set to F1*D (?)
+        kernel_length=64*scale,
+        third_kernel_size=(8, 4),
+        drop_prob=0.05,
+        )
+        
+    def forward(self, input, time_pred):
+        out = self.model(input.permute((0, 2, 1)))
+        return out.unsqueeze(1)
+
 
 class MNIST_CNN(nn.Module):
     """ Hand-tuned architecture for extracting representation from MNIST images

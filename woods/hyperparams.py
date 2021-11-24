@@ -349,7 +349,7 @@ def SEDFx_model():
 def MI_model():
     """ MI model hparam definition"""
     return {
-        'model': 'deep4'
+        'model': 'EEGNet'
     }
 
 def HAR_model():
