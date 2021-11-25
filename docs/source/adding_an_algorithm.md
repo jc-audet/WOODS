@@ -15,14 +15,14 @@ class scaled_ERM(ERM):
     """
 
     def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(scaled_ERM, self).__init__(hparams)
+        super(scaled_ERM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
 
         self.max_scale = hparams['max_scale']
-        self.scaling_factor = torch.rand(len(dataset.train_names))
+        self.scaling_factor = self.max_scale * torch.rand(len(dataset.train_names)) 
 ```
 We then need to define the update function, which take a minibatch of data and compute the loss and update the model according to the algorithm definition. Note here that we do not need to define the predict function, as it is already defined in the base class.
 ```python
@@ -41,7 +41,7 @@ We then need to define the update function, which take a minibatch of data and c
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.max_scale * self.scaling_factor[i] * self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx])
+                env_losses[i] += self.scaling_factor[i] * self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx])
 
         objective = env_losses.mean()
 
@@ -78,18 +78,18 @@ def scaled_ERM_hyper(sample):
         }
     else:
         return {
-            'max_scale': lambda r: 1.
+            'max_scale': lambda r: 2.
         }
 ```
 ## Run some tests
 We can now run a simple test to check that everything is working as expected
 ```sh
-Coming soon...
+pytest
 ```
 ## Try the algorithm
 Then we can run a training run to see how the algorithm performs on any dataset
 ```sh
-python3 -m woods.main train \
+python3 -m woods.scripts.main train \
         --dataset Spurious_Fourier \
         --objective scaled_ERM \
         --test_env 0 \
@@ -98,7 +98,9 @@ python3 -m woods.main train \
 ## Run a sweep
 Finally, we can run a sweep to see how the algorithm performs on all the datasets
 ```sh
-python3 -m woods.main sweep \
+python3 -m woods.scripts.hparams_sweep \
         --objective scaled_ERM \
-        --data_path ./data
+        --dataset Spurious_Fourier \
+        --data_path ./data \
+        --launcher dummy
 ```

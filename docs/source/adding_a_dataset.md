@@ -21,11 +21,17 @@ class flat_MNIST(Multi_Domain_Dataset):
     Note:
         The MNIST dataset needs to be downloaded, this is automaticaly done if the dataset isn't in the given data_path
     """
+    ## Dataset parameters
+    SETUP = 'seq'
+    TASK = 'classification'
+    SEQ_LEN = 28*28
     PRED_TIME = [783]
     INPUT_SHAPE = [1]
     OUTPUT_SIZE = 10
+
+    ## Environment parameters
     ENVS = ['forwards', 'backwards', 'scrambled']
-    SETUP = 'seq'
+    SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
         super().__init__()
@@ -53,7 +59,7 @@ class flat_MNIST(Multi_Domain_Dataset):
 
         # Create sequences of 784 pixels
         self.TCMNIST_images = MNIST_images.reshape(-1, 28*28, 1)
-        self.TCMNIST_labels = TCMNIST_labels.long()
+        self.MNIST_labels = MNIST_labels.long().unsqueeze(1)
 
         # Make the color datasets
         self.train_names, self.train_loaders = [], [] 
@@ -62,22 +68,22 @@ class flat_MNIST(Multi_Domain_Dataset):
 
             # Choose data subset
             images = self.TCMNIST_images[i::len(self.ENVS),...]
-            labels = self.TCMNIST_labels[i::len(self.ENVS),...]
+            labels = self.MNIST_labels[i::len(self.ENVS),...]
 
             # Apply environment definition
             if e == 'forwards':
-                images = images[:, ::1, :]
+                images = images
             elif e == 'backwards':
-                images = images[:, ::-1, :]
+                images = torch.flip(images, dims=[1])
             elif e == 'scrambled':
                 images = images[:, torch.randperm(28*28), :]
 
             # Make Tensor dataset and the split
-            dataset = torch.utils.data.TensorDataset(iamges, labels)
+            dataset = torch.utils.data.TensorDataset(images, labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction)
 
             if i != self.test_env:
-                in_loader = torch.utils.data.DataLoader(in_dataset, batch_size=training_hparams['batch_size'], shuffle=True, drop_last=True)
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(str(e) + '_in')
                 self.train_loaders.append(in_loader)
             
@@ -87,14 +93,20 @@ class flat_MNIST(Multi_Domain_Dataset):
             fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             self.val_names.append(str(e) + '_out')
             self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
 ```
 Note: 
 you are required to define the following variables:
     * SETUP
+    * SEQ_LEN
     * PRED_TIME
     * INPUT_SHAPE
     * OUTPUT_SIZE
     * ENVS
+    * SWEEP_ENVS
 you are also encouraged to redefine the following variables:
     * N_STEPS
     * N_WORKERS
@@ -148,38 +160,29 @@ def flat_MNIST_train(sample):
             'batch_size': lambda r: 64
         }
 
-def flat_MNIST_model(sample):
+def flat_MNIST_model():
     """ flat_MNIST model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
     """
-    if sample:
-        return {
-            'model': lambda r: 'LSTM',
-            'hidden_depth': lambda r: int(r.choice([1, 2, 3])),
-            'hidden_width': lambda r: int(2**r.uniform(5, 7)),
-            'recurrent_layers': lambda r: int(r.choice([1, 2, 3])),
-            'state_size': lambda r: int(2**r.uniform(5, 7))
-        }
-    else:
-        return {
-            'model': lambda r: 'LSTM',
-            'hidden_depth': lambda r: 1, 
-            'hidden_width': lambda r: 20,
-            'recurrent_layers': lambda r: 2,
-            'state_size': lambda r: 32
-        }
+    return {
+        'model': lambda r: 'LSTM',
+        'hidden_depth': lambda r: 1, 
+        'hidden_width': lambda r: 20,
+        'recurrent_layers': lambda r: 2,
+        'state_size': lambda r: 32
+    }
 ```
 ## Run some tests
 We can now run a simple test to check that everything is working as expected
 ```sh
-Coming soon...
+pytest
 ```
 ## Try the algorithm
 Then we can run a training run to see how algorithms performs on your dataset
 ```sh
-python3 -m woods.main train \
+python3 -m woods.scripts.main train \
         --dataset flat_MNIST \
         --objective ERM \
         --test_env 0 \
@@ -188,7 +191,9 @@ python3 -m woods.main train \
 ## Run a sweep
 Finally, we can run a sweep to see how the algorithms performs on your dataset
 ```sh
-python3 -m woods.main sweep \
+python3 -m woods.scripts.hparams_sweep \
+        --objective ERM \
         --dataset flat_MNIST \
-        --data_path ./data
+        --data_path ./data \
+        --launcher dummy
 ```
