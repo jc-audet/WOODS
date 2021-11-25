@@ -628,60 +628,6 @@ class SEDFx():
 
         return list(set.intersection(*_table))
 
-def StockVolatility(flags):
-
-    # ###
-    # Need to Create 5 environments (2000-2004, 2005-2009, 2010-2014, 2015-2019)
-    # Steps:
-    # Our data is already cleaned and in sequence, we can transform the CSV into a dictionary
-    # ###
-    envs = ['2000-2004', '2005-2009', '2010-2014', '2015-2020']
-    data = [[], [], [], []]
-    labels = [[], [], [], []]
-    #This code opens every group of 5 years of volatility from many stock indices,
-    #and places the volatilities in the appropriate lists.
-    for f in range(0, 4):
-        rownumber = 0
-
-        i = f * 5
-        file_name = "StockVolatility/%sworks.csv" % (str(2000 + i) + "-" + str(2000 + i + 4))
-        file_path = os.path.join(flags.data_path, file_name)
-        with open(file_path, encoding='utf-8') as csv_file:
-            reader = csv.DictReader(csv_file)
-            for row in reader:
-                if rownumber % 4 == 3:
-                    labels[f].append(row['Volatility'])
-                else:
-                    data[f].append(row['Volatility'])
-                rownumber += 1
-
-    #Now, we can transform the data into chunks for 3 timesteps into np arrays.
-    chunked_data = [[], [], [], []]
-    time_steps = 3
-    chunked_labels = [[], [], [], []]
-    for indx, val in enumerate(data):
-        for i in range(0, len(data[indx]), time_steps):
-            chunked_data[indx].append(data[indx][i:i + time_steps])
-    for indx, val in enumerate(labels):
-
-        for i in range(0, len(labels[indx]), 1):
-            chunked_labels[indx].append(data[indx][i:i + 1])
-
-    for indx, val in enumerate(chunked_data):
-        chunked_data[indx] = np.expand_dims(np.array(chunked_data[indx]), axis=-1)
-
-    for indx, val in enumerate(chunked_labels):
-        chunked_labels[indx] = np.array(chunked_labels[indx])
-
-    with h5py.File(os.path.join(flags.data_path, 'StockVolatility/StockVolatility.h5'), 'a') as hf:
-        #Make a new environment for each index of the np arrays.
-        for index,env in enumerate(envs):
-            if env in hf.keys():
-                del hf[env]
-            g = hf.create_group(env)
-            g.create_dataset('data', data=chunked_data[index].astype('float32'), dtype='float32')
-            g.create_dataset('labels', data=chunked_labels[index].astype('float32'), dtype='float32')
-
 def HAR(flags):
     """ Fetch and preprocess the HAR dataset
 
@@ -1082,9 +1028,6 @@ if __name__ == '__main__':
     
     if 'MI' in flags.dataset:
         MI(flags)
-
-    if 'StockVolatility' in flags.dataset:
-        StockVolatility(flags)
 
     if 'HAR' in flags.dataset:
         HAR(flags)
