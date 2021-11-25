@@ -7,7 +7,7 @@ woods.scripts.fetch_and_preprocess module
 .. currentmodule:: woods.scripts.fetch_and_preprocess
 
 .. automodule:: woods.scripts.fetch_and_preprocess
-    :members: DATASETS, HAR, LSA64, MI, PhysioNet, RealizedVolatility, SEDFx_DB
+    :members: DATASETS, HAR, LSA64, MI, CAP, SEDFx
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
