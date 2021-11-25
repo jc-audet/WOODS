@@ -23,14 +23,27 @@ def ensure_dict_path(dict, key):
 
     return dict[key]
 
-def get_best_hparams(records, selection_name):
-    """
-    docstring
+def get_best_hparams(records, selection_method):
+    """ Get the best set of hyperparameters for a given a record from a sweep and a selection method
+
+    The way model selection is performed is by computing the validation accuracy of all training checkpoints. 
+    The definition of the validation accuracy is given by the selection method. 
+    Then using these validation accuracies, we choose the best checkpoint and report the corresponding hyperparameters.
+
+    Args:
+        records (dict): Dictionary of records from a sweep
+        selection_method (str): Selection method to use
+
+    Returns:
+        dict: flags of the chosen model training run for the all trial seeds
+        dict: hyperparameters of the chosen model for all trial seeds
+        dict: validation accuracy of the chosen model run for all trial seeds
+        dict: test accuracy of the chosen model run for all trial seeds
     """
 
-    if selection_name not in globals():
-        raise NotImplementedError("Dataset not found: {}".format(selection_name))
-    selection_method = globals()[selection_name]
+    if selection_method not in globals():
+        raise NotImplementedError("Dataset not found: {}".format(selection_method))
+    selection_method = globals()[selection_method]
 
     flags_dict = {}
     hparams_dict = {}
@@ -56,14 +69,27 @@ def get_best_hparams(records, selection_name):
     
     return flags_dict, hparams_dict, val_best_acc, test_best_acc
 
-def get_chosen_test_acc(records, selection_name):
-    """
-    docstring
+def get_chosen_test_acc(records, selection_method):
+    """ Get the test accuracy that will be chosen through the selection method for a given a record from a sweep 
+
+    The way model selection is performed is by computing the validation accuracy of all training checkpoints. 
+    The definition of the validation accuracy is given by the selection method. 
+    Then using these validation accuracies, we choose the best checkpoint and report the test accuracy linked to that checkpoint.
+
+    Args:
+        records (dict): Dictionary of records from a sweep
+        selection_method (str): Selection method to use
+
+    Returns:
+        float: validation accuracy of the chosen models averaged over all trial seeds
+        float: variance of the validation accuracy of the chosen models accross all trial seeds
+        float: test accuracy of the chosen models averaged over all trial seeds
+        float: variance of the test accuracy of the chosen models accross all trial seeds
     """
 
-    if selection_name not in globals():
-        raise NotImplementedError("Dataset not found: {}".format(selection_name))
-    selection_method = globals()[selection_name]
+    if selection_method not in globals():
+        raise NotImplementedError("Dataset not found: {}".format(selection_method))
+    selection_method = globals()[selection_method]
 
     val_acc_arr = []
     test_acc_arr = []
@@ -86,15 +112,20 @@ def get_chosen_test_acc(records, selection_name):
     return np.mean(val_acc_arr, axis=0), np.std(val_acc_arr, axis=0) / np.sqrt(len(val_acc_arr)), np.mean(test_acc_arr, axis=0), np.std(test_acc_arr, axis=0) / np.sqrt(len(test_acc_arr))
 
 def IID_validation(records):
-    """ Return the IID validation model section accuracy of a single training run. This is for ONLY for sweeps with no test environments
-
-        max_{step in checkpoint}( mean(train_envs) )
+    """ Perform the IID validation model section on a single training run with NO TEST ENVIRONMENT and returns the results
+    
+    The model selection is performed by computing the average all domains accuracy of all training checkpoints and choosing the highest one.
+        best_step = argmax_{step in checkpoints}( mean(train_envs_acc) )
 
     Args:
-        records ([type]): [description]
+        records (dict): Dictionary of records from a single training run
 
     Returns:
-        [type]: [description]
+        float: validation accuracy of the best checkpoint of the training run
+        float: validation accuracy of the best checkpoint of the training run
+
+    Note:
+        This is for ONLY for sweeps with no test environments.
     """
 
     # Make copy of record
@@ -123,15 +154,17 @@ def IID_validation(records):
     return val_arr_dict[best_step], val_arr_dict[best_step]
 
 def train_domain_validation(records):
-    """ Return the train-domain validation model section accuracy of a single training run
-
-        max_{step in checkpoint}( mean(train_envs) )
+    """ Perform the train domain validation model section on a single training run and returns the results
+    
+    The model selection is performed by computing the average training domains accuracy of all training checkpoints and choosing the highest one.
+        best_step = argmax_{step in checkpoints}( mean(train_envs_acc) )
 
     Args:
-        records ([type]): [description]
+        records (dict): Dictionary of records from a single training run
 
     Returns:
-        [type]: [description]
+        float: validation accuracy of the best checkpoint of the training run
+        float: test accuracy of the best checkpoint (highest validation accuracy) of the training run
     """
 
     # Make copy of record
@@ -162,6 +195,18 @@ def train_domain_validation(records):
     return val_dict[best_step], test_dict[best_step]
 
 def test_domain_validation(records):
+    """  Perform the test domain validation model section on a single training run and returns the results
+
+    The model selection is performed with the test accuracy of ONLY THE LAST CHECKPOINT OF A TRAINING RUN, so this function simply returns the test accuracy of the last checkpoint.
+        best_step = test_acc[-1]
+
+    Args:
+        records (dict): Dictionary of records from a single training run
+
+    Returns:
+        float: validation accuracy of the training run, which is also the test accuracyof the last checkpoint
+        float: test accuracy of the last checkpoint
+    """
 
     # Make a copy 
     records = copy.deepcopy(records)
