@@ -1,4 +1,7 @@
-"""Perform an hyper parameter sweep"""
+"""Perform an hyper parameter sweep
+
+See https://woods.readthedocs.io/en/latest/running_a_sweep.html for usage.
+"""
 
 import os
 import json
