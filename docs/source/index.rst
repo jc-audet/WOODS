@@ -48,7 +48,7 @@ Library
    woods.command_launchers
    woods.utils
 
-scripts
+Scripts
 ^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
 
