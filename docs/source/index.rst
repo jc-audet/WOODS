@@ -34,6 +34,8 @@ API Documentation
 
     WOODS <woods>
 
+Library
+^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
 
    woods
@@ -46,15 +48,11 @@ API Documentation
    woods.command_launchers
    woods.utils
 
+scripts
+^^^^^^^^^^^^^^^^^^^^
 .. autosummary::
 
    woods.scripts
-   woods.scripts.main
-   woods.scripts.download
-   woods.scripts.hparams_sweep
-   woods.scripts.compile_results
-   woods.scripts.visualize_results
-   woods.scripts.fetch_and_preprocess
    
 
 

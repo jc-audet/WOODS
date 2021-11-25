@@ -20,9 +20,9 @@ woods.scripts.fetch_and_preprocess module
     .. autosummary::
         :nosignatures:
 
+        CAP
+        SEDFx
         MI
-        PhysioNet
-        SEDFx_DB
 
     Functions:
 
@@ -31,7 +31,6 @@ woods.scripts.fetch_and_preprocess module
 
         HAR
         LSA64
-        RealizedVolatility
 
 
 
