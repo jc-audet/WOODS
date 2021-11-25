@@ -1,4 +1,4 @@
-"""Defining the training functions"""
+"""Defining the training functions that are used to train and evaluate models"""
 
 import time
 import numpy as np
@@ -14,11 +14,14 @@ from woods import utils
 
 ## Train function
 def train_step(model, objective, dataset, in_loaders_iter, device):
-    """
-    :param model: nn model defined in a models.py
-    :param train_loader: training dataloader(s)
-    :param optimizer: optimizer of the model defined in train(...)
-    :param device: device on which we are training
+    """ Train a single training step for a model
+
+    Args:
+        model: nn model defined in a models.py
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        in_loaders_iter: iterable of iterable of data loaders
+        device: device on which we are training
     """
     model.train()
 
@@ -34,12 +37,15 @@ def train_step(model, objective, dataset, in_loaders_iter, device):
     return model
 
 def train(flags, training_hparams, model, objective, dataset, device):
-    """
-    :param flags: flags from argparse
-    :param training_hparams: hyperparameters for training
-    :param model: nn model defined in a models.py
-    :param objective: objective
-    :param dataset: dataset
+    """ Train a model on a given dataset with a given objective
+
+    Args:
+        flags: flags from argparse
+        training_hparams: training hyperparameters
+        model: nn model defined in a models.py
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        device: device on which we are training
     """
     record = {}
     step_times = []
@@ -86,6 +92,13 @@ def train(flags, training_hparams, model, objective, dataset, device):
     return model, record, t
 
 def get_accuracies(objective, dataset, device):
+    """ Get accuracies for all splits using fast loaders
+
+    Args:
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        device: device on which we are training
+    """
 
     # Get loaders and their names
     val_names, val_loaders = dataset.get_val_loaders()
@@ -110,6 +123,14 @@ def get_accuracies(objective, dataset, device):
     return record
 
 def get_split_accuracy_seq(objective, dataset, loader, device):
+    """ Get accuracy and loss for a dataset that is of the `seq` setup
+
+    Args:
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        loader: data loader of which we want the accuracy
+        device: device on which we are training
+    """
 
     ts = torch.tensor(dataset.PRED_TIME).to(device)
 
@@ -137,6 +158,14 @@ def get_split_accuracy_seq(objective, dataset, loader, device):
     return show_value, losses.item() / len(loader)
 
 def get_split_accuracy_step(objective, dataset, loader, device):
+    """ Get accuracy and loss for a dataset that is of the `step` setup
+
+    Args:
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        loader: data loader of which we want the accuracy
+        device: device on which we are training
+    """
 
     ts = torch.tensor(dataset.PRED_TIME).to(device)
 

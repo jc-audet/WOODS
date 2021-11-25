@@ -1,4 +1,7 @@
-"""Compile resuls from a hyperparameter sweep and perform model selection strategies"""
+"""Compile resuls from a hyperparameter sweep and perform model selection strategies
+
+See https://woods.readthedocs.io/en/latest/running_a_sweep.html to learn more about usage.
+"""
 
 import os
 import json

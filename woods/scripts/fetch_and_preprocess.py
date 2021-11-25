@@ -951,10 +951,17 @@ def LSA64(flags):
                 torchvision.utils.save_image(vid[:,frame,...], os.path.join(flags.data_path, 'LSA64', ID[1], ID[0], sample_num, 'frame_'+str(frame).zfill(6)+'.jpg'))
 
 class MI():
-    '''
-    This class helps to download and prepare MI datasets
-    
-    '''
+    """ Fetch the data using moabb and preprocess it
+
+    Source of MOABB:
+        http://moabb.neurotechx.com/docs/index.html
+
+    Args:
+        flags (argparse.Namespace): The flags of the script
+
+    Note:
+        This is hell to run. It takes a while to download and requires a lot of RAM.
+    """
 
     def __init__(self,flags):
         super(MI, self).__init__()
