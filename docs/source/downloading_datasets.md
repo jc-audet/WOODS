@@ -10,7 +10,7 @@ python3 -m woods.scripts.download DATASET\
 ## Source Download and Preprocess
 For the sake of transparency, WOODS also offers the preprocessing scripts we took for all datasets in the preprecessing module of the woods.scripts package. You can also use the same module to download the raw data from the original source and run preprocessing yourself on it. DISCLAIMER: Some of the datasets take a long time to preprocess, especially the EEG datasets.
 ```sh
-python3 -m woods.scripts.preprocess DATASET\
+python3 -m woods.scripts.fetch_and_preprocess DATASET\
         --data_path ./path/to/data/directory
 ```
 ## Datasets Info
@@ -25,6 +25,6 @@ The following table lists the available datasets and their corresponding raw and
 | TCMNSIT_step | Video | Yes, but done automatically | 0.11 GB | - |
 | CAP | EEG | Yes | 9.1 GB | 40.1 GB |
 | SEDFx | EEG | Yes | 10.7 GB | 8.1 GB |
-| MI | EEG | Yes | 1.5GB | 13.5 GB |
+| MI | EEG | Yes | 3.0GB | 13.5 GB |
 | LSA64 | Video | Yes | 0.26 GB | 1.5 GB |
 | HAR | Sensor | Yes | 0.16 GB | 3.1 GB |
