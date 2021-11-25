@@ -27,17 +27,37 @@ def get_model(dataset, model_hparams):
     return model_fn(dataset, model_hparams)
 
 
+################
+## EEG Models ##
+################
 class shallow(nn.Module):
-    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    """ The Shallow Net model
+
+    This is from the Braindecode package:
+        https://github.com/braindecode/braindecode
     
-    def __init__(self, dataset, model_hparams):
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+
+    Attributes:
+        input_size (int): The size of the inputs to the model (for a single time step).
+        output_size (int): The size of the outputs of the model (number of classes).
+        seq_len (int): The length of the sequences.
+    """
+    # ref: https://github.com/braindecode/braindecode
+    
+    def __init__(self, dataset, model_hparams, input_size=None):
         super(shallow, self).__init__()
 
-        # Save stuff
-        self.input_size = np.prod(dataset.INPUT_SHAPE)
+        ## Save stuff
+        # Dataset parameters
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
 
+        # Define model
         self.model = ShallowFBCSPNet(
         self.input_size,
         self.output_size,
@@ -46,35 +66,30 @@ class shallow(nn.Module):
         )
         
     def forward(self, input, time_pred):
-        out = self.model(input.permute((0, 2, 1)))
-        return out.unsqueeze(1)
+        """ Forward pass of the model
 
-class EEGResNet_bd(nn.Module):
-    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
-    
-    def __init__(self, dataset, model_hparams):
-        super(EEGResNet_bd, self).__init__()
-
-        # Save stuff
-        self.input_size = np.prod(dataset.INPUT_SHAPE)
-        self.output_size = dataset.OUTPUT_SIZE
-        self.seq_len = dataset.SEQ_LEN
-
-        self.model = EEGResNet(
-        self.input_size,
-        self.output_size,
-        input_window_samples=self.seq_len,
-        n_first_filters=12, #TBF
-        n_layers_per_block=2,
-        final_pool_length = 'auto'
-        # final_conv_length='auto',
-        )
-        
-    def forward(self, input, time_pred):
+        Args:
+            input (torch.Tensor): The input to the model.
+            time_pred (torch.Tensor): The time prediction of the input.
+        """
         out = self.model(input.permute((0, 2, 1)))
         return out.unsqueeze(1)
 
 class deep4(nn.Module):
+    """ The DEEP4 model
+
+    This is from the Braindecode package:
+        https://github.com/braindecode/braindecode
+    
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+
+    Attributes:
+        input_size (int): The size of the inputs to the model (for a single time step).
+        output_size (int): The size of the outputs of the model (number of classes).
+        seq_len (int): The length of the sequences.
+    """
     # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
     
     def __init__(self, dataset, model_hparams):
@@ -109,7 +124,22 @@ class deep4(nn.Module):
 
 
 class EEGNet(nn.Module):
-    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
+    """ The EEGNet model
+
+    This is a really small model ~3k parameters.
+
+    This is from the Braindecode package:
+        https://github.com/braindecode/braindecode
+    
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+
+    Attributes:
+        input_size (int): The size of the inputs to the model (for a single time step).
+        output_size (int): The size of the outputs of the model (number of classes).
+        seq_len (int): The length of the sequences.
+    """
     
     def __init__(self, dataset, model_hparams):
         super(EEGNet, self).__init__()
@@ -137,15 +167,22 @@ class EEGNet(nn.Module):
         out = self.model(input.permute((0, 2, 1)))
         return out.unsqueeze(1)
 
-
 class MNIST_CNN(nn.Module):
     """ Hand-tuned architecture for extracting representation from MNIST images
 
     This was adapted from :
-
         https://github.com/facebookresearch/DomainBed
+
+    In our context, it is used to extract the representation from the images which are fed to a recurrent model such as an LSTM
+
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
     """
+    #:int: Size of the output respresentation
     EMBED_DIM = 32
+    #:int: Size of the representation after convolution, but before FCC layers
     CNN_OUT_DIM = 32*3*3
 
     def __init__(self, input_shape):
@@ -161,6 +198,7 @@ class MNIST_CNN(nn.Module):
             nn.Conv2d(32, 32, 3, 1, padding=1),
         )
 
+        # Make FCC layers
         self.FCC = nn.Sequential(
             nn.Linear(self.CNN_OUT_DIM, 64),
             nn.ReLU(),
@@ -175,7 +213,7 @@ class MNIST_CNN(nn.Module):
             x (torch.Tensor): The input to the model.
 
         Returns:
-            torch.Tensor: The output of the model.
+            torch.Tensor: The output representation of the model.
         """
         x = self.conv(x)
         x = x.view(x.size(0), -1)
@@ -471,49 +509,6 @@ class ATTN_LSTM(nn.Module):
         """
         return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
                 torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
-
-class shallow(nn.Module):
-    """ The Shallow Net model
-
-    This is from the Braindecode package:
-        https://github.com/braindecode/braindecode
-    
-    Args:
-        dataset (Multi_Domain_Dataset): dataset that we will be training on
-        model_hparams (dict): The hyperparameters for the model.
-        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
-
-    Attributes:
-        seq_len (int): The length of the sequences.
-    """
-    # ref: https://github.com/braindecode/braindecode
-    
-    def __init__(self, dataset, model_hparams, input_size=None):
-        super(shallow, self).__init__()
-
-        ## Save stuff
-        # Dataset parameters
-        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
-        self.output_size = dataset.OUTPUT_SIZE
-        self.seq_len = dataset.SEQ_LEN
-
-        # Define model
-        self.model = ShallowFBCSPNet(
-        self.input_size,
-        self.output_size,
-        input_window_samples=self.seq_len,
-        final_conv_length='auto',
-        )
-        
-    def forward(self, input, time_pred):
-        """ Forward pass of the model
-
-        Args:
-            input (torch.Tensor): The input to the model.
-            time_pred (torch.Tensor): The time prediction of the input.
-        """
-        out = self.model(input.permute((0, 2, 1)))
-        return out.unsqueeze(1)
 
 class CRNN(nn.Module):
     """ Convolutional Recurrent Neural Network
