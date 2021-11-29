@@ -29,11 +29,11 @@ DATASETS = [
     ## EEG Dataset
     "CAP",
     "SEDFx",
-    "MI",
+    "PCL",
     ## Sign Recognition
     "LSA64",
     ## Activity Recognition
-    "HAR"
+    "HHAR"
 ]
 
 def get_dataset_class(dataset_name):
@@ -1237,11 +1237,11 @@ class SEDFx(EEG_DB):
     def __init__(self, flags, training_hparams):
         super().__init__(flags, training_hparams)
        
-class MI(EEG_DB):
-    """ MI datasets
+class PCL(EEG_DB):
+    """ PCL datasets
 
     The task is to classify the motor imaginary from EEG and other modalities of signals.
-    The raw data comes from the three MI Databases:  
+    The raw data comes from the three PCL Databases:  
        [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
 
     You can read more on the data itself and it's provenance on: 
@@ -1258,7 +1258,7 @@ class MI(EEG_DB):
     PRED_TIME = [751]
     INPUT_SHAPE = [48]
     OUTPUT_SIZE = 2
-    DATA_PATH = 'MI/MI.h5'
+    DATA_PATH = 'PCL/PCL.h5'
 
     ## Environment parameters
     ENVS = [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
@@ -1472,8 +1472,8 @@ class LSA64(Multi_Domain_Dataset):
 
         return weights
 
-class HAR(Multi_Domain_Dataset):
-    """ Heterogeneity Acrivity Recognition Dataset (HAR)
+class HHAR(Multi_Domain_Dataset):
+    """ Heterogeneity Acrivity Recognition Dataset (HHAR)
 
     This dataset is composed of wearables measurements during different activities.
     The goal is to classify those activities (stand, sit, walk, bike, stairs up, stairs down).
@@ -1505,7 +1505,7 @@ class HAR(Multi_Domain_Dataset):
     INPUT_SHAPE = [6]
     OUTPUT_SIZE = 6
     #:str: Path to the file containing the data
-    DATA_PATH = 'HAR/HAR.h5'
+    DATA_PATH = 'HHAR/HHAR.h5'
 
     ## Environment parameters
     ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']

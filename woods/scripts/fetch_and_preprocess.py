@@ -39,7 +39,7 @@ from torchvision.transforms._transforms_video import (
 )
 from pytorchvideo.transforms import UniformTemporalSubsample
 
-# For MI dataset
+# For PCL dataset
 from moabb.datasets import BNCI2014001, PhysionetMI, Lee2019_MI, Cho2017
 from moabb.paradigms import MotorImagery
 from moabb import utils
@@ -628,11 +628,11 @@ class SEDFx():
 
         return list(set.intersection(*_table))
 
-def HAR(flags):
-    """ Fetch and preprocess the HAR dataset
+def HHAR(flags):
+    """ Fetch and preprocess the HHAR dataset
 
     Note:
-        You need to manually download the HAR dataset from the source and place it in the data folder in order to preprocess it yourself:
+        You need to manually download the HHAR dataset from the source and place it in the data folder in order to preprocess it yourself:
 
             https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
 
@@ -650,7 +650,7 @@ def HAR(flags):
 
     ## Fetch all data and put it all in a big dict
     data_dict = {}
-    for file in glob.glob(os.path.join(flags.data_path, 'HAR/*.csv')):
+    for file in glob.glob(os.path.join(flags.data_path, 'HHAR/*.csv')):
         print(file)
 
         # Get modality
@@ -847,7 +847,7 @@ def HAR(flags):
             
             env = device_env_mapping[device]
 
-            with h5py.File(os.path.join(flags.data_path, 'HAR/HAR.h5'), 'a') as hf:
+            with h5py.File(os.path.join(flags.data_path, 'HHAR/HHAR.h5'), 'a') as hf:
                 if env not in hf.keys():
                     g = hf.create_group(env)
                     g.create_dataset('data', data=data.astype('float32'), dtype='float32', maxshape=(None, 500, 6))
@@ -862,7 +862,7 @@ def LSA64(flags):
     """ Fetch the LSA64 dataset and preprocess it
 
     Note:
-        You need to manually download the HAR dataset from the source and place it in the data folder in order to preprocess it yourself:
+        You need to manually download the HHAR dataset from the source and place it in the data folder in order to preprocess it yourself:
 
             https://mega.nz/file/FQJGCYba#uJKGKLW1VlpCpLCrGVu89wyQnm9b4sKquCOEAjW5zMo
 
@@ -896,7 +896,7 @@ def LSA64(flags):
             for frame in range(vid.shape[1]):
                 torchvision.utils.save_image(vid[:,frame,...], os.path.join(flags.data_path, 'LSA64', ID[1], ID[0], sample_num, 'frame_'+str(frame).zfill(6)+'.jpg'))
 
-class MI():
+class PCL():
     """ Fetch the data using moabb and preprocess it
 
     Source of MOABB:
@@ -910,11 +910,11 @@ class MI():
     """
 
     def __init__(self,flags):
-        super(MI, self).__init__()
+        super(PCL, self).__init__()
 
         self.path = flags.data_path
 
-        print('Downloading MI datasets')
+        print('Downloading PCL datasets')
         mne.set_config('MNE_DATASETS_BNCI_PATH', self.path)
         utils.set_download_dir(self.path)
 
@@ -989,7 +989,7 @@ class MI():
         groups = ['PhysionetMI', 'Cho2017', 'Lee2019_MI']# 'BNCI2014001'
         X = [X_src1, X_src2, X_src3]
         Y = [y_src1, y_src2, y_src3]
-        with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
+        with h5py.File(os.path.join(self.path, 'PCL/PCL.h5'), 'a') as hf:
             for g in groups:
                 g = hf.create_group(g)
                 g.create_dataset('data', data=dummy_data.astype('float32'), dtype='float32', maxshape=(None, window_size, len(common_channels)))
@@ -997,7 +997,7 @@ class MI():
         
         ## Save data to h5 file
         for group, x, y in zip(groups,X,Y):
-            with h5py.File(os.path.join(self.path, 'MI/MI.h5'), 'a') as hf:
+            with h5py.File(os.path.join(self.path, 'PCL/PCL.h5'), 'a') as hf:
                 hf[group]['data'].resize((hf[group]['data'].shape[0] + x.shape[0]), axis = 0)
                 hf[group]['data'][-x.shape[0]:,:,:] = x.transpose((0,2,1))
                 hf[group]['labels'].resize((hf[group]['labels'].shape[0] + y.shape[0]), axis = 0)
@@ -1026,11 +1026,11 @@ if __name__ == '__main__':
     if 'SEDFx' in flags.dataset:
         SEDFx(flags)
     
-    if 'MI' in flags.dataset:
-        MI(flags)
+    if 'PCL' in flags.dataset:
+        PCL(flags)
 
-    if 'HAR' in flags.dataset:
-        HAR(flags)
+    if 'HHAR' in flags.dataset:
+        HHAR(flags)
 
     if 'LSA64' in flags.dataset:
         LSA64(flags)
