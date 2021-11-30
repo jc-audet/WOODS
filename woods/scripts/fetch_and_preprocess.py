@@ -933,7 +933,6 @@ class PCL():
         src3_channels = raw.pick_types(eeg=True).ch_names
         common_channels = set(src1_channels) & set(src2_channels) & set(src3_channels)
         print(src1_channels,'\n',len(src1_channels),'\n',src2_channels,'\n',len(src2_channels),'\n',src3_channels,'\n',len(src3_channels),'\n','common_channels:',common_channels,len(common_channels))
-        common_channels = set(src1_channels) & set(src3_channels)
 
         sfreq = 250.
         prgm_2classes = MotorImagery(n_classes=2, channels=common_channels, resample=sfreq, fmin=fmin, fmax=fmax)
