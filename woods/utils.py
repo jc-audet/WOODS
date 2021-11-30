@@ -228,7 +228,7 @@ def get_latex_table(table, caption=None, label=None):
     s = r'\begin{center}' + '\n'
     s += r'\adjustbox{max width=\textwidth}{%' + '\n'
     s += r'\begin{tabular}{l'
-    s += ''.join(['c',]*len(table.field_names)) + '}' + '\n'
+    s += ''.join(['c',]*(len(table.field_names)-1)) + '}' + '\n'
     s += r'\toprule' + '\n'
     s += r'\multicolumn{' + str(len(table.field_names)) + r'}{c}{\textbf{' + caption.replace('_', ' ') + r'}} \\' + '\n'
     s += r'\midrule' + '\n'

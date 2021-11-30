@@ -20,7 +20,7 @@ from woods import utils
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Collect result of hyper parameter sweep")
-    parser.add_argument('--mode', nargs='?', default='tables', const='tables', choices=['tables', 'hparams', 'IID'])
+    parser.add_argument('--mode', nargs='?', default='tables', const='tables', choices=['tables', 'summary', 'hparams', 'IID'])
     parser.add_argument("--results_dirs", type=str, nargs='+', required=True)
     parser.add_argument("--ignore_integrity_check", action='store_true')
     parser.add_argument("--latex", action='store_true')
@@ -128,6 +128,97 @@ if __name__ == "__main__":
                     print(utils.get_latex_table(t, caption=ms_method + ' Results for ' + dataset_name))
                 else:
                     print(t.get_string(title=ms_method + ' Results for ' + dataset_name))
+
+    elif 'summary' in flags.mode:
+
+        # Perform model selection onto the checkpoints from results
+        for ms_method in model_selection_methods:
+
+            t = PrettyTable()
+            t.field_names = ['Objective'] + list(records.keys()) + ["Average"]
+
+            acc_dict = {}
+            var_dict = {}
+            for dataset_name, dataset_dict in records.items():
+                
+                acc_dict[dataset_name] = {}
+                var_dict[dataset_name] = {}
+                sweep_envs = datasets.get_sweep_envs(dataset_name)
+                all_envs = datasets.get_environments(dataset_name)
+                envs = [all_envs[i] for i in sweep_envs]
+
+                for objective_name, objective_dict in dataset_dict.items():
+
+                    acc_arr = []
+                    acc_var = []
+                    all_sweep_env = True
+
+                    for env_id in sweep_envs:
+                        # If the environment wasn't part of the sweep, that's NOT fine, we need all test environment for the average
+                        if env_id not in objective_dict.keys():
+                            all_sweep_env = False
+                        else:
+                            val_acc, val_var, test_acc, test_var = model_selection.get_chosen_test_acc(objective_dict[env_id], ms_method)
+                            acc_arr.append(test_acc*100)
+                            acc_var.append(test_var*100)
+                            
+                    if all_sweep_env:
+                        avg_test = np.mean(acc_arr)
+                        var_test = np.mean(acc_var)
+                        # acc_dict[dataset_name][objective_name] =  " ${acc:.2f} \pm {var:.2f}$ ".format(acc=avg_test, var=var_test)
+                        # acc_dict[dataset_name][objective_name] =  " {acc:.2f} +/- {var:.2f} ".format(acc=avg_test, var=var_test)
+                        acc_dict[dataset_name][objective_name] =  avg_test
+                        var_dict[dataset_name][objective_name] =  var_test
+                    else:
+                        acc_dict[dataset_name][objective_name] = None
+
+            # Flip the nested dict so the order is objective -> dataset
+            flipped_acc = {}
+            flipped_var = {}
+            for dataset_name in acc_dict.keys():
+                for objective_name in acc_dict[dataset_name].keys():
+                    if objective_name not in flipped_acc.keys():
+                        flipped_acc[objective_name] = {}
+                        flipped_var[objective_name] = {}
+                    flipped_acc[objective_name][dataset_name] = acc_dict[dataset_name][objective_name]
+                    flipped_var[objective_name][dataset_name] = var_dict[dataset_name][objective_name]
+            
+            # Ensure that all objectives have all datasets
+            for objective_name in flipped_acc.keys():
+                for dataset_name in flipped_acc[objective_name].keys():
+                    if dataset_name not in flipped_acc[objective_name].keys():
+                        flipped_acc[objective_name][dataset_name] = None
+
+            # Construct the table
+            for objective_name in flipped_acc.keys():
+                obj_results = [objective_name]
+
+                for dataset_name in flipped_acc[objective_name].keys():
+                    if flipped_acc[objective_name][dataset_name] is None:
+                        obj_results.append(" X ")
+                    else:
+                        if flags.latex:
+                            obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
+                        else:
+                            obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
+                
+                obj_results.append(" {acc:.2f} ".format(acc=np.mean(list(flipped_acc[objective_name].values()))))
+
+                t.add_row(obj_results)
+
+            max_width = {}
+            min_width = {}
+            for n in t.field_names:
+                max_width.update({n: 20})
+                min_width.update({n: 20})
+            t._min_width = min_width
+            t._max_width = max_width
+            t.float_format = '.3'
+            
+            if flags.latex:
+                print(utils.get_latex_table(t, caption=ms_method + ' Results for ' + dataset_name))
+            else:
+                print(t.get_string(title=ms_method + ' Results for ' + dataset_name))
 
     elif 'IID' in flags.mode:
 
