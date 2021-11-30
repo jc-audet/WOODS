@@ -42,7 +42,7 @@ python3 -m woods.scripts.hparams_sweep \
         --data_path /path/to/data/directory
 ```
 
-When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents. 
+When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents. For more details on the usage of compile results, see the [documentation](https://woods.readthedocs.io/en/latest/running_a_sweep.html).
 
 ```sh
 python3 -m woods.scripts.compile_results \
@@ -53,7 +53,7 @@ python3 -m woods.scripts.compile_results \
 
 ## Evaluate a model
 
-Evaluate a single model using one objective on one dataset with one test environment
+Evaluate a single model using one objective on one dataset with one test environment.
 
 ```sh
 python3 -m woods.main eval \
