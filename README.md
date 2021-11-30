@@ -31,43 +31,22 @@ python3 -m woods.scripts.main train \
 ```
 
 ## Make a sweep
-To launch a hyper parameter sweep, use the following script. Define a collection of Objective and Dataset to investigate a combination. All test environment are gonna be investigated automatically. By default, the sweep is gonna do a random search over 20 hyper parameter seeds with 3 trial seed each.
+To launch a hyper parameter sweep, use the following script. Define a collection of Objective and Dataset to investigate a combination. All test environment are gonna be investigated automatically. By default, the sweep is gonna do a random search over 20 hyper parameter seeds with 3 trial seed each. For more details on the usage of the hparams_sweep, see the [documentation](https://woods.readthedocs.io/en/latest/running_a_sweep.html).
 
 ```sh
 python3 -m woods.scripts.hparams_sweep \
         --dataset Spurious_Fourier TCMNIST_seq\
         --objective ERM IRM \
         --save_path ./results \
-        --launcher local
-```
-
-To change the number of seeds investigated, you can call the `--n_hparams` and `--n_trials` argument.
-
-```sh
-python3 -m woods.scripts.hparams_sweep \
-        --dataset Spurious_Fourier TCMNIST_seq \
-        --objective ERM \
-        --save_path ./results \
         --launcher local \
-        --n_hparams 10 \
-        --n_trials 1
+        --data_path /path/to/data/directory
 ```
 
-You can also specify which test environment you want to investigate using the `--unique_test_env` argument
-
-```sh
-python3 -m woods.scripts.hparams_sweep \
-        --dataset Spurious_Fourier TCMNIST_seq \
-        --objective ERM IRM \
-        --save_path ./results \
-        --launcher local \
-        --unique_test_env 0
-```
-
-When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents (with the **** package)
+When the sweep is complete you can compile the results in neat tables, the '--latex' argument outputs a table that can be directly copy pasted into a .tex documents. 
 
 ```sh
 python3 -m woods.scripts.compile_results \
+        --mode tables \
         --results_dir ./results \
         --latex
 ```

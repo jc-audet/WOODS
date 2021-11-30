@@ -224,8 +224,12 @@ def get_latex_table(table, caption=None, label=None):
     Returns:
         str: printable latex string
     """
+    s = ''
 
-    s = r'\begin{center}' + '\n'
+    s += r'\usepackage{adjustbox}' + '\n'
+    s += r'\usepackage{multirow}' + '\n'
+    s += r'\usepackage{booktabs}' + '\n'
+    s += r'\begin{center}' + '\n'
     s += r'\adjustbox{max width=\textwidth}{%' + '\n'
     s += r'\begin{tabular}{l'
     s += ''.join(['c',]*(len(table.field_names)-1)) + '}' + '\n'
