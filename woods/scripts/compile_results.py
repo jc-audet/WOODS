@@ -165,8 +165,6 @@ if __name__ == "__main__":
                     if all_sweep_env:
                         avg_test = np.mean(acc_arr)
                         var_test = np.mean(acc_var)
-                        # acc_dict[dataset_name][objective_name] =  " ${acc:.2f} \pm {var:.2f}$ ".format(acc=avg_test, var=var_test)
-                        # acc_dict[dataset_name][objective_name] =  " {acc:.2f} +/- {var:.2f} ".format(acc=avg_test, var=var_test)
                         acc_dict[dataset_name][objective_name] =  avg_test
                         var_dict[dataset_name][objective_name] =  var_test
                     else:

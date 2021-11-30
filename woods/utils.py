@@ -233,7 +233,7 @@ def get_latex_table(table, caption=None, label=None):
     s += r'\multicolumn{' + str(len(table.field_names)) + r'}{c}{\textbf{' + caption.replace('_', ' ') + r'}} \\' + '\n'
     s += r'\midrule' + '\n'
     env_name = [env.replace('_', ' ') for env in table.field_names[1:-1]]
-    s += r'\textbf{Algorithm} & ' + ' & '.join(env_name) + r' & \textbf{Average}' + r'\\' + '\n'
+    s += r'\textbf{'+ table.field_names[0] +'} & ' + ' & '.join(env_name) + r' & \textbf{'+ table.field_names[-1] +'}' + r'\\' + '\n'
     s += r'\midrule' + '\n'
     rows = table._format_rows(table._rows, [])
     for i in range(len(rows)):
