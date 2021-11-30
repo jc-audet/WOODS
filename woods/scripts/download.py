@@ -12,14 +12,13 @@ def download_URL(url, path):
     """ Download a file from a URL and save it to a path """
     
     archive_file = os.path.join(path, "files.zip")
-    # gdown.download(url, archive_file, quiet=False)
     gdown.cached_download(url=url, path=archive_file, quiet=False, postprocess=gdown.extractall)
     os.remove(path=archive_file)
 
 def CAP(data_path):
     """ Download the CAP dataset """
 
-    url = "https://drive.google.com/u/0/uc?export=download&confirm=Iv6v&id=1NFwX2CqLrenWF4az0c6J-OglAoD48PAT"
+    url = "https://drive.google.com/uc?id=1NFwX2CqLrenWF4az0c6J-OglAoD48PAT"
     path = os.path.join(data_path, "CAP")
     os.makedirs(name=path, exist_ok=True)
 
@@ -28,7 +27,7 @@ def CAP(data_path):
 def SEDFx(data_path):
     """ Download the SEDFx dataset """
 
-    url = "https://drive.google.com/u/0/uc?export=download&confirm=IFUo&id=15j_bsiOmMJb42mG712Vhv3jZ4MQSOgoT"
+    url = "https://drive.google.com/uc?id=15j_bsiOmMJb42mG712Vhv3jZ4MQSOgoT"
     path = os.path.join(data_path, "SEDFx")
     os.makedirs(name=path, exist_ok=True)
 
@@ -37,7 +36,7 @@ def SEDFx(data_path):
 def PCL(data_path):
     """ Download the PCL dataset """
 
-    url = "https://drive.google.com/u/0/uc?export=download&confirm=IO1m&id=118DNxHpzeJwVTM22wzZhSiOuDsno0nay"
+    url = "https://drive.google.com/uc?id=118DNxHpzeJwVTM22wzZhSiOuDsno0nay"
     path = os.path.join(data_path, "PCL")
     os.makedirs(name=path, exist_ok=True)
 
@@ -46,7 +45,7 @@ def PCL(data_path):
 def HHAR(data_path):
     """ Download the HHAR dataset """
 
-    url = "https://drive.google.com/u/0/uc?export=download&confirm=msUh&id=1Z3IcrCE-o77p4YrvkCy-Y-0CgCyxVHet"
+    url = "https://drive.google.com/uc?id=1Z3IcrCE-o77p4YrvkCy-Y-0CgCyxVHet"
     path = os.path.join(data_path, "HHAR")
     os.makedirs(name=path, exist_ok=True)
 
@@ -55,7 +54,7 @@ def HHAR(data_path):
 def LSA64(data_path):
     """ Download the LSA64 dataset """
 
-    url = "https://drive.google.com/u/0/uc?export=download&confirm=dnHm&id=1YwwSg8Dt178ySp3ht_BLJwl5j5s_IU1m"
+    url = "https://drive.google.com/uc?id=1YwwSg8Dt178ySp3ht_BLJwl5j5s_IU1m"
     path = os.path.join(data_path, "LSA64")
     os.makedirs(name=path, exist_ok=True)
 
