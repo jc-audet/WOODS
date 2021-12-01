@@ -6,8 +6,6 @@ woods
 
 .. automodule:: woods
     
-
-
     .. toctree::
        :hidden:
        :maxdepth: 1
