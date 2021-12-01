@@ -19,7 +19,6 @@ woods
        woods.models
        woods.objectives
        woods.train
-       woods.train_step
        woods.utils
 
     .. autosummary::
@@ -32,7 +31,6 @@ woods
        woods.models
        woods.objectives
        woods.train
-       woods.train_step
        woods.utils
     .. toctree::
        :hidden:

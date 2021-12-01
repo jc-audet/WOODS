@@ -7,7 +7,7 @@ woods.scripts.fetch_and_preprocess module
 .. currentmodule:: woods.scripts.fetch_and_preprocess
 
 .. automodule:: woods.scripts.fetch_and_preprocess
-    :members: DATASETS, HAR, LSA64, MI, CAP, SEDFx
+    :members: CAP, DATASETS, HHAR, LSA64, PCL, SEDFx
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
@@ -21,15 +21,15 @@ woods.scripts.fetch_and_preprocess module
         :nosignatures:
 
         CAP
+        PCL
         SEDFx
-        MI
 
     Functions:
 
     .. autosummary::
         :nosignatures:
 
-        HAR
+        HHAR
         LSA64
 
 

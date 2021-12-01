@@ -7,7 +7,7 @@ woods.hyperparams module
 .. currentmodule:: woods.hyperparams
 
 .. automodule:: woods.hyperparams
-    :members: ANDMask_hyper, Basic_Fourier_model, Basic_Fourier_train, CAP_DB_model, CAP_DB_train, ERM_hyper, HAR_model, HAR_train, IGA_hyper, IRM_hyper, LSA64_model, LSA64_train, MI_model, MI_train, OBJECTIVES, SD_hyper, SEDFx_DB_model, SEDFx_DB_train, Spurious_Fourier_model, Spurious_Fourier_train, TCMNIST_seq_model, TCMNIST_seq_train, TCMNIST_step_model, TCMNIST_step_train, TMNIST_model, TMNIST_train, VREx_hyper, get_model_hparams, get_objective_hparams, get_training_hparams
+    :members: ANDMask_hyper, Basic_Fourier_model, Basic_Fourier_train, CAP_model, CAP_train, ERM_hyper, Fish_hyper, HAR_model, HAR_train, IGA_hyper, IRM_hyper, LSA64_model, LSA64_train, MI_model, MI_train, OBJECTIVES, SANDMask_hyper, SD_hyper, SEDFx_model, SEDFx_train, Spurious_Fourier_model, Spurious_Fourier_train, TCMNIST_seq_model, TCMNIST_seq_train, TCMNIST_step_model, TCMNIST_step_train, TMNIST_model, TMNIST_train, VREx_hyper, get_model_hparams, get_objective_hparams, get_training_hparams
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
@@ -23,9 +23,10 @@ woods.hyperparams module
         ANDMask_hyper
         Basic_Fourier_model
         Basic_Fourier_train
-        CAP_DB_model
-        CAP_DB_train
+        CAP_model
+        CAP_train
         ERM_hyper
+        Fish_hyper
         HAR_model
         HAR_train
         IGA_hyper
@@ -34,9 +35,10 @@ woods.hyperparams module
         LSA64_train
         MI_model
         MI_train
+        SANDMask_hyper
         SD_hyper
-        SEDFx_DB_model
-        SEDFx_DB_train
+        SEDFx_model
+        SEDFx_train
         Spurious_Fourier_model
         Spurious_Fourier_train
         TCMNIST_seq_model

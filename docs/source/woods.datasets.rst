@@ -7,7 +7,7 @@ woods.datasets module
 .. currentmodule:: woods.datasets
 
 .. automodule:: woods.datasets
-    :members: Basic_Fourier, CAP_DB, DATASETS, EEG_dataset, HAR, InfiniteLoader, InfiniteSampler, LSA64, MI, Multi_Domain_Dataset, SEDFx_DB, Sleep_DB, Spurious_Fourier, StockVolatility, TCMNIST, TCMNIST_seq, TCMNIST_step, TMNIST, Video_dataset, XOR, bernoulli, get_dataset_class, get_environments, get_setup, get_split, make_split, num_environments
+    :members: Basic_Fourier, CAP, DATASETS, EEG_DB, H5_dataset, HHAR, InfiniteLoader, InfiniteSampler, LSA64, Multi_Domain_Dataset, PCL, SEDFx, Spurious_Fourier, TCMNIST, TCMNIST_seq, TCMNIST_step, TMNIST, Video_dataset, XOR, bernoulli, get_dataset_class, get_environments, get_setup, get_split, get_sweep_envs, make_split, num_environments
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
@@ -21,18 +21,17 @@ woods.datasets module
         :nosignatures:
 
         Basic_Fourier
-        CAP_DB
-        EEG_dataset
-        HAR
+        CAP
+        EEG_DB
+        H5_dataset
+        HHAR
         InfiniteLoader
         InfiniteSampler
         LSA64
-        MI
         Multi_Domain_Dataset
-        SEDFx_DB
-        Sleep_DB
+        PCL
+        SEDFx
         Spurious_Fourier
-        StockVolatility
         TCMNIST
         TCMNIST_seq
         TCMNIST_step
@@ -50,6 +49,7 @@ woods.datasets module
         get_environments
         get_setup
         get_split
+        get_sweep_envs
         make_split
         num_environments
 

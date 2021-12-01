@@ -7,7 +7,7 @@ woods.objectives module
 .. currentmodule:: woods.objectives
 
 .. automodule:: woods.objectives
-    :members: ANDMask, ERM, IGA, IRM, OBJECTIVES, Objective, SD, VREx, get_objective_class
+    :members: ANDMask, ERM, Fish, IGA, IRM, OBJECTIVES, Objective, SANDMask, SD, VREx, get_objective_class
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
@@ -22,9 +22,11 @@ woods.objectives module
 
         ANDMask
         ERM
+        Fish
         IGA
         IRM
         Objective
+        SANDMask
         SD
         VREx
 

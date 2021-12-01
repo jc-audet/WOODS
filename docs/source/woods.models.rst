@@ -7,7 +7,7 @@ woods.models module
 .. currentmodule:: woods.models
 
 .. automodule:: woods.models
-    :members: ATTN_LSTM, CRNN, LSTM, get_model, shallow
+    :members: ATTN_LSTM, CRNN, EEGNet, LSTM, MNIST_CNN, MNIST_LSTM, deep4, get_model, shallow
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
@@ -22,7 +22,11 @@ woods.models module
 
         ATTN_LSTM
         CRNN
+        EEGNet
         LSTM
+        MNIST_CNN
+        MNIST_LSTM
+        deep4
         shallow
 
     Functions:

@@ -7,7 +7,7 @@ woods.model_selection module
 .. currentmodule:: woods.model_selection
 
 .. automodule:: woods.model_selection
-    :members: ensure_dict_path, get_best_hparams, get_chosen_test_acc, test_domain_validation, train_domain_validation
+    :members: IID_validation, ensure_dict_path, get_best_hparams, get_chosen_test_acc, test_domain_validation, train_domain_validation
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
@@ -20,6 +20,7 @@ woods.model_selection module
     .. autosummary::
         :nosignatures:
 
+        IID_validation
         ensure_dict_path
         get_best_hparams
         get_chosen_test_acc
