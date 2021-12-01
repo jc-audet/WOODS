@@ -32,6 +32,24 @@ python3 -m woods.scripts.compile_results \
         --results_dir path/to/results/1 path/to/results/2 path/to/results/3 \
         --latex
 ```
+There are other mode of operation for the compile_results module, such as `--mode IID` which takes results from a sweep with no test environment and report the results for each test environment separately.  
+```sh
+python3 -m woods.scripts.compile_results \
+        --results_dir path/to/results/1 path/to/results/2 path/to/results/3 \
+        --mode IID
+```
+There is also `--mode summary` which reports the average results for every dataset of all objectives in the sweep.
+```sh
+python3 -m woods.scripts.compile_results \
+        --results_dir path/to/results/1 path/to/results/2 path/to/results/3 \
+        --mode summary
+```
+You can also use the `--mode hparams` which reports the hparams of the model chosen by model selection
+```sh
+python3 -m woods.scripts.compile_results \
+        --results_dir path/to/results/1 path/to/results/2 path/to/results/3 \
+        --mode hparams
+```
 
 ## Advanced usage
 If 60 jobs is too many jobs for you available compute, or too few for you experiments you can change the number of seeds investigated, you can call the `--n_hparams` and `--n_trials` argument.
@@ -52,4 +70,13 @@ python3 -m woods.scripts.hparams_sweep \
         --save_path ./results \
         --launcher local \
         --unique_test_env 0
+```
+You can run a sweep with no test environment by specifying the `--unique_test_env` argument as `None`.
+```sh
+python3 -m woods.scripts.hparams_sweep \
+        --dataset Spurious_Fourier TCMNIST_seq \
+        --objective ERM IRM \
+        --save_path ./results \
+        --launcher local \
+        --unique_test_env None
 ```
