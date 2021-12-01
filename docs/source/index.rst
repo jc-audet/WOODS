@@ -53,6 +53,12 @@ Scripts
 .. autosummary::
 
    woods.scripts
+    woods.scripts.compile_results
+    woods.scripts.download
+    woods.scripts.fetch_and_preprocess
+    woods.scripts.hparams_sweep
+    woods.scripts.main
+    woods.scripts.visualize_results
    
 
 
