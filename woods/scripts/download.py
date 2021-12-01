@@ -11,10 +11,10 @@ from woods.datasets import DATASETS
 def download_URL(url, path):
     """ Download a file from a URL and save it to a path """
     
-    archive_file = os.path.join(path, "files.zip")
-    # gdown.download(url, path, quiet=False)
-    gdown.cached_download(url=url, path=archive_file, quiet=False, postprocess=gdown.extractall)
-    os.remove(path=archive_file)
+    # archive_file = os.path.join(path, "files.zip")
+    gdown.download(url, path, quiet=False)
+    # gdown.cached_download(url=url, path=archive_file, quiet=False, postprocess=gdown.extractall)
+    # os.remove(path=archive_file)
 
 def CAP(data_path):
     """ Download the CAP dataset """
@@ -46,11 +46,11 @@ def PCL(data_path):
 def HHAR(data_path):
     """ Download the HHAR dataset """
 
-    url = "https://drive.google.com/uc?id=1Z3IcrCE-o77p4YrvkCy-Y-0CgCyxVHet"
+    url = "https://drive.google.com/d?id=1Z3IcrCE-o77p4YrvkCy-Y-0CgCyxVHet"
     path = os.path.join(data_path, "HHAR")
     os.makedirs(name=path, exist_ok=True)
 
-    download_URL(url, path)
+    download_URL(url, os.path.join(path, 'hhar.zip'))
 
 def LSA64(data_path):
     """ Download the LSA64 dataset """
