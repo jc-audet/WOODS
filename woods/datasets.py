@@ -1210,7 +1210,7 @@ class SEDFx(EEG_DB):
 
     You can read more on the data itself and it's provenance on Physionet.org:
 
-         https://physionet.org/content/sleep-edfx/1.0.0/
+        https://physionet.org/content/sleep-edfx/1.0.0/
 
     Args:
         flags (argparse.Namespace): argparse of training arguments
