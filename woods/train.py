@@ -143,7 +143,7 @@ def get_split_accuracy_seq(objective, dataset, loader, device):
 
             data, target = data.to(device), target.to(device)
 
-            all_out = objective.predict(data, ts, device)
+            all_out, _ = objective.predict(data, ts, device)
 
             for i, t in enumerate(ts):
                 losses += objective.loss_fn(all_out[:,i,...], target[:,i])
@@ -178,7 +178,7 @@ def get_split_accuracy_step(objective, dataset, loader, device):
 
             data, target = data.to(device), target.to(device)
 
-            all_out = objective.predict(data, ts, device)
+            all_out, _ = objective.predict(data, ts, device)
 
             for i, t in enumerate(ts):
                 losses[i] += objective.loss_fn(all_out[:,i,...], target[:,i])

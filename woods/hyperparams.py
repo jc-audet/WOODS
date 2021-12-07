@@ -180,8 +180,8 @@ def SEDFx_train(sample):
             'batch_size': lambda r: 8
         }
 
-def MI_train(sample):
-    """ MI model hparam definition """
+def PCL_train(sample):
+    """ PCL model hparam definition """
     if sample:
         return {
             'class_balance': lambda r: True,
@@ -197,8 +197,8 @@ def MI_train(sample):
             'batch_size': lambda r: 32
         }
 
-def HAR_train(sample):
-    """ HAR model hparam definition 
+def HHAR_train(sample):
+    """ HHAR model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -236,7 +236,7 @@ def LSA64_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 8
+            'batch_size': lambda r: 2
         }
 
 def get_model_hparams(dataset_name):
@@ -327,14 +327,14 @@ def SEDFx_model():
         'model': 'deep4'
     }
 
-def MI_model():
-    """ MI model hparam definition"""
+def PCL_model():
+    """ PCL model hparam definition"""
     return {
         'model': 'EEGNet'
     }
 
-def HAR_model():
-    """ HAR model hparam definition """
+def HHAR_model():
+    """ HHAR model hparam definition """
     return {
         'model': 'deep4',
     }
@@ -453,7 +453,7 @@ def IGA_hyper(sample):
         }
     else:
         return {
-            'penalty_weight': lambda r: 1e4
+            'penalty_weight': lambda r: 1e1
         }
 
 def ANDMask_hyper(sample):
@@ -503,7 +503,45 @@ def SANDMask_hyper(sample):
         }
     else:
         return {
-            'tau': lambda r: 1,
+            'tau': lambda r: 0.5,
             'k': lambda r: 1e+1,
             'betas': lambda r: 0.9
         }        
+        
+def IB_ERM_hyper(sample):
+    """ IB_ERM objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'ib_weight': lambda r: 10**r.uniform(-1,5),
+            'ib_anneal': lambda r: r.uniform(0,2000)
+        }
+    else:
+        return {
+            'ib_weight': lambda r: 1e2,
+            'ib_anneal': lambda r: 500
+        }
+ 
+def IB_IRM_hyper(sample):
+    """ IB_ERM objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'ib_weight': lambda r: 10**r.uniform(-1,5),
+            'ib_anneal': lambda r: r.uniform(0,2000),
+            'irm_weight': lambda r: 10**r.uniform(-1,5),
+            'irm_anneal': lambda r: r.uniform(0,2000)
+        }
+    else:
+        return {
+            'ib_weight': lambda r: 1e2,
+            'ib_anneal': lambda r: 500,
+            'irm_weight': lambda r: 1e2,
+            'irm_anneal': lambda r: 500
+        }

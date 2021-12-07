@@ -1,4 +1,5 @@
 academictorrents==2.3.3
+sphinx_markdown_tables
 better_apidoc==0.3.2
 Braindecode==0.5.1
 gdown==3.13.0

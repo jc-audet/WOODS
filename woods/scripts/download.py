@@ -7,7 +7,6 @@ import requests
 import argparse
 import subprocess
 import zipfile
-
 import academictorrents as at
 
 # Local import
@@ -30,7 +29,7 @@ def download_at(at_hash, path, archive_name):
     """ Download the preprocessed data from academic torrents """
     
     # Download the torrent
-    r = at.get(at_hash, datastore=path, showlogs=True, use_timestamp=False)
+    r = at.get(at_hash, datastore=path, showlogs=True)
 
     # Extract the archive to the path
     with zipfile.ZipFile(os.path.join(r, archive_name), 'r') as zip_ref:
@@ -138,7 +137,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Download datasets')
     parser.add_argument('dataset', nargs='*', type=str, default=DATASETS)
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
-    parser.add_argument('--mode', type=str, default='at', choices=['at', 'gdrive'])
+    parser.add_argument('--mode', type=str, default='gdrive', choices=['at', 'gdrive'])
     flags = parser.parse_args()
 
     print('Flags:')

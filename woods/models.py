@@ -1,6 +1,7 @@
 """Defining the architectures used for benchmarking algorithms"""
 
 import math
+import copy
 
 import torch
 from torch import nn
@@ -30,51 +31,6 @@ def get_model(dataset, model_hparams):
 ################
 ## EEG Models ##
 ################
-class shallow(nn.Module):
-    """ The Shallow Net model
-
-    This is from the Braindecode package:
-        https://github.com/braindecode/braindecode
-    
-    Args:
-        dataset (Multi_Domain_Dataset): dataset that we will be training on
-        model_hparams (dict): The hyperparameters for the model.
-        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
-
-    Attributes:
-        input_size (int): The size of the inputs to the model (for a single time step).
-        output_size (int): The size of the outputs of the model (number of classes).
-        seq_len (int): The length of the sequences.
-    """
-    # ref: https://github.com/braindecode/braindecode
-    
-    def __init__(self, dataset, model_hparams, input_size=None):
-        super(shallow, self).__init__()
-
-        ## Save stuff
-        # Dataset parameters
-        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
-        self.output_size = dataset.OUTPUT_SIZE
-        self.seq_len = dataset.SEQ_LEN
-
-        # Define model
-        self.model = ShallowFBCSPNet(
-        self.input_size,
-        self.output_size,
-        input_window_samples=self.seq_len,
-        final_conv_length='auto',
-        )
-        
-    def forward(self, input, time_pred):
-        """ Forward pass of the model
-
-        Args:
-            input (torch.Tensor): The input to the model.
-            time_pred (torch.Tensor): The time prediction of the input.
-        """
-        out = self.model(input.permute((0, 2, 1)))
-        return out.unsqueeze(1)
-
 class deep4(nn.Module):
     """ The DEEP4 model
 
@@ -90,7 +46,6 @@ class deep4(nn.Module):
         output_size (int): The size of the outputs of the model (number of classes).
         seq_len (int): The length of the sequences.
     """
-    # ref: https://github.com/braindecode/braindecode/tree/master/braindecode/models
     
     def __init__(self, dataset, model_hparams):
         super(deep4, self).__init__()
@@ -101,27 +56,40 @@ class deep4(nn.Module):
         self.seq_len = dataset.SEQ_LEN
 
         self.model = Deep4Net(
-        self.input_size,
-        self.output_size,
-        input_window_samples=self.seq_len,
-        final_conv_length='auto',
-        n_filters_time=32,
-        n_filters_spat=32,
-        filter_time_length=10,
-        pool_time_length=3,
-        pool_time_stride=3,
-        n_filters_2=64,
-        filter_length_2=10,
-        n_filters_3=128,
-        filter_length_3=10,
-        n_filters_4=256,
-        filter_length_4=10
+            self.input_size,
+            self.output_size,
+            input_window_samples=self.seq_len,
+            final_conv_length='auto',
+            n_filters_time=32,
+            n_filters_spat=32,
+            filter_time_length=10,
+            pool_time_length=3,
+            pool_time_stride=3,
+            n_filters_2=64,
+            filter_length_2=10,
+            n_filters_3=128,
+            filter_length_3=10,
+            n_filters_4=256,
+            filter_length_4=10
         )
+
+        # Delete undesired layers
+        self.classifier = copy.deepcopy(self.model.conv_classifier)
+        del self.model.conv_classifier
+        del self.model.softmax
+        del self.model.squeeze
         
     def forward(self, input, time_pred):
-        out = self.model(input.permute((0, 2, 1)))
-        return out.unsqueeze(1)
 
+        # Forward pass
+        features = self.model(input.permute((0, 2, 1)))
+        out = self.classifier(features)
+
+        # Remove all extra dimension and Add the time prediction dimension
+        out, features = torch.flatten(out, start_dim=1), torch.flatten(features, start_dim=1)
+        out, features = out.unsqueeze(1), features.unsqueeze(1)
+
+        return out, features
 
 class EEGNet(nn.Module):
     """ The EEGNet model
@@ -151,21 +119,34 @@ class EEGNet(nn.Module):
 
         scale = 1
         self.model = EEGNetv4(
-        self.input_size,
-        self.output_size,
-        input_window_samples=self.seq_len,
-        final_conv_length='auto',
-        F1=8*scale,
-        D=2*scale,
-        F2=16*scale*scale, #usually set to F1*D (?)
-        kernel_length=64*scale,
-        third_kernel_size=(8, 4),
-        drop_prob=0.05,
+            self.input_size,
+            self.output_size,
+            input_window_samples=self.seq_len,
+            final_conv_length='auto',
+            F1=8*scale,
+            D=2*scale,
+            F2=16*scale*scale, #usually set to F1*D (?)
+            kernel_length=64*scale,
+            third_kernel_size=(8, 4),
+            drop_prob=0.05,
         )
+
+        self.classifier = copy.deepcopy(self.model.conv_classifier)
+        del self.model.conv_classifier
+        del self.model.softmax
+        del self.model.squeeze
         
     def forward(self, input, time_pred):
-        out = self.model(input.permute((0, 2, 1)))
-        return out.unsqueeze(1)
+
+        # Forward pass
+        features = self.model(input.permute((0, 2, 1)))
+        out = self.classifier(features)
+
+        # Remove all extra dimension and Add the time prediction dimension
+        out, features = torch.flatten(out, start_dim=1), torch.flatten(features, start_dim=1)
+        out, features = out.unsqueeze(1), features.unsqueeze(1)
+
+        return out, features
 
 class MNIST_CNN(nn.Module):
     """ Hand-tuned architecture for extracting representation from MNIST images
@@ -283,20 +264,21 @@ class LSTM(nn.Module):
         """
 
         # Setup array
-        pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
         # Forward propagate LSTM
         input = input.view(input.shape[0], input.shape[1], -1)
-        out, hidden = self.lstm(input, hidden)
+        features, hidden = self.lstm(input, hidden)
 
         # Make prediction with fully connected
         all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
+        all_features = torch.zeros((input.shape[0], time_pred.shape[0], features.shape[-1])).to(input.device)
         for i, t in enumerate(time_pred):
-            output = self.classifier(out[:,t,:])
+            output = self.classifier(features[:,t,:])
             all_out[:,i,...] = output
+            all_features[:,i,...] = features[:,t,...]
 
-        return all_out
+        return all_out, all_features
 
     def initHidden(self, batch_size, device):
         """ Initialize the hidden state of the LSTM with a normal distribution
@@ -343,24 +325,7 @@ class MNIST_LSTM(nn.Module):
         self.conv = MNIST_CNN(input_shape=dataset.INPUT_SHAPE)
         
         ## Recurrent model
-        self.lstm = nn.LSTM(self.conv.EMBED_DIM, self.state_size, self.recurrent_layers, batch_first=True)
-
-        ## Classification model
-        layers = []
-        if self.hidden_depth == 0:
-            layers.append( nn.Linear(self.state_size, self.output_size) )
-        else:
-            layers.append( nn.Linear(self.state_size, self.hidden_width) )
-            for i in range(self.hidden_depth-1):
-                layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
-            layers.append( nn.Linear(self.hidden_width, self.output_size) )
-        
-        seq_arr = []
-        for i, lin in enumerate(layers):
-            seq_arr.append(lin)
-            if i != self.hidden_depth:
-                seq_arr.append(nn.ReLU(True))
-        self.classifier = nn.Sequential(*seq_arr)
+        self.lstm = LSTM(dataset, model_hparams, input_size=self.conv.EMBED_DIM)
 
     def forward(self, input, time_pred):
         """ Forward pass of the model
@@ -373,25 +338,15 @@ class MNIST_LSTM(nn.Module):
             torch.Tensor: The output of the model.
         """
 
-        # Setup array
-        pred = torch.zeros(input.shape[0], 0).to(input.device)
-        hidden = self.initHidden(input.shape[0], input.device)
-
         # Forward through the MNIST_CNN
         cnn_embed_seq = torch.zeros((input.shape[0], input.shape[1], self.conv.EMBED_DIM)).to(input.device)
         for i in range(input.shape[1]):
             cnn_embed_seq[:,i,:] = self.conv(input[:,i,:,:,:])
 
         # Forward propagate LSTM
-        out, hidden = self.lstm(cnn_embed_seq, hidden)
+        out, features = self.lstm(cnn_embed_seq, time_pred)
 
-        # Make prediction with fully connected
-        all_out = torch.zeros((input.shape[0], time_pred.shape[0], self.output_size)).to(input.device)
-        for i, t in enumerate(time_pred):
-            output = self.classifier(out[:,t,:])
-            all_out[:,i,...] = output
-
-        return all_out
+        return out, features
 
     def initHidden(self, batch_size, device):
         """ Initialize the hidden state of the LSTM with a normal distribution
@@ -478,27 +433,26 @@ class ATTN_LSTM(nn.Module):
         """
 
         # Setup array
-        pred = torch.zeros(input.shape[0], 0).to(input.device)
         hidden = self.initHidden(input.shape[0], input.device)
 
         # Forward propagate LSTM
-        out, hidden = self.lstm(input, hidden)
+        features, hidden = self.lstm(input, hidden)
 
-        # attn_scores = torch.zeros_like(out)        
-        # for i in range(out.shape[1]):
-        #     attn_scores[:,i,:] = self.attn(out[:,i,:])
-        attn_scores = self.attn(out)
+        # Get attention scores
+        attn_scores = self.attn(features)
         attn_scores = self.sm(attn_scores)
 
-        out = torch.mul(out, attn_scores).sum(dim=1)
+        # get linear combination of features with attention scores
+        features = torch.mul(features, attn_scores).sum(dim=1)
 
         # Make prediction with fully connected
-        output = self.classifier(out)
+        output = self.classifier(features)
 
         # Unsqueze to make a single time dimension
         output = output.unsqueeze(1)
+        features = features.unsqueeze(1)
         
-        return output
+        return output, features
 
     def initHidden(self, batch_size, device):
         """ Initialize the hidden state of the LSTM with a normal distribution
@@ -579,6 +533,6 @@ class CRNN(nn.Module):
         out = out.view(input.shape[0], input.shape[1], -1)
 
         # Pass through recurrent layers
-        out = self.lstm(out, time_pred)
+        out, features = self.lstm(out, time_pred)
         
-        return out
+        return out, features

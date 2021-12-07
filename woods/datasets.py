@@ -309,7 +309,28 @@ class Multi_Domain_Dataset:
         """
         return self.val_names, self.val_loaders
               
-    def split_data(self, out, labels):
+    # def split_data(self, out, labels):
+    #     """ Group data and prediction by environment
+
+    #     Args:
+    #         out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+    #         labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+
+    #     Returns:
+    #         Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+    #         Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+    #     """
+    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+    #     out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
+    #     labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
+    #     all_logits_idx = 0
+    #     for i in range(n_train_env):
+    #         out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+    #         labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
+    #         all_logits_idx += self.batch_size
+    #     return out_split, labels_split
+
+    def split_output(self, out):
         """ Group data and prediction by environment
 
         Args:
@@ -322,13 +343,32 @@ class Multi_Domain_Dataset:
         """
         n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
         out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
-        labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
         all_logits_idx = 0
         for i in range(n_train_env):
             out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+            all_logits_idx += self.batch_size
+
+        return out_split
+
+    def split_labels(self, labels):
+        """ Group data and prediction by environment
+
+        Args:
+            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+
+        Returns:
+            Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+            Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+        """
+        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+        labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
+        all_logits_idx = 0
+        for i in range(n_train_env):
             labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
             all_logits_idx += self.batch_size
-        return out_split, labels_split
+
+        return labels_split
 
 class Basic_Fourier(Multi_Domain_Dataset):
     """ Fourier_basic dataset
@@ -998,25 +1038,57 @@ class TCMNIST_step(TCMNIST):
 
         return images, labels
               
-    def split_data(self, out, labels):
+    # def split_data(self, out, labels):
+    #     """ Group data and prediction by environment
+
+    #     Args:
+    #         out (Tensor): output data from a model (batch_size, len(PRED_TIME), n_classes)
+    #         labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
+
+    #     Returns:
+    #         Tensor: The reshaped data (n_env-1, batch_size, 1, n_classes)
+    #         Tensor: The reshaped labels (n_env-1, batch_size, 1)
+    #     """
+    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+    #     out_split = torch.zeros((n_train_env, self.batch_size, 1, out.shape[-1])).to(out.device)
+    #     labels_split = torch.zeros((n_train_env, self.batch_size, 1)).long().to(labels.device)
+    #     for i in range(n_train_env):
+    #         # Test env is always the last one
+    #         out_split[i,...] = out[:,i,...].unsqueeze(1)
+    #         labels_split[i,...] = labels[:,i,...].unsqueeze(1)
+    #     return out_split, labels_split
+
+    def split_output(self, out):
         """ Group data and prediction by environment
 
         Args:
-            out (Tensor): output data from a model (batch_size, len(PRED_TIME), n_classes)
             labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
 
         Returns:
             Tensor: The reshaped data (n_env-1, batch_size, 1, n_classes)
-            Tensor: The reshaped labels (n_env-1, batch_size, 1)
         """
         n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
         out_split = torch.zeros((n_train_env, self.batch_size, 1, out.shape[-1])).to(out.device)
-        labels_split = torch.zeros((n_train_env, self.batch_size, 1)).long().to(labels.device)
         for i in range(n_train_env):
             # Test env is always the last one
             out_split[i,...] = out[:,i,...].unsqueeze(1)
+        return out_split
+
+    def split_labels(self, labels):
+        """ Group data and prediction by environment
+
+        Args:
+            labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
+
+        Returns:
+            Tensor: The reshaped labels (n_env-1, batch_size, 1)
+        """
+        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+        labels_split = torch.zeros((n_train_env, self.batch_size, 1)).long().to(labels.device)
+        for i in range(n_train_env):
+            # Test env is always the last one
             labels_split[i,...] = labels[:,i,...].unsqueeze(1)
-        return out_split, labels_split
+        return labels_split
 
 class H5_dataset(Dataset):
     """ HDF5 dataset for EEG data
@@ -1125,17 +1197,9 @@ class EEG_DB(Multi_Domain_Dataset):
             self.val_loaders.append(fast_out_loader)
 
         # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
         self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
 
-    def loss_fn(self, output, target):
-        """ Computes the loss 
-        
-        Args:
-            output (Tensor): prediction tensor
-            target (Tensor): Target tensor
-        """
-        return self.loss(output, target)
-    
     def get_class_weight(self):
         """Compute class weight for class balanced training
 
@@ -1154,15 +1218,6 @@ class EEG_DB(Multi_Domain_Dataset):
         weights = n_labels.max() / n_labels
 
         return weights
-
-    def loss_fn(self, output, target):
-        """ Computes the loss 
-        
-        Args:
-            output (Tensor): prediction tensor
-            target (Tensor): Target tensor
-        """
-        return self.loss(output, target)
 
 class CAP(EEG_DB):
     """ CAP Sleep stage dataset
@@ -1568,13 +1623,5 @@ class HHAR(Multi_Domain_Dataset):
             self.val_loaders.append(fast_out_loader)
 
         # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
         self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
-
-    def loss_fn(self, output, target):
-        """ Computes the loss 
-        
-        Args:
-            output (Tensor): prediction tensor
-            target (Tensor): Target tensor
-        """
-        return self.loss(output, target)

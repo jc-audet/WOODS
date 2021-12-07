@@ -9,7 +9,6 @@ import torch.autograd as autograd
 
 import matplotlib.pyplot as plt
 
-
 OBJECTIVES = [
     'ERM',
     'IRM',
@@ -18,7 +17,9 @@ OBJECTIVES = [
     'ANDMask',
     'IGA',
     'Fish',
-    'SANDMask'
+    'SANDMask',
+    'IB_ERM',
+    'IB_IRM'
 ]
 
 def get_objective_class(objective_name):
@@ -63,9 +64,9 @@ class ERM(Objective):
     def predict(self, all_x, ts, device):
 
         # Get logit and make prediction
-        out = self.model(all_x, ts)
+        out, features = self.model(all_x, ts)
 
-        return out
+        return out, features
 
     def update(self, minibatches_device, dataset, device):
 
@@ -73,15 +74,21 @@ class ERM(Objective):
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
 
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out = self.predict(all_x, ts, device)
+        out, _ = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
+
+        # Compute loss for each environment
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx,:], labels_split[i,:,t_idx])
 
+        # Compute objective
         objective = env_losses.mean()
 
         # Back propagate
@@ -116,13 +123,6 @@ class IRM(ERM):
         result = torch.sum(grad_1 * grad_2)
         return result
 
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out
-
     def update(self, minibatches_device, dataset, device):
 
         # Define stuff
@@ -133,20 +133,33 @@ class IRM(ERM):
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out = self.predict(all_x, ts, device)
+        out, _ = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
 
-        penalty = 0
+        # Compute loss and penalty for each environment 
+        irm_penalty = torch.zeros(out_split.shape[0]).to(device)
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i,:,t_idx,:], labels_split[i,:,t_idx]) 
-                penalty += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
+                env_losses[i] += self.loss_fn(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
+                irm_penalty[i] += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
 
-        penalty = penalty / out_split.shape[0]
-        objective = env_losses.mean() + (penalty_weight * penalty)
+        # Compute objective
+        irm_penalty = irm_penalty.mean()
+        objective = env_losses.mean() + (penalty_weight * irm_penalty)
+
+        # Reset Adam, because it doesn't like the sharp jump in gradient
+        # magnitudes that happens at this step.
+        if self.update_count == self.anneal_iters:
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.optimizer.param_groups[0]['lr'],
+                weight_decay=self.optimizer.param_groups[0]['weight_decay'])
 
         # Back propagate
         self.optimizer.zero_grad()
@@ -170,13 +183,6 @@ class VREx(ERM):
         # Memory
         self.register_buffer('update_count', torch.tensor([0]))
 
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out
-
     def update(self, minibatches_device, dataset, device):
 
         # Define stuff
@@ -187,19 +193,32 @@ class VREx(ERM):
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out = self.predict(all_x, ts, device)
+        out, _ = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
 
+        # Compute loss for each environment 
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
+        # Compute objective
         mean = env_losses.mean()
         penalty = ((env_losses - mean) ** 2).mean()
         objective = mean + penalty_weight * penalty
+
+        # Reset Adam, because it doesn't like the sharp jump in gradient
+        # magnitudes that happens at this step.
+        if self.update_count == self.anneal_iters:
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.optimizer.param_groups[0]['lr'],
+                weight_decay=self.optimizer.param_groups[0]['weight_decay'])
 
         # Back propagate
         self.optimizer.zero_grad()
@@ -220,39 +239,35 @@ class SD(ERM):
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
 
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out
-
     def update(self, minibatches_device, dataset, device):
 
         ## Group all inputs and send to device
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out = self.predict(all_x, ts, device)
+        out, _ = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
 
-        penalty = 0
+        # Compute loss for each environment 
+        sd_penalty = torch.zeros(out_split.shape[0]).to(device)
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
-                penalty += (out_split[i, :, t_idx, :] ** 2).mean()
+                sd_penalty[i] += (out_split[i, :, t_idx, :] ** 2).mean()
 
-        penalty = penalty / out_split.shape[0]
-        objective = env_losses.mean() + self.penalty_weight * penalty
+        sd_penalty = sd_penalty.mean()
+        objective = env_losses.mean() + self.penalty_weight * sd_penalty
 
         # Back propagate
         self.optimizer.zero_grad()
         objective.backward()
         self.optimizer.step()
-
 
 class ANDMask(ERM):
     """
@@ -279,29 +294,27 @@ class ANDMask(ERM):
             param.grad = mask * avg_grad
             param.grad *= (1. / (1e-10 + mask_t))
 
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out
-
     def update(self, minibatches_device, dataset, device):
 
         ## Group all inputs and send to device
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out = self.predict(all_x, ts, device)
+        out, _ = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
 
+        # Compute loss for each environment 
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
+        # Compute gradients for each env
         param_gradients = [[] for _ in self.model.parameters()]
         for env_loss in env_losses:
 
@@ -326,25 +339,25 @@ class IGA(ERM):
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
 
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out
-
     def update(self, minibatches_device, dataset, device):
 
         ## Group all inputs and send to device
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
 
-        out = self.predict(all_x, ts, device)
+        # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
+        # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
+        with torch.backends.cudnn.flags(enabled=False):
+            out, _ = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
 
+        # Compute loss for each environment 
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
@@ -354,14 +367,16 @@ class IGA(ERM):
         grads = []
         for env_loss in env_losses:
 
-            env_grad = autograd.grad(env_loss, self.model.parameters(), 
+            # env_grad = autograd.grad(env_loss, self.model.parameters(), 
+            #                             create_graph=True)
+            env_grad = autograd.grad(env_loss, [p for p in self.model.parameters() if p.requires_grad], 
                                         create_graph=True)
 
             grads.append(env_grad)
 
         # Compute the mean loss and mean loss gradient
         mean_loss = env_losses.mean()
-        mean_grad = autograd.grad(mean_loss, self.model.parameters(), 
+        mean_grad = autograd.grad(mean_loss, [p for p in self.model.parameters() if p.requires_grad], 
                                         create_graph=True)
 
         # compute trace penalty
@@ -377,14 +392,14 @@ class IGA(ERM):
         objective.backward()
         self.optimizer.step()
         
-class Fish(Objective):
+class Fish(ERM):
     """
     Implementation of Fish, as seen in Gradient Matching for Domain 
     Generalization, Shi et al. 2021.
     """
 
     def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(Fish, self).__init__(hparams)
+        super(Fish, self).__init__(model, dataset, loss_fn, optimizer, hparams)
         
          # Hyper parameters
         self.meta_lr = self.hparams['meta_lr']
@@ -398,14 +413,6 @@ class Fish(Objective):
         self.optimizer_inner = self.optimizer
         self.loss_fn_inner = self.loss_fn 
 
-
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out   
-
     def update(self, minibatches_device, dataset, device):
         
         self.create_copy(minibatches_device[0][0].device)
@@ -414,26 +421,37 @@ class Fish(Objective):
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out = self.predict(all_x, ts, device)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
 
+        # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
+        # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
+        with torch.backends.cudnn.flags(enabled=False):
+            out, _ = self.predict(all_x, ts, device)
+
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
+
+        # Compute loss for each environment 
         env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn_inner(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
-        param_gradients = [[] for _ in self.model_inner.parameters()]
-        for env_loss in env_losses:
-            env_grads = autograd.grad(env_loss, self.model_inner.parameters(), retain_graph=True)
-            for grads, env_grad in zip(param_gradients, env_grads):
-                grads.append(env_grad)
+        # # Get the gradients
+        # param_gradients = [[] for _ in self.model_inner.parameters()]
+        # for env_loss in env_losses:
+        #     env_grads = autograd.grad(env_loss, self.model_inner.parameters(), retain_graph=True)
+        #     for grads, env_grad in zip(param_gradients, env_grads):
+        #         grads.append(env_grad)
                 
       # Compute the meta penalty and update objective 
         mean_loss = env_losses.mean()
         meta_grad = autograd.grad(mean_loss, self.model.parameters(), 
                                         create_graph=True)
+
         # compute trace penalty
         meta_penalty = 0
         for grad in grads:
@@ -484,30 +502,27 @@ class SANDMask(ERM):
             param.grad = mask * avg_grad
             param.grad *= (1. / (1e-10 + mask_t))    
 
-    def predict(self, all_x, ts, device):
-
-        # Get logit and make prediction
-        out = self.model(all_x, ts)
-
-        return out
-
     def update(self, minibatches_device, dataset, device):
 
         ## Group all inputs and send to device
         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
+        # Get logit and make prediction on PRED_TIME
         ts = torch.tensor(dataset.PRED_TIME).to(device)
+        out, _ = self.predict(all_x, ts, device)
 
-        out = self.predict(all_x, ts, device)
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        labels_split = dataset.split_labels(all_y)
 
-        out_split, labels_split = dataset.split_data(out, all_y)
-
-        env_losses = torch.zeros(out_split.shape).to(device)
+        # Compute loss for each environment 
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
+        # Compute the grads for each environment
         param_gradients = [[] for _ in self.model.parameters()]
         for env_loss in env_losses:
 
@@ -515,8 +530,151 @@ class SANDMask(ERM):
             for grads, env_grad in zip(param_gradients, env_grads):
                 grads.append(env_grad)
             
-        # Back propagate
+        # Back propagate with the masked gradients
         self.optimizer.zero_grad()
         self.mask_grads(self.tau, self.k, param_gradients, self.model.parameters(), device)
         self.optimizer.step()
+
+        # Update memory
+        self.update_count += 1
                 
+class IB_ERM(ERM):
+    """Information Bottleneck based ERM on feature with conditionning"""
+
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(IB_ERM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+
+        # Hyper parameters
+        self.ib_weight = self.hparams['ib_weight']
+        self.ib_anneal = self.hparams['ib_anneal']
+
+        # Memory
+        self.register_buffer('update_count', torch.tensor([0]))
+
+    def update(self, minibatches_device, dataset, device):
+
+        # Get penalty weight
+        ib_penalty_weight = (self.ib_weight if self.update_count
+                          >= self.ib_anneal else
+                          0.0)
+
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        # Get time predictions and get logits
+        ts = torch.tensor(dataset.PRED_TIME).to(device)
+        out, features = self.predict(all_x, ts, device)
+
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        features_split = dataset.split_output(features)
+        labels_split = dataset.split_labels(all_y)
+
+        # For each environment, accumulate loss for all time steps
+        ib_penalty = torch.zeros(out_split.shape[0]).to(device)
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
+                # Compute the penalty
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+                # Compute the information bottleneck
+                ib_penalty[i] += features_split[i, :, t_idx, :].var(dim=0).mean()
+
+        objective = env_losses.mean() + (ib_penalty_weight * ib_penalty.mean())
+
+        if self.update_count == self.ib_anneal:
+            # Reset Adam, because it doesn't like the sharp jump in gradient
+            # magnitudes that happens at this step.
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.optimizer.param_groups[0]['lr'],
+                weight_decay=self.optimizer.param_groups[0]['weight_decay'])
+
+        # Back propagate
+        self.optimizer.zero_grad()
+        objective.backward()
+        self.optimizer.step()
+
+        # Update memory
+        self.update_count += 1
+
+class IB_IRM(ERM):
+    """Information Bottleneck based IRM on feature with conditionning"""
+
+    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+        super(IB_IRM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+
+        # Hyper parameters
+        self.ib_weight = self.hparams['ib_weight']
+        self.ib_anneal = self.hparams['ib_anneal']
+        self.irm_weight = self.hparams['irm_weight']
+        self.irm_anneal = self.hparams['irm_anneal']
+
+        # Memory
+        self.register_buffer('update_count', torch.tensor([0]))
+
+    @staticmethod
+    def _irm_penalty(logits, y):
+        device = "cuda" if logits[0][0].is_cuda else "cpu"
+        scale = torch.tensor(1.).to(device).requires_grad_()
+        loss_1 = F.cross_entropy(logits[::2] * scale, y[::2])
+        loss_2 = F.cross_entropy(logits[1::2] * scale, y[1::2])
+        grad_1 = autograd.grad(loss_1, [scale], create_graph=True)[0]
+        grad_2 = autograd.grad(loss_2, [scale], create_graph=True)[0]
+        result = torch.sum(grad_1 * grad_2)
+        return result
+
+    def update(self, minibatches_device, dataset, device):
+
+        # Get penalty weight
+        ib_penalty_weight = (self.ib_weight if self.update_count
+                          >= self.ib_anneal else
+                          0.0)
+        irm_penalty_weight = (self.irm_weight if self.update_count
+                          >= self.irm_anneal else
+                          1.0)
+
+        ## Group all inputs and send to device
+        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        
+        # Get time predictions and get logits
+        ts = torch.tensor(dataset.PRED_TIME).to(device)
+        out, features = self.predict(all_x, ts, device)
+
+        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+        out_split = dataset.split_output(out)
+        features_split = dataset.split_output(features)
+        labels_split = dataset.split_labels(all_y)
+
+        # For each environment, accumulate loss for all time steps
+        ib_penalty = torch.zeros(out_split.shape[0]).to(device)
+        irm_penalty = torch.zeros(out_split.shape[0]).to(device)
+        env_losses = torch.zeros(out_split.shape[0]).to(device)
+        for i in range(out_split.shape[0]):
+            for t_idx in range(out_split.shape[2]):     # Number of time steps
+                # Compute the penalty
+                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+                # Compute the information bottleneck penalty
+                ib_penalty[i] += features_split[i, :, t_idx, :].var(dim=0).mean()
+                # Compute the invariant risk minimization penalty
+                irm_penalty[i] += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
+
+        objective = env_losses.mean() + ib_penalty_weight * ib_penalty.mean() + irm_penalty_weight * irm_penalty.mean()
+
+        if self.update_count == self.ib_anneal or self.update_count == self.irm_anneal:
+            # Reset Adam, because it doesn't like the sharp jump in gradient
+            # magnitudes that happens at this step.
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=self.optimizer.param_groups[0]['lr'],
+                weight_decay=self.optimizer.param_groups[0]['weight_decay'])
+
+        # Back propagate
+        self.optimizer.zero_grad()
+        objective.backward()
+        self.optimizer.step()
+
+        # Update memory
+        self.update_count += 1
