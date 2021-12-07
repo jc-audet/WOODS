@@ -3,7 +3,6 @@
 import os
 import shutil
 import gdown
-import requests
 import argparse
 import subprocess
 import zipfile
