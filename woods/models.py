@@ -131,9 +131,14 @@ class EEGNet(nn.Module):
             drop_prob=0.05,
         )
 
-        self.classifier = copy.deepcopy(self.model.conv_classifier)
+
+        self.classifier = nn.Sequential(
+            self.model.conv_classifier,
+            self.model.permute_back
+        )
         del self.model.conv_classifier
         del self.model.softmax
+        del self.model.permute_back
         del self.model.squeeze
         
     def forward(self, input, time_pred):

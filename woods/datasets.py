@@ -1072,6 +1072,7 @@ class TCMNIST_step(TCMNIST):
         for i in range(n_train_env):
             # Test env is always the last one
             out_split[i,...] = out[:,i,...].unsqueeze(1)
+            
         return out_split
 
     def split_labels(self, labels):
@@ -1088,6 +1089,7 @@ class TCMNIST_step(TCMNIST):
         for i in range(n_train_env):
             # Test env is always the last one
             labels_split[i,...] = labels[:,i,...].unsqueeze(1)
+
         return labels_split
 
 class H5_dataset(Dataset):
