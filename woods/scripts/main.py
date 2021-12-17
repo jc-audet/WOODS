@@ -50,6 +50,7 @@ if __name__ == '__main__':
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
+    parser.add_argument('--download', action='store_true')
     # Model evaluation arguments
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--model_path', type=str, default=None)

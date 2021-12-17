@@ -16,6 +16,8 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
+import woods.scripts.download as download
+
 
 DATASETS = [
     # 1D datasets
@@ -263,6 +265,36 @@ class Multi_Domain_Dataset:
     def __init__(self):
         pass
 
+    def check_local_dataset(self, path):
+        """ Checks if a local dataset is available.
+
+        Args:
+            path (str): Path to the dataset
+        """
+
+        data_path = os.path.join(path, self.DATA_PATH)
+        return os.path.exists(data_path)
+    
+    def prepare_data(self, path, download=False):
+        """ Prepares the dataset.
+
+        Args:
+            path (str): Path to the dataset
+            download (bool, optional): If ''True'' the dataset will be downloaded if not already available locally. Defaults to False.
+        """
+
+        if self.check_local_dataset(path):
+            print('Dataset already available locally')
+        else:
+            print('Dataset not available locally, downloading...')
+            if download:
+                try:
+                    self.download_fct(path, 'gdrive')
+                except:
+                    self.download_fct(path, 'at')
+            else:
+                raise ValueError('Dataset not available locally and download is set to False. Set Download = True to download it locally')
+
     def loss_fn(self, output, target):
         """ Computes the loss 
         
@@ -309,27 +341,6 @@ class Multi_Domain_Dataset:
         """
         return self.val_names, self.val_loaders
               
-    # def split_data(self, out, labels):
-    #     """ Group data and prediction by environment
-
-    #     Args:
-    #         out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-    #         labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-
-    #     Returns:
-    #         Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
-    #         Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
-    #     """
-    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-    #     out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
-    #     labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
-    #     all_logits_idx = 0
-    #     for i in range(n_train_env):
-    #         out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
-    #         labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
-    #         all_logits_idx += self.batch_size
-    #     return out_split, labels_split
-
     def split_output(self, out):
         """ Group data and prediction by environment
 
@@ -428,11 +439,6 @@ class Basic_Fourier(Multi_Domain_Dataset):
             all_signal_0 = torch.cat((all_signal_0, split_signal_0), dim=0)
             all_signal_1 = torch.cat((all_signal_1, split_signal_1), dim=0)
         signal = torch.cat((all_signal_0, all_signal_1), dim=0)
-
-        plt.figure()
-        plt.plot(signal[0,:,0].numpy())
-        plt.plot(signal[-1,:,0].numpy())
-        plt.show()
 
         ## Create the labels
         labels_0 = torch.zeros((all_signal_0.shape[0],1)).long()
@@ -1038,26 +1044,6 @@ class TCMNIST_step(TCMNIST):
 
         return images, labels
               
-    # def split_data(self, out, labels):
-    #     """ Group data and prediction by environment
-
-    #     Args:
-    #         out (Tensor): output data from a model (batch_size, len(PRED_TIME), n_classes)
-    #         labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
-
-    #     Returns:
-    #         Tensor: The reshaped data (n_env-1, batch_size, 1, n_classes)
-    #         Tensor: The reshaped labels (n_env-1, batch_size, 1)
-    #     """
-    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-    #     out_split = torch.zeros((n_train_env, self.batch_size, 1, out.shape[-1])).to(out.device)
-    #     labels_split = torch.zeros((n_train_env, self.batch_size, 1)).long().to(labels.device)
-    #     for i in range(n_train_env):
-    #         # Test env is always the last one
-    #         out_split[i,...] = out[:,i,...].unsqueeze(1)
-    #         labels_split[i,...] = labels[:,i,...].unsqueeze(1)
-    #     return out_split, labels_split
-
     def split_output(self, out):
         """ Group data and prediction by environment
 
@@ -1151,7 +1137,7 @@ class EEG_DB(Multi_Domain_Dataset):
 
     ## Dataset parameters
     SETUP = 'seq'
-    #:str: realative path to the hdf5 file
+    #:str: path to the hdf5 file
     DATA_PATH = None
 
     def __init__(self, flags, training_hparams):
@@ -1166,6 +1152,9 @@ class EEG_DB(Multi_Domain_Dataset):
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
+
+        ## Prepare the data (Download if needed)
+        self.prepare_data(flags.data_path, flags.download)
 
         ## Create tensor dataset and dataloader
         self.val_names, self.val_loaders = [], []
@@ -1243,12 +1232,15 @@ class CAP(EEG_DB):
     """
     ## Training parameters
     N_STEPS = 5001
+
     ## Dataset parameters
     TASK = 'classification'
     SEQ_LEN = 3000
     PRED_TIME = [2999]
     INPUT_SHAPE = [19]
     OUTPUT_SIZE = 6
+
+    ## Dataset paths
     DATA_PATH = 'CAP/CAP.h5'
 
     ## Environment parameters
@@ -1256,6 +1248,10 @@ class CAP(EEG_DB):
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
+
+        ## Define download function
+        self.download_fct = download.download_HHAR
+
         super().__init__(flags, training_hparams)
         
 class SEDFx(EEG_DB):
@@ -1292,6 +1288,10 @@ class SEDFx(EEG_DB):
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
+
+        ## Define download function
+        self.download_fct = download.download_SEDFx
+
         super().__init__(flags, training_hparams)
        
 class PCL(EEG_DB):
@@ -1322,12 +1322,10 @@ class PCL(EEG_DB):
     SWEEP_ENVS = list(range(len(ENVS)))
 
     def __init__(self, flags, training_hparams):
-        """ Dataset constructor function
 
-        Args:
-            flags (Namespace): argparse of training arguments
-            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
-        """
+        ## Define download function
+        self.download_fct = download.download_PCL
+
         super().__init__(flags, training_hparams)
 
 class Video_dataset(Dataset):
@@ -1473,6 +1471,10 @@ class LSA64(Multi_Domain_Dataset):
                                              transforms.Normalize( mean=[0.485, 0.456, 0.406],
                                                                    std=[0.229, 0.224, 0.225])])
 
+        ## Prepare the data (Download if needed)
+        self.download_fct = download.download_LSA64
+        self.prepare_data(flags.data_path, flags.download)
+
         ## Create tensor dataset and dataloader
         self.val_names, self.val_loaders = [], []
         self.train_names, self.train_loaders = [], []
@@ -1585,6 +1587,10 @@ class HHAR(Multi_Domain_Dataset):
         # Save stuff 
         self.test_env = flags.test_env
         self.batch_size = training_hparams['batch_size']
+
+        ## Prepare the data (Download if needed)
+        self.download_fct = download.download_HHAR
+        self.prepare_data(flags.data_path, flags.download)
 
         # Label definition
         self.label_dict = { 'stand': 0,
