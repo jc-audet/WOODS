@@ -16,8 +16,8 @@ OBJECTIVES = [
     'SD',
     'ANDMask',
     'IGA',
-    'Fish',
-    'SANDMask',
+    # 'Fish',
+    # 'SANDMask',
     'IB_ERM',
     'IB_IRM'
 ]
@@ -392,151 +392,153 @@ class IGA(ERM):
         objective.backward()
         self.optimizer.step()
         
-class Fish(ERM):
-    """
-    Implementation of Fish, as seen in Gradient Matching for Domain 
-    Generalization, Shi et al. 2021.
-    """
+# class Fish(ERM):
+#     """
+#     Implementation of Fish, as seen in Gradient Matching for Domain 
+#     Generalization, Shi et al. 2021.
+#     """
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(Fish, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+#     def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+#         super(Fish, self).__init__(model, dataset, loss_fn, optimizer, hparams)
         
-         # Hyper parameters
-        self.meta_lr = self.hparams['meta_lr']
+#          # Hyper parameters
+#         self.meta_lr = self.hparams['meta_lr']
         
-        self.model = model
-        self.loss_fn = loss_fn
-        self.optimizer = optimizer
+#         self.model = model
+#         self.loss_fn = loss_fn
+#         self.optimizer = optimizer
 
-    def create_copy(self, device):
-        self.model_inner = self.model
-        self.optimizer_inner = self.optimizer
-        self.loss_fn_inner = self.loss_fn 
+#     def create_copy(self, device):
+#         self.model_inner = self.model
+#         self.optimizer_inner = self.optimizer
+#         self.loss_fn_inner = self.loss_fn 
 
-    def update(self, minibatches_device, dataset, device):
+#     def update(self, minibatches_device, dataset, device):
         
-        self.create_copy(minibatches_device[0][0].device)
+#         self.create_copy(minibatches_device[0][0].device)
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+#         ## Group all inputs and send to device
+#         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+#         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
+#         # Get logit and make prediction on PRED_TIME
+#         ts = torch.tensor(dataset.PRED_TIME).to(device)
 
 
-        # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
-        # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
-        with torch.backends.cudnn.flags(enabled=False):
-            out, _ = self.predict(all_x, ts, device)
+#         # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
+#         # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
+#         with torch.backends.cudnn.flags(enabled=False):
+#             out, _ = self.predict(all_x, ts, device)
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+#         # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+#         out_split = dataset.split_output(out)
+#         labels_split = dataset.split_labels(all_y)
 
-        # Compute loss for each environment 
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn_inner(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+#         # Compute loss for each environment 
+#         env_losses = torch.zeros(out_split.shape[0]).to(device)
+#         for i in range(out_split.shape[0]):
+#             for t_idx in range(out_split.shape[2]):     # Number of time steps
+#                 env_losses[i] += self.loss_fn_inner(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
-        # # Get the gradients
-        # param_gradients = [[] for _ in self.model_inner.parameters()]
-        # for env_loss in env_losses:
-        #     env_grads = autograd.grad(env_loss, self.model_inner.parameters(), retain_graph=True)
-        #     for grads, env_grad in zip(param_gradients, env_grads):
-        #         grads.append(env_grad)
+#         # Get the gradients
+#         param_gradients = [[] for _ in self.model_inner.parameters()]
+#         for env_loss in env_losses:
+#             env_grads = autograd.grad(env_loss, self.model_inner.parameters(), retain_graph=True)
+#             for grads, env_grad in zip(param_gradients, env_grads):
+#                 grads.append(env_grad)
                 
-      # Compute the meta penalty and update objective 
-        mean_loss = env_losses.mean()
-        meta_grad = autograd.grad(mean_loss, self.model.parameters(), 
-                                        create_graph=True)
+#       # Compute the meta penalty and update objective 
+#         mean_loss = env_losses.mean()
+#         meta_grad = autograd.grad(mean_loss, self.model.parameters(), 
+#                                         create_graph=True)
 
-        # compute trace penalty
-        meta_penalty = 0
-        for grad in grads:
-            for g, meta_grad in zip(grad, meta_grad):
-                meta_penalty += self.meta_lr * (g-meta_grad).sum() 
-        objective = mean_loss + meta_penalty
+#         # compute trace penalty
+#         meta_penalty = 0
+#         print(param_gradients[0])
+#         for grad in param_gradients:
+#             for g, meta_grad in zip(grad, meta_grad):
+#                 meta_penalty += self.meta_lr * (g-meta_grad).sum() 
 
-        # Back propagate
-        self.optimizer.zero_grad()
-        objective.backward()
-        self.optimizer.step()
+#         objective = mean_loss + meta_penalty
+
+#         # Back propagate
+#         self.optimizer.zero_grad()
+#         objective.backward()
+#         self.optimizer.step()
         
-class SANDMask(ERM):
-    """
-    Learning Explanations that are Hard to Vary [https://arxiv.org/abs/2009.00329]
-    AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
-    """
+# class SANDMask(ERM):
+#     """
+#     Learning Explanations that are Hard to Vary [https://arxiv.org/abs/2009.00329]
+#     AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
+#     """
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(SANDMask, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+#     def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+#         super(SANDMask, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
-        # Hyper parameters
-        self.tau = self.hparams['tau']
-        self.k = self.hparams['k']
-        self.betas = self.hparams['betas']
+#         # Hyper parameters
+#         self.tau = self.hparams['tau']
+#         self.k = self.hparams['k']
+#         self.betas = self.hparams['betas']
 
-        # Memory
-        self.register_buffer('update_count', torch.tensor([0]))
+#         # Memory
+#         self.register_buffer('update_count', torch.tensor([0]))
 
-    def mask_grads(self, tau, k, gradients, params, device):
-        '''
-        Mask are ranged in [0,1] to form a set of updates for each parameter based on the agreement 
-        of gradients coming from different environments.
-        '''
+#     def mask_grads(self, tau, k, gradients, params, device):
+#         '''
+#         Mask are ranged in [0,1] to form a set of updates for each parameter based on the agreement 
+#         of gradients coming from different environments.
+#         '''
         
-        for param, grads in zip(params, gradients):
-            grads = torch.stack(grads, dim=0)
-            avg_grad = torch.mean(grads, dim=0)
-            grad_signs = torch.sign(grads)
-            gamma = torch.tensor(1.0).to(device)
-            grads_var = grads.var(dim=0)
-            grads_var[torch.isnan(grads_var)] = 1e-17
-            lam = (gamma * grads_var).pow(-1)
-            mask = torch.tanh(self.k * lam * (torch.abs(grad_signs.mean(dim=0)) - self.tau))
-            mask = torch.max(mask, torch.zeros_like(mask))
-            mask[torch.isnan(mask)] = 1e-17
-            mask_t = (mask.sum() / mask.numel())
-            param.grad = mask * avg_grad
-            param.grad *= (1. / (1e-10 + mask_t))    
+#         for param, grads in zip(params, gradients):
+#             grads = torch.stack(grads, dim=0)
+#             avg_grad = torch.mean(grads, dim=0)
+#             grad_signs = torch.sign(grads)
+#             gamma = torch.tensor(1.0).to(device)
+#             grads_var = grads.var(dim=0)
+#             grads_var[torch.isnan(grads_var)] = 1e-17
+#             lam = (gamma * grads_var).pow(-1)
+#             mask = torch.tanh(self.k * lam * (torch.abs(grad_signs.mean(dim=0)) - self.tau))
+#             mask = torch.max(mask, torch.zeros_like(mask))
+#             mask[torch.isnan(mask)] = 1e-17
+#             mask_t = (mask.sum() / mask.numel())
+#             param.grad = mask * avg_grad
+#             param.grad *= (1. / (1e-10 + mask_t))    
 
-    def update(self, minibatches_device, dataset, device):
+#     def update(self, minibatches_device, dataset, device):
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+#         ## Group all inputs and send to device
+#         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+#         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, _ = self.predict(all_x, ts, device)
+#         # Get logit and make prediction on PRED_TIME
+#         ts = torch.tensor(dataset.PRED_TIME).to(device)
+#         out, _ = self.predict(all_x, ts, device)
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+#         # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+#         out_split = dataset.split_output(out)
+#         labels_split = dataset.split_labels(all_y)
 
-        # Compute loss for each environment 
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+#         # Compute loss for each environment 
+#         env_losses = torch.zeros(out_split.shape[0]).to(device)
+#         for i in range(out_split.shape[0]):
+#             for t_idx in range(out_split.shape[2]):     # Number of time steps
+#                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
-        # Compute the grads for each environment
-        param_gradients = [[] for _ in self.model.parameters()]
-        for env_loss in env_losses:
+#         # Compute the grads for each environment
+#         param_gradients = [[] for _ in self.model.parameters()]
+#         for env_loss in env_losses:
 
-            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
-            for grads, env_grad in zip(param_gradients, env_grads):
-                grads.append(env_grad)
+#             env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
+#             for grads, env_grad in zip(param_gradients, env_grads):
+#                 grads.append(env_grad)
             
-        # Back propagate with the masked gradients
-        self.optimizer.zero_grad()
-        self.mask_grads(self.tau, self.k, param_gradients, self.model.parameters(), device)
-        self.optimizer.step()
+#         # Back propagate with the masked gradients
+#         self.optimizer.zero_grad()
+#         self.mask_grads(self.tau, self.k, param_gradients, self.model.parameters(), device)
+#         self.optimizer.step()
 
-        # Update memory
-        self.update_count += 1
+#         # Update memory
+#         self.update_count += 1
                 
 class IB_ERM(ERM):
     """Information Bottleneck based ERM on feature with conditionning"""
