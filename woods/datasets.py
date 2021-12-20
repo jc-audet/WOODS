@@ -1553,7 +1553,7 @@ class HHAR(Multi_Domain_Dataset):
         * https://dl.acm.org/doi/10.1145/2809695.2809718
     """
     ## Training parameters
-    N_STEPS = 10001
+    N_STEPS = 5001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters

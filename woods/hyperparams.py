@@ -506,7 +506,7 @@ def SANDMask_hyper(sample):
             'betas': lambda r: 0.9
         }        
         
-def IB_ERM_hyper(sample):
+def IB_ERM_features_hyper(sample):
     """ IB_ERM objective hparam definition 
     
     Args:
@@ -514,13 +514,26 @@ def IB_ERM_hyper(sample):
     """
     if sample:
         return {
-            'ib_weight': lambda r: 10**r.uniform(-1,5),
-            'ib_anneal': lambda r: r.uniform(0,2000)
+            'ib_weight': lambda r: 10**r.uniform(-3,0),
         }
     else:
         return {
             'ib_weight': lambda r: 0.1,
-            'ib_anneal': lambda r: 0
+        }
+        
+def IB_ERM_logits_hyper(sample):
+    """ IB_ERM objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'ib_weight': lambda r: 10**r.uniform(-3,0),
+        }
+    else:
+        return {
+            'ib_weight': lambda r: 0.1,
         }
  
 def IB_IRM_hyper(sample):
