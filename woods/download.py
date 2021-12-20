@@ -1,16 +1,14 @@
-""" Directly download the preprocessed data """
-
 import os
 import shutil
-import gdown
 import argparse
-import subprocess
 import zipfile
 import academictorrents as at
+import gdown
+
 
 def download_gdrive(url, path, archive_name):
     """ Download the preprocessed data from google drive """
-    
+
     # Download the file
     r = gdown.download(url, os.path.join(path, archive_name), quiet=False)
 
@@ -23,18 +21,18 @@ def download_gdrive(url, path, archive_name):
 
 def download_at(at_hash, path, archive_name):
     """ Download the preprocessed data from academic torrents """
-    
+
     # Download the torrent
     r = at.get(at_hash, datastore=path, showlogs=True)
 
     # Extract the archive to the path
     with zipfile.ZipFile(os.path.join(r, archive_name), 'r') as zip_ref:
         zip_ref.extractall(os.path.join(r))
-    
+
     # Remove the unnecessary archive
     os.remove(os.path.join(r, archive_name))
 
-def download_CAP(data_path, mode):
+def download_cap(data_path, mode):
     """ Download the CAP dataset """
 
     if mode == 'gdrive':
@@ -52,11 +50,11 @@ def download_CAP(data_path, mode):
         # Get the data
         at_hash = '500d0c473108ef72e01b0f8037251b09331467f9'
         download_at(at_hash, data_path, 'cap.zip')
-    
+
     # Rename directories and data
     shutil.move(os.path.join(data_path, "cap"), os.path.join(data_path, "CAP"))
 
-def download_SEDFx(data_path, mode):
+def download_sedfx(data_path, mode):
     """ Download the SEDFx dataset """
 
     if mode == 'gdrive':
@@ -78,7 +76,7 @@ def download_SEDFx(data_path, mode):
     # Rename directories and data
     shutil.move(os.path.join(data_path, "sedfx"), os.path.join(data_path, "SEDFx"))
 
-def download_PCL(data_path, mode):
+def download_pcl(data_path, mode):
     """ Download the PCL dataset """
 
     if mode == 'gdrive':
@@ -101,7 +99,7 @@ def download_PCL(data_path, mode):
     shutil.move(os.path.join(data_path, "pcl"), os.path.join(data_path, "PCL"))
     os.rename(os.path.join(data_path, "PCL", 'MI.h5'), os.path.join(data_path, "PCL", 'PCL.h5'))
 
-def download_HHAR(data_path, mode):
+def download_hhar(data_path, mode):
     """ Download the HHAR dataset """
 
     if mode == 'gdrive':
@@ -124,7 +122,7 @@ def download_HHAR(data_path, mode):
     shutil.move(os.path.join(data_path, "hhar"), os.path.join(data_path, "HHAR"))
     os.rename(os.path.join(data_path, "HHAR", 'HAR.h5'), os.path.join(data_path, "HHAR", 'HHAR.h5'))
 
-def download_LSA64(data_path, mode):
+def download_lsa64(data_path, mode):
     """ Download the LSA64 dataset """
 
     if mode == 'gdrive':
@@ -145,30 +143,3 @@ def download_LSA64(data_path, mode):
 
     # Rename directories and data
     shutil.move(os.path.join(data_path, "lsa64"), os.path.join(data_path, "LSA64"))
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(description='Download datasets')
-    parser.add_argument('dataset', nargs='*', type=str, default=['CAP', 'SEDFx', 'PCL', 'HHAR', 'LSA64'])
-    parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
-    parser.add_argument('--mode', type=str, default='gdrive', choices=['at', 'gdrive'])
-    flags = parser.parse_args()
-
-    print('Flags:')
-    for k,v in sorted(vars(flags).items()):
-        print("\t{}: {}".format(k, v))
-
-    if 'CAP' in flags.dataset:
-        download_CAP(flags.data_path, flags.mode)
-
-    if 'SEDFx' in flags.dataset:
-        download_SEDFx(flags.data_path, flags.mode)
-    
-    if 'PCL' in flags.dataset:
-        download_PCL(flags.data_path, flags.mode)
-
-    if 'HHAR' in flags.dataset:
-        download_HHAR(flags.data_path, flags.mode)
-
-    if 'LSA64' in flags.dataset:
-        download_LSA64(flags.data_path, flags.mode)

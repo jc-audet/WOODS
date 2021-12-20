@@ -16,7 +16,7 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
-import woods.scripts.download as download
+import woods.download as download
 
 
 DATASETS = [
@@ -1250,7 +1250,7 @@ class CAP(EEG_DB):
     def __init__(self, flags, training_hparams):
 
         ## Define download function
-        self.download_fct = download.download_HHAR
+        self.download_fct = download.download_cap
 
         super().__init__(flags, training_hparams)
         
@@ -1290,7 +1290,7 @@ class SEDFx(EEG_DB):
     def __init__(self, flags, training_hparams):
 
         ## Define download function
-        self.download_fct = download.download_SEDFx
+        self.download_fct = download.download_sedfx
 
         super().__init__(flags, training_hparams)
        
@@ -1324,7 +1324,7 @@ class PCL(EEG_DB):
     def __init__(self, flags, training_hparams):
 
         ## Define download function
-        self.download_fct = download.download_PCL
+        self.download_fct = download.download_pcl
 
         super().__init__(flags, training_hparams)
 
@@ -1472,7 +1472,7 @@ class LSA64(Multi_Domain_Dataset):
                                                                    std=[0.229, 0.224, 0.225])])
 
         ## Prepare the data (Download if needed)
-        self.download_fct = download.download_LSA64
+        self.download_fct = download.download_lsa64
         self.prepare_data(flags.data_path, flags.download)
 
         ## Create tensor dataset and dataloader
@@ -1553,7 +1553,7 @@ class HHAR(Multi_Domain_Dataset):
         * https://dl.acm.org/doi/10.1145/2809695.2809718
     """
     ## Training parameters
-    N_STEPS = 5001
+    N_STEPS = 10001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -1589,7 +1589,7 @@ class HHAR(Multi_Domain_Dataset):
         self.batch_size = training_hparams['batch_size']
 
         ## Prepare the data (Download if needed)
-        self.download_fct = download.download_HHAR
+        self.download_fct = download.download_hhar
         self.prepare_data(flags.data_path, flags.download)
 
         # Label definition

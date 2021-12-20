@@ -487,8 +487,6 @@ def Fish_hyper(sample):
             'meta_lr': lambda r:r.choice([0.05, 0.1, 0.5])
         }
         
-        
-        
 def SANDMask_hyper(sample):
     """ SANDMask objective hparam definition 
     
@@ -521,8 +519,8 @@ def IB_ERM_hyper(sample):
         }
     else:
         return {
-            'ib_weight': lambda r: 1e2,
-            'ib_anneal': lambda r: 500
+            'ib_weight': lambda r: 0.1,
+            'ib_anneal': lambda r: 0
         }
  
 def IB_IRM_hyper(sample):
