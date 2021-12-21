@@ -18,7 +18,6 @@ from torchvision import datasets, transforms
 
 import woods.download as download
 
-
 DATASETS = [
     # 1D datasets
     'Basic_Fourier',
