@@ -19,6 +19,8 @@ OBJECTIVES = [
     'Fish',
     'SANDMask',
     'IB_ERM',
+    'IB_ERM_features',
+    'IB_ERM_logits',
     'IB_IRM'
 ]
 

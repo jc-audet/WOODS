@@ -192,17 +192,22 @@ if __name__ == "__main__":
             for objective_name in flipped_acc.keys():
                 obj_results = [objective_name]
 
-                for dataset_name in flipped_acc[objective_name].keys():
-                    if flipped_acc[objective_name][dataset_name] is None:
-                        obj_results.append(" X ")
-                    else:
+                for dataset_name in t.field_names[1:-1]:#flipped_acc[objective_name].keys():
+                    # print(flipped_acc[objective_name][dataset_name])
+                    # if flipped_acc[objective_name][dataset_name] is None:
+                    #     obj_results.append(" X ")
+                    #     print("hello")
+                    # else:
+                    try:
                         if flags.latex:
                             obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
                         else:
                             obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
-                
-                obj_results.append(" {acc:.2f} ".format(acc=np.mean(list(flipped_acc[objective_name].values()))))
+                    except KeyError:
+                        obj_results.append(" X ")
 
+                obj_results.append(" {acc:.2f} ".format(acc=np.mean(list(flipped_acc[objective_name].values()))))
+                print(t.field_names, obj_results)
                 t.add_row(obj_results)
 
             max_width = {}
