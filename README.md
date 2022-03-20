@@ -2,7 +2,6 @@
   <img width='100%' src='./assets/banner.png' />
 </p>
 
---------------------------------------------------------------------------------
 [![Documentation Status](https://readthedocs.org/projects/mitiq/badge/?version=stable)](https://woods.readthedocs.io/en/latest)
 ![Continuous Integration](https://github.com/jc-audet/WOODS/actions/workflows/python-package.yml/badge.svg)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -10,6 +9,7 @@
 
 # Benchmarks for Out-of-Distribution Generalization in Time Series Tasks
 
+---
 ## Abstract
 Machine learning models often fail to generalize well under
 distributional shifts. Understanding and overcoming these
@@ -26,6 +26,8 @@ systematic framework. Our experiments show a large room for
 improvement for empirical risk minimization and OOD
 generalization algorithms on our datasets, thus underscoring
 the new challenges posed by time series tasks.
+
+---
 
 ## Quick Start
 
