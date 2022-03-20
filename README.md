@@ -7,7 +7,13 @@
 ![Continuous Integration](https://github.com/jc-audet/WOODS/actions/workflows/python-package.yml/badge.svg)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-A set of Out-of-Distribution Generalization Benchmarks for Sequential Prediction Tasks
+
+# Benchmarks for Out-of-Distribution Generalization in Time Series Tasks
+
+
+[Understanding Rare Spurious Correlations in Neural Network](https://arxiv.org/abs/2202.05189)
+
+Authors: [Yao-Yuan Yang](https://github.com/yangarbiter/), [Kamalika Chaudhuri](http://cseweb.ucsd.edu/~kamalika/)
 
 # Quick Start
 
