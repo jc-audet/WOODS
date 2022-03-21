@@ -87,3 +87,12 @@ python3 -m woods.main eval \
 ```
 
 ## Citation
+
+```bibtex
+@misc{2203.09978,
+Author = {Jean-Christophe Gagnon-Audet and Kartik Ahuja and Mohammad-Javad Darvishi-Bayazi and Guillaume Dumas and Irina Rish},
+Title = {WOODS: Benchmarks for Out-of-Distribution Generalization in Time Series Tasks},
+Year = {2022},
+Eprint = {arXiv:2203.09978},
+}
+```
