@@ -9,6 +9,10 @@
 
 # Benchmarks for Out-of-Distribution Generalization in Time Series Tasks
 
+ArXiv Paper: [WOODS: Benchmarks for Out-of-Distribution Generalization in Time Series Tasks](https://arxiv.org/abs/2203.09978)
+
+Authors: [Jean-Christophe Gagnon-Audet](https://github.com/jc-audet), [Kartik Ahuja](https://ahujak.github.io/), [Mohammad-Javad Darvishi-Bayazi](https://github.com/MohammadJavadD), [Guillaume Dumas](https://www.extrospection.eu/publications/), [Irina Rish](https://sites.google.com/site/irinarish/)
+
 ## Abstract
 Machine learning models often fail to generalize well under
 distributional shifts. Understanding and overcoming these
