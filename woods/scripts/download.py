@@ -15,6 +15,7 @@ def download_gdrive(url, path, archive_name):
     """ Download the preprocessed data from google drive """
     
     # Download the file
+    print(url)
     r = gdown.download(url, os.path.join(path, archive_name), quiet=False)
 
     # Extract the archive to the path
@@ -97,7 +98,7 @@ def HHAR(data_path, mode):
 
     if mode == 'gdrive':
 
-        url = "https://drive.google.com/uc?id=1Z3IcrCE-o77p4YrvkCy-Y-0CgCyxVHet"
+        url = "http://drive.google.com/uc?id=1Z3IcrCE-o77p4YrvkCy-Y-0CgCyxVHet"
         path = os.path.join(data_path, "hhar")
         os.makedirs(name=path, exist_ok=True)
 
