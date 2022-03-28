@@ -22,9 +22,9 @@ The following table lists the available datasets and their corresponding raw and
 | Spurious_Fourier | 1D Signal | No | - | - | - |
 | TMNIST | Video | Yes, but done automatically | 0.11 GB | - |
 | TCMNIST_seq | Video | Yes, but done automatically | 0.11 GB | - |
-| TCMNSIT_step | Video | Yes, but done automatically | 0.11 GB | - |
+| TCMNIST_step | Video | Yes, but done automatically | 0.11 GB | - |
 | CAP | EEG | Yes | 9.1 GB | 40.1 GB |
 | SEDFx | EEG | Yes | 10.7 GB | 8.1 GB |
-| MI | EEG | Yes | 3.0GB | 13.5 GB |
+| PCL | EEG | Yes | 3.0GB | 13.5 GB |
 | LSA64 | Video | Yes | 0.26 GB | 1.5 GB |
-| HAR | Sensor | Yes | 0.16 GB | 3.1 GB |
+| HHAR | Sensor | Yes | 0.16 GB | 3.1 GB |
