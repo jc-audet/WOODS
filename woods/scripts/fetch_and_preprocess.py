@@ -972,7 +972,7 @@ class PCL():
         X_src3 = X_src3[:, :, :window_size]
 
         # Detrend, scale and reshape the data
-        print(np.shape(X_src1), np.shape(X_src3), np.shape(X_src3))
+        print(np.shape(X_src1), np.shape(X_src2), np.shape(X_src3))
         sc = mne.decoding.Scaler(scalings='mean')
         X_src1 = detrend(X_src1, axis=2) # detrending
         X_src2 = detrend(X_src2, axis=2) # detrending
