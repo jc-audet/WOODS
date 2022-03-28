@@ -221,3 +221,44 @@ def test_domain_validation(records):
     last_step = max([int(step) for step in records.keys()])
 
     return records[str(last_step)][val_keys], records[str(last_step)][test_keys]
+
+def train_domain_validation_oracle(records):
+    """ Perform the train domain validation 'oracle' model section on a single training run and returns the results
+
+    In this domain validation method, we perform early stopping using the train domains validation set, and we choose the model according to the test domain accuracy at that early stopping point
+        best_step = test_acc[ argmax_{step in checkpoints}(mean(train_envs_acc)) ]
+ 
+    Args:
+        records (dict): Dictionary of records from a single training run
+
+    Returns:
+        float: test accuracy of the best checkpoint (highest validation accuracy) of the training run
+        float: test accuracy of the best checkpoint (highest validation accuracy) of the training run
+    """
+
+    # Make copy of record
+    records = copy.deepcopy(records)
+
+    flags = records.pop('flags')
+    hparams = records.pop('hparams')
+    env_name = datasets.get_environments(flags['dataset'])
+
+    val_keys = [str(e)+'_out_acc' for i,e in enumerate(env_name) if i != flags['test_env']]
+    test_key = str(env_name[flags['test_env']]) + '_in_acc'
+
+    val_dict = {}
+    test_dict = {}
+    for step, step_dict in records.items():
+
+        val_array = [step_dict[k] for k in val_keys]
+        val_dict[step] = np.mean(val_array)
+
+        test_dict[step] = step_dict[test_key]
+
+    ## Picking the max value from a dict
+    # Fastest:
+    best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
+    # Cleanest:
+    # best_step = max(val_dict, key=val_dict.get)
+    
+    return test_dict[best_step], test_dict[best_step]

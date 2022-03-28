@@ -1327,6 +1327,42 @@ class PCL(EEG_DB):
 
         super().__init__(flags, training_hparams)
 
+class MI(EEG_DB):
+    """ MI datasets
+
+    The task is to classify the motor imaginary from EEG and other modalities of signals.
+    The raw data comes from the three PCL Databases:  
+       [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
+
+    You can read more on the data itself and it's provenance on: 
+
+        http://moabb.neurotechx.com/docs/index.html
+
+    This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+    """
+    ## Training parameters
+    N_STEPS = 10001
+    ## Dataset parameters
+    TASK = 'classification'
+    SEQ_LEN = 752
+    PRED_TIME = [751]
+    INPUT_SHAPE = [48]
+    OUTPUT_SIZE = 2
+    DATA_PATH = 'PCL/PCL.h5'
+
+    ## Environment parameters
+    ENVS = [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
+    SWEEP_ENVS = list(range(len(ENVS)))
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__(flags, training_hparams)
+
 class Video_dataset(Dataset):
     """ Video dataset
 
@@ -1590,6 +1626,106 @@ class HHAR(Multi_Domain_Dataset):
         ## Prepare the data (Download if needed)
         self.download_fct = download.download_hhar
         self.prepare_data(flags.data_path, flags.download)
+
+        # Label definition
+        self.label_dict = { 'stand': 0,
+                            'sit': 1,
+                            'walk': 2,
+                            'bike': 3,
+                            'stairsup': 4,
+                            'stairsdown': 5}
+        
+        ## Create tensor dataset and dataloader
+        self.val_names, self.val_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        for j, e in enumerate(self.ENVS):
+
+            with h5py.File(os.path.join(flags.data_path, self.DATA_PATH), 'r') as f:
+                # Load data
+                data = torch.tensor(f[e]['data'][...])
+                labels = torch.tensor(f[e]['labels'][...])
+
+            # Get full environment dataset and define in/out split
+            full_dataset = torch.utils.data.TensorDataset(data, labels)
+            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction, seed=j)
+
+            # Make training dataset/loader and append it to training containers
+            if j != flags.test_env:
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
+                self.train_names.append(e + '_in')
+                self.train_loaders.append(in_loader)
+            
+            # Make validation loaders
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+
+            # Append to val containers
+            self.val_names.append(e + '_in')
+            self.val_loaders.append(fast_in_loader)
+            self.val_names.append(e + '_out')
+            self.val_loaders.append(fast_out_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+
+
+class HAR(Multi_Domain_Dataset):
+    """ Heterogeneity Acrivity Recognition Dataset (HHAR)
+
+    This dataset is composed of wearables measurements during different activities.
+    The goal is to classify those activities (stand, sit, walk, bike, stairs up, stairs down).
+
+    You can read more on the data itself and it's provenance from it's source:
+
+        https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
+
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Note:
+        This dataset need to be downloaded and preprocessed. This can be done with the download.py script
+
+    Ressources:
+        * https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
+        * https://dl.acm.org/doi/10.1145/2809695.2809718
+    """
+    ## Training parameters
+    N_STEPS = 5001
+    CHECKPOINT_FREQ = 100
+
+    ## Dataset parameters
+    SETUP = 'seq'
+    TASK = 'classification'
+    SEQ_LEN = 500
+    PRED_TIME = [499]
+    INPUT_SHAPE = [6]
+    OUTPUT_SIZE = 6
+    #:str: Path to the file containing the data
+    DATA_PATH = 'HHAR/HHAR.h5'
+
+    ## Environment parameters
+    ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
+    SWEEP_ENVS = list(range(len(ENVS)))
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+
+        Args:
+            flags (argparse.Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
+
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        # Save stuff 
+        self.test_env = flags.test_env
+        self.batch_size = training_hparams['batch_size']
 
         # Label definition
         self.label_dict = { 'stand': 0,
