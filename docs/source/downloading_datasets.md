@@ -4,14 +4,14 @@ Before running any training run, we need to make sure we have the data to train 
 ## Direct Preprocessed Download
 The repository offers direct download to the preprocessed data which is the quickest and most efficient way to get started. To download the preprocessed data, run the download module of the woods.scripts package and specify the dataset you want to download:
 ```sh
-python3 -m woods.scripts.download DATASET\
-        --data_path ./path/to/data/directory
+python3 -m woods.scripts.download_datasets DATASET\
+        --data_path /path/to/data/directory
 ```
 ## Source Download and Preprocess
 For the sake of transparency, WOODS also offers the preprocessing scripts we took for all datasets in the preprecessing module of the woods.scripts package. You can also use the same module to download the raw data from the original source and run preprocessing yourself on it. DISCLAIMER: Some of the datasets take a long time to preprocess, especially the EEG datasets.
 ```sh
 python3 -m woods.scripts.fetch_and_preprocess DATASET\
-        --data_path ./path/to/data/directory
+        --data_path /path/to/data/directory
 ```
 ## Datasets Info
 The following table lists the available datasets and their corresponding raw and preprocessed sizes.
@@ -23,7 +23,7 @@ The following table lists the available datasets and their corresponding raw and
 | TMNIST | Video | Yes, but done automatically | 0.11 GB | - |
 | TCMNIST_seq | Video | Yes, but done automatically | 0.11 GB | - |
 | TCMNIST_step | Video | Yes, but done automatically | 0.11 GB | - |
-| CAP | EEG | Yes | 9.1 GB | 40.1 GB |
+| CAP | EEG | Yes | 8.7 GB | 40.1 GB |
 | SEDFx | EEG | Yes | 10.7 GB | 8.1 GB |
 | PCL | EEG | Yes | 3.0GB | 13.5 GB |
 | LSA64 | Video | Yes | 0.26 GB | 1.5 GB |
