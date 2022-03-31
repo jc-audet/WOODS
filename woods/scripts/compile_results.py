@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # Choose model selection under study
     model_selection_methods = [ 'train_domain_validation',
                                 'test_domain_validation',
-                                'train_domain_validation_oracle']
+                                'oracle_train_domain_validation']
 
     if 'hparams' in flags.mode:
 

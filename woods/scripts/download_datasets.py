@@ -23,16 +23,16 @@ if __name__ == '__main__':
         print("\t{}: {}".format(k, v))
 
     if 'CAP' in flags.dataset:
-        download_CAP(flags.data_path, flags.mode)
+        download_cap(flags.data_path, flags.mode)
 
     if 'SEDFx' in flags.dataset:
-        download_SEDFx(flags.data_path, flags.mode)
+        download_sedfx(flags.data_path, flags.mode)
     
     if 'PCL' in flags.dataset:
-        download_PCL(flags.data_path, flags.mode)
+        download_pcl(flags.data_path, flags.mode)
 
     if 'HHAR' in flags.dataset:
-        download_HHAR(flags.data_path, flags.mode)
+        download_hhar(flags.data_path, flags.mode)
 
     if 'LSA64' in flags.dataset:
-        download_LSA64(flags.data_path, flags.mode)
+        download_lsa64(flags.data_path, flags.mode)

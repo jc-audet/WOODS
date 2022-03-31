@@ -10,7 +10,6 @@ def download_gdrive(url, path, archive_name):
     """ Download the preprocessed data from google drive """
 
     # Download the file
-    print(url)
     r = gdown.download(url, os.path.join(path, archive_name), quiet=False)
 
     # Extract the archive to the path

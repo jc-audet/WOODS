@@ -123,9 +123,9 @@ def print_results(results_path):
 def get_job_name(flags):
     """ Generates the name of the output file for a training run as a function of the config
 
-    Seq setup:
+    Source setup:
     <objective>_<dataset>_<test_env>_H<hparams_seed>_T<trial_seed>.json
-    Step setup:
+    Time setup:
     <objective>_<dataset>_<test_env>_H<hparams_seed>_T<trial_seed>_S<test_step>.json
 
     Args:
@@ -190,9 +190,9 @@ def setup_pretty_table(flags):
     env_name = datasets.get_environments(flags.dataset)
     setup = datasets.get_setup(flags.dataset)
 
-    if setup == 'seq':
+    if setup == 'source':
         t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
-    if setup == 'step':
+    if setup == 'time':
         if flags.test_env is not None:
             t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
         else:

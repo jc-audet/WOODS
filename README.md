@@ -38,7 +38,7 @@ the new challenges posed by time series tasks.
 Some datasets require downloads in order to be used. We provide the download script to directly download our own preprocessed versions of the datasets which are ready for use. If you want to look into the preprocessing yourself, check the `fetch_and_preprocess.py` script. You can provide a specific dataset to download, or provide nothing to download all of them. See the raw and preprocessed sizes of the dataset on the dataset page of the [documentation](https://woods.readthedocs.io/en/latest/downloading_datasets.html#datasets-info).
 
 ```sh
-python3 -m woods.scripts.download {dataset} \
+python3 -m woods.scripts.download_datasets {dataset} \
         --data_path /path/to/data/directory
 ```
 

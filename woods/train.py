@@ -107,14 +107,14 @@ def get_accuracies(objective, dataset, device):
     record = {}
     for name, loader in zip(val_names, val_loaders):
 
-        if dataset.SETUP == 'seq':
-            accuracy, loss = get_split_accuracy_seq(objective, dataset, loader, device)
+        if dataset.SETUP == 'source':
+            accuracy, loss = get_split_accuracy_source(objective, dataset, loader, device)
         
             record.update({ name+'_acc': accuracy,
                             name+'_loss': loss})
 
-        elif dataset.SETUP == 'step':
-            accuracies, losses = get_split_accuracy_step(objective, dataset, loader, device)
+        elif dataset.SETUP == 'time':
+            accuracies, losses = get_split_accuracy_time(objective, dataset, loader, device)
 
             for i, e in enumerate(name):
                 record.update({ e+'_acc': accuracies[i],
@@ -122,8 +122,8 @@ def get_accuracies(objective, dataset, device):
 
     return record
 
-def get_split_accuracy_seq(objective, dataset, loader, device):
-    """ Get accuracy and loss for a dataset that is of the `seq` setup
+def get_split_accuracy_source(objective, dataset, loader, device):
+    """ Get accuracy and loss for a dataset that is of the `source` setup
 
     Args:
         objective: objective we are using for training
@@ -157,8 +157,8 @@ def get_split_accuracy_seq(objective, dataset, loader, device):
 
     return show_value, losses.item() / len(loader)
 
-def get_split_accuracy_step(objective, dataset, loader, device):
-    """ Get accuracy and loss for a dataset that is of the `step` setup
+def get_split_accuracy_time(objective, dataset, loader, device):
+    """ Get accuracy and loss for a dataset that is of the `time` setup
 
     Args:
         objective: objective we are using for training

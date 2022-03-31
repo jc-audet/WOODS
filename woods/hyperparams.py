@@ -96,8 +96,8 @@ def TMNIST_train(sample):
             'batch_size': lambda r: 64
         }
 
-def TCMNIST_seq_train(sample):
-    """ TCMNIST_seq model hparam definition 
+def TCMNIST_Source_train(sample):
+    """ TCMNIST_Source model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -117,8 +117,8 @@ def TCMNIST_seq_train(sample):
             'batch_size': lambda r: 64
         }
 
-def TCMNIST_step_train(sample):
-    """ TCMNIST_step model hparam definition 
+def TCMNIST_Time_train(sample):
+    """ TCMNIST_Time model hparam definition 
     
     Args:
         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
@@ -295,8 +295,8 @@ def TMNIST_model():
         'state_size': 128
     }
 
-def TCMNIST_seq_model():
-    """ TCMNIST_seq model hparam definition """
+def TCMNIST_Source_model():
+    """ TCMNIST_Source model hparam definition """
     return {
         'model': 'MNIST_LSTM',
         'hidden_depth': 3, 
@@ -305,8 +305,8 @@ def TCMNIST_seq_model():
         'state_size': 128
     }
 
-def TCMNIST_step_model():
-    """ TCMNIST_step model hparam definition """
+def TCMNIST_Time_model():
+    """ TCMNIST_Time model hparam definition """
     return {
         'model': 'MNIST_LSTM',
         'hidden_depth': 3, 

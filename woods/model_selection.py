@@ -222,7 +222,7 @@ def test_domain_validation(records):
 
     return records[str(last_step)][val_keys], records[str(last_step)][test_keys]
 
-def train_domain_validation_oracle(records):
+def oracle_train_domain_validation(records):
     """ Perform the train domain validation 'oracle' model section on a single training run and returns the results
 
     In this domain validation method, we perform early stopping using the train domains validation set, and we choose the model according to the test domain accuracy at that early stopping point
