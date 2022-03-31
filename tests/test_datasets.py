@@ -2,6 +2,7 @@
 import torch
 from argparse import Namespace
 
+import woods
 from woods.hyperparams import get_training_hparams
 from woods.datasets import get_dataset_class, num_environments
 from woods.datasets import DATASETS, InfiniteLoader
