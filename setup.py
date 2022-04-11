@@ -11,7 +11,7 @@ setuptools.setup(
     author="Jean-Christophe Gagnon-Audet",
     author_email="jcgagnon74@gmail.com",
     url="https://woods-benchmarks.github.io/",
-    description="A set of Out-of-Distribution Generalization Benchmarks for Sequential Prediction Tasks",
+    description="A set of Out-of-Distribution Generalization Benchmarks for Time Series",
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires = [

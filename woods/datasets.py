@@ -10,6 +10,7 @@ import scipy.io
 import numpy as np
 from scipy import fft, signal
 import matplotlib.pyplot as plt
+from datasets import load_dataset
 
 import torch
 from torch import nn, optim
@@ -35,6 +36,8 @@ DATASETS = [
     "LSA64",
     ## Activity Recognition
     "HHAR"
+    ## Finance
+    "FRED"
 ]
 
 def get_dataset_class(dataset_name):
@@ -1638,3 +1641,22 @@ class HHAR(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+
+class FRED(Multi_Domain_Dataset):
+    """ 
+    """
+    ## Training parameters
+    N_STEPS = 5001
+    CHECKPOINT_FREQ = 100
+
+    ## Dataset parameters
+    SETUP = 'source'
+    TASK = 'classification'
+    SEQ_LEN = 500
+    PRED_TIME = [168]
+    INPUT_SHAPE = [6]
+    OUTPUT_SIZE = 1
+
+    ## Environment parameters
+    ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
+    SWEEP_ENVS = list(range(len(ENVS)))
