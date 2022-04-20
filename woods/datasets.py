@@ -16,6 +16,10 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
+from gluonts.dataset.repository.datasets import get_dataset, dataset_recipes
+from gluonts.dataset.util import to_pandas
+
+
 
 DATASETS = [
     # 1D datasets
@@ -1336,7 +1340,7 @@ class StockVolatility(Multi_Domain_Dataset):
                 data = torch.tensor(f[e]['data'][...])
                 labels = torch.tensor(f[e]['labels'][...])
             
-
+           
             # Get full environment dataset and define in/out split
             full_dataset = torch.utils.data.TensorDataset(data, labels)
             in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction, seed=j)
@@ -1383,6 +1387,232 @@ class StockVolatility(Multi_Domain_Dataset):
             labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
             all_logits_idx += self.batch_size
         return out_split, labels_split
+
+
+class Energy(Multi_Domain_Dataset):
+    """ wind farm Dataset
+
+    Args:
+        flags (argparse.Namespace): argparse of training arguments
+        training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+
+    Ressources:
+        * https://github.com/awslabs/gluon-ts
+    """
+    ## Training parameters
+    N_STEPS = 5001
+    CHECKPOINT_FREQ = 100
+
+    ## Dataset parameters
+    SETUP = 'seq'
+    TASK = 'regression'
+    SEQ_LEN = 3
+    PRED_TIME = [2]
+    INPUT_SHAPE = [1]
+    OUTPUT_SIZE = 1
+    DATA_PATH = '/datasets/wind_farms_without_missing/train/data.json'
+
+    ## Environment parameters
+    ENVS = ['01-01-2019:03-02-2019','04-02-2019:06-04-2019', '07-04-2019:13-05-2019', '14-05-2019:2019-06-06']
+
+    SWEEP_ENVS = list(range(len(ENVS)))
+
+    def __init__(self, flags, training_hparams):
+        """ Dataset constructor function
+        Args:
+            flags (Namespace): argparse of training arguments
+            training_hparams (dict): dictionnary of training hyper parameters coming from the hyperparams.py file
+        """
+        super().__init__()
+
+
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        # Save stuff
+        self.test_env = flags.test_env
+        self.batch_size = training_hparams['batch_size']
+
+        ## Define loss function
+        self.loss = nn.MSELoss()
+
+        ## Create tensor dataset and dataloader
+        self.val_names, self.val_loaders = [], []
+        self.train_names, self.train_loaders = [], []
+        for j, e in enumerate(self.ENVS):
+
+            with h5py.File(os.path.join(flags.data_path, self.DATA_PATH), 'r') as f:
+                # Load data
+                data = torch.tensor(f[e].values[...])
+                labels = torch.tensor(f[e]['target'][...])
+            
+            # getdataset.train--->out_dataset
+            # getdataset.test--->out_dataset
+            # Get full environment dataset and define in/out split
+            full_dataset = torch.utils.data.TensorDataset(data, labels)
+            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction, seed=j)
+
+            # Make training dataset/loader and append it to training containers
+            if j != flags.test_env:
+                in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
+                self.train_names.append(e + '_in')
+                self.train_loaders.append(in_loader)
+
+            # Make validation loaders
+            fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=64, shuffle=False,
+                                                         num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=64, shuffle=False,
+                                                          num_workers=self.N_WORKERS, pin_memory=True)
+
+            # Append to val containers
+            self.val_names.append(e + '_in')
+            self.val_loaders.append(fast_in_loader)
+            self.val_names.append(e + '_out')
+            self.val_loaders.append(fast_out_loader)
+    
+    def loss_fn(self, input, target):
+        input = input.squeeze(1)
+        return self.loss(input,target)
+
+    
+    from gluonts.dataset.common import ListDataset
+    from gluonts.dataset.util import to_pandas
+    import pandas as pd
+
+
+    def create_dataset_envs(num_series, num_steps, period=24):
+
+
+        entry_train = next(iter(DATA_PATH))
+        train_series = to_pandas(entry_train)
+        
+        
+        # split the pattern into two phases
+        phase1 = train_series['2019'].values
+        phase2 = train_series[:phase1.size].values
+
+        pattern = np.concatenate(
+            (
+                np.tile(
+                    phase1.reshape(1, -1),
+                    (int(np.ceil(num_series / 2)),1)
+                ),
+                np.tile(
+                    phase2.reshape(1, -1),
+                    (int(np.floor(num_series / 2)), 1)
+                )
+            ),
+            axis=0
+        )
+
+        target = pattern
+
+        # create time features: use target one period earlier, append with zeros
+        feat_dynamic_real = np.concatenate(
+            (
+                np.zeros((num_series, period)),
+                target[:, :-period]
+            ),
+            axis=1
+        )
+
+        # create categorical static feats: domain based as a categorical feature
+        feat_static_cat = np.concatenate(
+            (
+                np.zeros(int(np.ceil(num_series / 2))),
+                np.ones(int(np.floor(num_series / 2)))
+            ),
+            axis=0
+        )
+
+        return target, feat_dynamic_real, feat_static_cat
+
+
+    # define the parameters of the dataset
+    custom_ds_metadata = {
+        'num_series': 100,
+        'num_steps': 24 * 7,
+        'prediction_length': 24,
+        'freq': 'T',
+        'start': [
+            pd.Timestamp("01-01-2019", freq='T')
+            for _ in range(100)
+        ]
+    }
+
+
+    data_out = create_dataset_envs(
+        custom_ds_metadata['num_series'],
+        custom_ds_metadata['num_steps'],
+        custom_ds_metadata['prediction_length']
+    )
+
+    target, feat_dynamic_real, feat_static_cat = data_out
+
+
+
+    train_ds = ListDataset(
+        [
+            {
+                FieldName.TARGET: target,
+                FieldName.START: start,
+                FieldName.FEAT_DYNAMIC_REAL: [fdr],
+                FieldName.FEAT_STATIC_CAT: [fsc]
+            }
+            for (target, start, fdr, fsc) in zip(
+                target[:, :-custom_ds_metadata['prediction_length']],
+                custom_ds_metadata['start'],
+                feat_dynamic_real[:, :-custom_ds_metadata['prediction_length']],
+                feat_static_cat
+            )
+        ],
+        freq=custom_ds_metadata['freq']
+    )
+
+
+    test_ds = ListDataset(
+        [
+            {
+                FieldName.TARGET: target,
+                FieldName.START: start,
+                FieldName.FEAT_DYNAMIC_REAL: [fdr],
+                FieldName.FEAT_STATIC_CAT: [fsc]
+            }
+            for (target, start, fdr, fsc) in zip(
+                target,
+                custom_ds_metadata['start'],
+                feat_dynamic_real,
+                feat_static_cat)
+        ],
+        freq=custom_ds_metadata['freq']
+    )
+
+    train_dataset = next(iter(train_ds))
+
+    def split_data(self, out, labels):
+        """ Group data and prediction by environment
+
+        Args:
+            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+
+        Returns:
+            Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+            Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+        """
+        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+        out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
+        labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).to(labels.device)
+        all_logits_idx = 0
+        for i in range(n_train_env):
+            out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+            labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
+            all_logits_idx += self.batch_size
+        return out_split, labels_split
+
+
 
 class Video_dataset(Dataset):
     """ Video dataset
