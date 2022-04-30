@@ -55,40 +55,44 @@ class ERM(Objective):
     Empirical Risk Minimization (ERM)
     """
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+    def __init__(self, model, dataset, optimizer, hparams):
         super(ERM, self).__init__(hparams)
 
+        # Save hparams
+        self.hparams = hparams
+        self.device = self.hparams['device']
+
+        # Save training components
         self.model = model
-        self.loss_fn = loss_fn
+        self.dataset = dataset
         self.optimizer = optimizer
 
-    def predict(self, all_x, ts, device):
+    def predict(self, all_x):
 
         # Get logit and make prediction
-        out, features = self.model(all_x, ts)
+        out, features = self.model(all_x)
 
         return out, features
 
-    def update(self, minibatches_device, dataset, device):
+    def update(self):
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+        # Put model into training mode
+        self.model.train()
 
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, _ = self.predict(all_x, ts, device)
+        # Get next batch
+        minibatches_device = self.dataset.get_next_batch()
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+        # Split input / target
+        X, Y = self.dataset.split_input(minibatches_device)
 
-        # Compute loss for each environment
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx,:], labels_split[i,:,t_idx])
+        # Get logit
+        out, _ = self.predict(X)
 
+        # Compute losses and group then by domains: Classification -> (ENVS, batch_size, len(PRED_TIME), num_classes)
+        #                                           Forecasting -> (ENVS, batch_size, PRED_LENGTH, OUTPUT_SIZE)
+        batch_losses = self.dataset.loss(out, Y)
+        env_losses = self.dataset.split_losses(batch_losses)
+        
         # Compute objective
         objective = env_losses.mean()
 

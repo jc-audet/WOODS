@@ -197,15 +197,22 @@ def setup_pretty_table(flags):
             t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
         else:
             t.field_names = ['Env'] + [str(e) for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+    
+    if setup == 'subpopulation':
+        t.field_names = ['Split'] + ['Train', 'Validation','Test'] + [' ', '  ', '   ', '    ']
 
-    max_width = {}
-    min_width = {}
-    for n in t.field_names:
-        max_width.update({n: 15})
-        min_width.update({n: 15})
-    t._min_width = min_width
-    t._max_width = max_width
-    t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])
+    if setup in ['source', 'time']: 
+        max_width = {}
+        min_width = {}
+        for n in t.field_names:
+            max_width.update({n: 15})
+            min_width.update({n: 15})
+        t._min_width = min_width
+        t._max_width = max_width
+        t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])
+    if setup == 'subpopulation':
+        column = " :: ".join([str(e) for i, e in enumerate(env_name)])
+        t.add_row(['Steps'] + [column] * 3 + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])
     print(t.get_string(title=job_id, border=True, hrule=0))
     t.del_row(0)
     

@@ -27,12 +27,6 @@ from woods.train import train, get_accuracies
 
 if __name__ == '__main__':
 
-    # Device definition
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
-
     ## Args
     parser = argparse.ArgumentParser(description='Train a model on a dataset with an objective and test on a test_env')
     # Main mode
@@ -57,6 +51,13 @@ if __name__ == '__main__':
 
 
     flags = parser.parse_args()
+    
+    # Device definition
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
 
     print('Flags:')
     for k,v in sorted(vars(flags).items()):
@@ -73,7 +74,9 @@ if __name__ == '__main__':
     training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
     training_hparams['device'] = device
     objective_hparams = hyperparams.get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
+    objective_hparams['device'] = device
     model_hparams = hyperparams.get_model_hparams(flags.dataset)
+    model_hparams['device'] = device
 
     print('HParams:')
     for k, v in sorted(training_hparams.items()):
@@ -110,12 +113,11 @@ if __name__ == '__main__':
 
     # Define training aid
     # loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
-    loss_fn = dataset.loss_fn
     optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
 
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)
-    objective = objective_class(model, dataset, loss_fn, optimizer, objective_hparams)
+    objective = objective_class(model, dataset, optimizer, objective_hparams)
 
     ## Do the thing
     model.to(device)

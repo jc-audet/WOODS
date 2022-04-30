@@ -1,5 +1,5 @@
 """Defining the training functions that are used to train and evaluate models"""
-
+from typing import NamedTuple, Optional, Iterable, Dict, Any, List, Tuple
 import time
 import numpy as np
 
@@ -12,29 +12,27 @@ from woods import objectives
 from woods import hyperparams
 from woods import utils
 
-## Train function
-def train_step(model, objective, dataset, in_loaders_iter, device):
-    """ Train a single training step for a model
+# ## Train function
+# def train_step(model, objective, dataset, in_loaders_iter, device):
+#     """ Train a single training step for a model
 
-    Args:
-        model: nn model defined in a models.py
-        objective: objective we are using for training
-        dataset: dataset object we are training on
-        in_loaders_iter: iterable of iterable of data loaders
-        device: device on which we are training
-    """
-    model.train()
+#     Args:
+#         model: nn model defined in a models.py
+#         objective: objective we are using for training
+#         dataset: dataset object we are training on
+#         in_loaders_iter: iterable of iterable of data loaders
+#         device: device on which we are training
+#     """
 
-    ts = torch.tensor(dataset.PRED_TIME).to(device)
-        
+#     # Put model into training mode
+#     model.train()
 
-    # Get batch and Send everything in an array
-    batch_loaders = next(in_loaders_iter)
-    minibatches_device = [(x, y) for x,y in batch_loaders]
+#     # Get next batch
+#     minibatches_device = dataset.get_next_batch()
 
-    objective.update(minibatches_device, dataset, device)
+#     objective.update(minibatches_device, dataset, device)
 
-    return model
+#     return model
 
 def train(flags, training_hparams, model, objective, dataset, device):
     """ Train a model on a given dataset with a given objective
@@ -47,20 +45,20 @@ def train(flags, training_hparams, model, objective, dataset, device):
         dataset: dataset object we are training on
         device: device on which we are training
     """
+    # Initialize containers
     record = {}
     step_times = []
     
+    # Set up table
     t = utils.setup_pretty_table(flags)
 
-    train_names, train_loaders = dataset.get_train_loaders()
-    n_batches = np.sum([len(train_l) for train_l in train_loaders])
-    train_loaders_iter = zip(*train_loaders)
-
+    # Perform training loop for the prescribed number of steps
+    n_batches = dataset.get_number_of_batches()
     for step in range(1, dataset.N_STEPS + 1):
 
         ## Make training step and report accuracies and losses
         step_start = time.time()
-        model = train_step(model, objective, dataset, train_loaders_iter, device)
+        objective.update()
         step_times.append(time.time() - step_start)
 
         if step % dataset.CHECKPOINT_FREQ == 0 or (step-1)==0:
@@ -71,6 +69,16 @@ def train(flags, training_hparams, model, objective, dataset, device):
 
             record[str(step)] = checkpoint_record
 
+            print(record)
+            if dataset.TASK == 'forecasting':
+                t.add_row([step] 
+                        + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_train_rmse']) for e in dataset.ENVS])] 
+                        + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_val_rmse']) for e in dataset.ENVS])] 
+                        + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_test_rmse']) for e in dataset.ENVS])] 
+                        + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_train_loss'] for e in dataset.ENVS]))] 
+                        + ["0"]
+                        + ["{:.2f}".format(np.mean(step_times))] 
+                        + ["{:.2f}".format(val_time)])
             if dataset.TASK == 'regression':
                 t.add_row([step] 
                         + ["{:.1e} :: {:.1e}".format(record[str(step)][str(e)+'_in_loss'], record[str(step)][str(e)+'_out_loss']) for e in dataset.ENVS] 
@@ -78,7 +86,7 @@ def train(flags, training_hparams, model, objective, dataset, device):
                         + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
                         + ["{:.2f}".format(np.mean(step_times))] 
                         + ["{:.2f}".format(val_time)])
-            else:
+            if dataset.TASK == 'classification':
                 t.add_row([step] 
                         + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
                         + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
@@ -119,6 +127,12 @@ def get_accuracies(objective, dataset, device):
             for i, e in enumerate(name):
                 record.update({ e+'_acc': accuracies[i],
                                 e+'_loss': losses[i]})
+
+        elif dataset.SETUP == 'subpopulation':
+            error, loss = get_split_errors(objective, dataset, loader, device)
+
+            record.update({ name+'_rmse': error,
+                            name+'_loss': loss})
 
     return record
 
@@ -188,3 +202,41 @@ def get_split_accuracy_time(objective, dataset, loader, device):
             nb_item += pred.shape[0]
             
     return (nb_correct / nb_item).tolist(), (losses/len(loader)).tolist()
+
+def get_split_errors(objective, dataset, loader, device):
+    """ Get error and loss for a dataset that is of the `source` setup
+
+    Args:
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        loader: data loader of which we want the accuracy
+        device: device on which we are training
+    """
+
+    losses = 0
+    errors = 0
+    nb_batches = 0
+    MSE = nn.MSELoss()
+    with torch.no_grad():
+
+        for b, batch in enumerate(loader):
+
+            X, Y = dataset.split_input(batch)
+
+            # Get loss
+            out, _ = objective.predict(X)
+            loss = dataset.loss(out, Y)
+            losses += torch.mean(loss).item()
+
+            # Get errors
+            out = objective.model.inference(X)
+            out_avg = torch.mean(out, dim=1)
+            errors += torch.sqrt(MSE(out_avg, Y)).item()
+
+            # Count
+            nb_batches += 1
+
+        avg_error = errors / nb_batches
+        avg_loss = losses / nb_batches
+
+    return avg_error, avg_loss
