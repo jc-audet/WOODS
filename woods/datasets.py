@@ -345,16 +345,16 @@ class Multi_Domain_Dataset:
         """
         return self.val_names, self.val_loaders
               
-    def get_next_batch(self, device):
+    def get_next_batch(self):
         
-        batch_loaders = next(self.in_loaders_iter)
-        minibatches_device = [(x.to(device), y.to(device)) for x, y in batch_loaders]
+        batch_loaders = next(self.train_loaders_iter)
+        return [(x, y) for x, y in batch_loaders]
 
     def split_input(self, input):
 
         return (
-            torch.cat([x for x,y in input]),
-            torch.cat([y for x,y in input])
+            torch.cat([x for x,y in input]).to(self.device),
+            torch.cat([y for x,y in input]).to(self.device)
         )
 
     def split_output(self, out):
@@ -397,6 +397,24 @@ class Multi_Domain_Dataset:
 
         return labels_split
 
+    def split_losses(self, losses):
+        """ Group losses by domain
+
+        Args:
+            losses (Tensor): batch losses of the shape (len(ENVS) * batch_size, PRED_LENGTH, OUTPUT_SIZE)
+
+        Returns:
+            Tensor: The reshaped output (n_train_env, batch_size, PRED_LENGTH, OUTPUT_SIZE)
+        """
+        n_train_env = len(self.ENVS)
+        losses_split = torch.zeros((n_train_env, self.batch_size, self.PRED_LENGTH)).to(self.device)
+        all_logits_idx = 0
+        for i in range(n_train_env):
+            losses_split[i,...] = losses[all_logits_idx:all_logits_idx + self.batch_size,...]
+            all_logits_idx += self.batch_size
+
+        return losses_split
+
     def get_number_of_batches(self):
         return np.sum([len(train_l) for train_l in self.train_loaders])
 
@@ -431,6 +449,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         # Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.batch_size = training_hparams['batch_size']
         self.class_balance = training_hparams['class_balance']
@@ -483,7 +502,8 @@ class Basic_Fourier(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
         
 class Spurious_Fourier(Multi_Domain_Dataset):
     """ Spurious_Fourier dataset
@@ -523,6 +543,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             warnings.warn("You don't have any test environment")
 
         ## Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
@@ -633,8 +654,19 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
     
+    def loss(self, X, Y):
+        """
+        Take the tensors of shape (batch, time, pred) and shapes them for use with loss_fn
+        """
+
+        print(X.shape)
+        X = X.permute(0,2,1)
+        
+        return self.loss_fn(X, Y)
+
     def super_sample(self, signal_0, signal_1):
         """ Sample signals frames with a bunch of offsets """
         all_signal_0 = torch.zeros(0,50,1)
@@ -683,6 +715,7 @@ class TMNIST(Multi_Domain_Dataset):
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         # Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.batch_size = training_hparams['batch_size']
 
@@ -733,7 +766,7 @@ class TMNIST(Multi_Domain_Dataset):
             
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def plot_samples(TMNIST_images, TMNIST_labels):
         fig, axs = plt.subplots(3,4)
@@ -898,6 +931,7 @@ class TCMNIST_Source(TCMNIST):
             warnings.warn("You don't have any test environment")
 
         # Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
@@ -934,7 +968,7 @@ class TCMNIST_Source(TCMNIST):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def color_dataset(self, images, labels, p, d):
         """ Color the dataset
@@ -1005,6 +1039,7 @@ class TCMNIST_Time(TCMNIST):
             warnings.warn("The chosen test environment is not the last in the sequence, therefore the sequence of domains will be permuted from [90%,80%,10%] to [90%,10%,80%]")
 
         ## Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
@@ -1041,7 +1076,7 @@ class TCMNIST_Time(TCMNIST):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def color_dataset(self, images, labels, env_id, p, d):
         """ Color a single step 'env_id' of the dataset
@@ -1174,6 +1209,7 @@ class EEG_DB(Multi_Domain_Dataset):
             warnings.warn("You don't have any test environment")
 
         ## Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
@@ -1214,7 +1250,7 @@ class EEG_DB(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1490,6 +1526,7 @@ class LSA64(Multi_Domain_Dataset):
             warnings.warn("You don't have any test environment")
 
         ## Save stuff
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
@@ -1536,7 +1573,7 @@ class LSA64(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1611,6 +1648,7 @@ class HHAR(Multi_Domain_Dataset):
             warnings.warn("You don't have any test environment")
 
         # Save stuff 
+        self.device = training_hparams['device']
         self.test_env = flags.test_env
         self.batch_size = training_hparams['batch_size']
 
@@ -1658,7 +1696,7 @@ class HHAR(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']))
+        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
 #############################
 ## Aus Electricity dataset ##
@@ -1811,7 +1849,7 @@ class evaluation_domain_sampler(InstanceSampler):
             non_holidays_idx = []
             for idx in range(int(max_length / 48)):
                 running_time += day_increment
-                if running_time not in set_holidays and running_time + day_increment not in set_holidays:# and running_time.month == 7:
+                if running_time not in set_holidays and running_time + day_increment not in set_holidays and running_time.month == 7:
                     non_holidays_idx.append(idx * 48)
 
             self.domain_idx = non_holidays_idx
@@ -1830,6 +1868,8 @@ class evaluation_domain_sampler(InstanceSampler):
     def __call__(self, ts: np.ndarray) -> np.ndarray:
         a, b = self._get_bounds(ts)
         in_range_idx = self.domain_idx
+        in_range_idx = in_range_idx[in_range_idx > a]
+        in_range_idx = in_range_idx[in_range_idx <= b]
         window_size = len(in_range_idx)
 
         if window_size <= 0:
@@ -1867,13 +1907,13 @@ class DummyHolidays(holidays.HolidayBase):
         self[datetime.date(year, 6, 29)] = "Christmas Break 4"
         self[datetime.date(year, 6, 21)] = "Christmas Break 5"
         self[datetime.date(year, 6, 22)] = "New Years eve"
-        self[datetime.date(year, 7, 1)] = "New Years"
-        self[datetime.date(year, 7, 2)] = "Post-New Years"
+        self[datetime.date(year, 6, 19)] = "New Years"
+        self[datetime.date(year, 6, 20)] = "Post-New Years"
 
 class AusElectricity(Multi_Domain_Dataset):
 
     # Training parameters
-    N_STEPS = 2001
+    N_STEPS = 5001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -1908,8 +1948,8 @@ class AusElectricity(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        self.set_holidays = ChristmasHolidays()
-        # self.set_holidays = DummyHolidays()
+        # self.set_holidays = ChristmasHolidays()
+        self.set_holidays = DummyHolidays()
 
         # Data property
         self.num_feat_static_cat = 0
@@ -1989,7 +2029,6 @@ class AusElectricity(Multi_Domain_Dataset):
         ## Create tensor dataset and dataloader
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
-        self.test_names, self.test_loaders = [], []
         for j, e in enumerate(self.ENVS):
 
 

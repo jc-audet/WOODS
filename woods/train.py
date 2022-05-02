@@ -69,7 +69,6 @@ def train(flags, training_hparams, model, objective, dataset, device):
 
             record[str(step)] = checkpoint_record
 
-            print(record)
             if dataset.TASK == 'forecasting':
                 t.add_row([step] 
                         + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_train_rmse']) for e in dataset.ENVS])] 
@@ -215,7 +214,7 @@ def get_split_errors(objective, dataset, loader, device):
 
     losses = 0
     errors = 0
-    nb_batches = 0
+    nb_items = 0
     MSE = nn.MSELoss()
     with torch.no_grad():
 
@@ -230,13 +229,46 @@ def get_split_errors(objective, dataset, loader, device):
 
             # Get errors
             out = objective.model.inference(X)
+            # plot_forecast(0, {k: X[k].cpu() for k in X}, out.cpu())
             out_avg = torch.mean(out, dim=1)
-            errors += torch.sqrt(MSE(out_avg, Y)).item()
+            errors += torch.sqrt(MSE(out_avg, Y)).item() * Y.shape[0]
 
             # Count
-            nb_batches += 1
+            nb_items += Y.shape[0]
 
-        avg_error = errors / nb_batches
-        avg_loss = losses / nb_batches
+        avg_error = errors / nb_items
+        avg_loss = losses / nb_items
 
     return avg_error, avg_loss
+
+import matplotlib.pyplot as plt
+import datetime
+
+def get_minute(minute):
+    return minute + 0.5
+def get_hour(hour):
+    return hour + 0.5
+def get_day_of_year(time_feat):
+    return (time_feat + 0.5) * 365 + 1
+def get_year(year):
+    return (np.power(10, year)-2.0)/17532
+
+def plot_forecast(k, batch, pred):
+    plt.figure()
+    minutes = get_minute(torch.cat((batch['past_time_feat'][k,:,0], batch['future_time_feat'][k,:,0]), dim=0))
+    hours = get_hour(torch.cat((batch['past_time_feat'][k,:,1], batch['future_time_feat'][k,:,1]), dim=0))
+    days = get_day_of_year(torch.cat((batch['past_time_feat'][k,:,-2], batch['future_time_feat'][k,:,-2]), dim=0))
+    years = get_year(torch.cat((batch['past_time_feat'][k,:,-1], batch['future_time_feat'][k,:,-1]), dim=0))
+    date_time = [(datetime.datetime(2002 + int(year.item()),1,1) + datetime.timedelta(days=day.item(), hours=hour.item(), minutes=minu.item())).strftime('%Y-%m-%d') for year, day, hour, minu in zip(years, days, hours, minutes)]
+    labels = [''] * len(date_time)
+    labels[::40] = date_time[::40]
+    ground_truth = torch.cat((batch['past_target'][k], batch['future_target'][k]), dim=0)
+    full_pred = torch.cat((batch['past_target'][k], torch.mean(pred[k,:,:], dim=0)), dim=0)
+    plt.plot(ground_truth, 'b', label='Ground Truth')
+    plt.plot(full_pred, 'r', label='Prediction')
+    plt.axvline(x=batch['past_target'][k].shape[-1])
+    plt.xticks(np.arange(len(labels)), labels)
+    plt.xticks(rotation=60)
+    # plt.plot(date_time, pred)
+    plt.gcf().tight_layout()
+    plt.show()

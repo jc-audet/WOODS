@@ -56,6 +56,7 @@ class deep4(nn.Module):
         super(deep4, self).__init__()
 
         # Save stuff
+        self.device = model_hparams['device']
         self.input_size = np.prod(dataset.INPUT_SHAPE)
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
@@ -118,6 +119,7 @@ class EEGNet(nn.Module):
         super(EEGNet, self).__init__()
 
         # Save stuff
+        self.device = model_hparams['device']
         self.input_size = np.prod(dataset.INPUT_SHAPE)
         self.output_size = dataset.OUTPUT_SIZE
         self.seq_len = dataset.SEQ_LEN
@@ -233,6 +235,7 @@ class LSTM(nn.Module):
 
         ## Save stuff
         # Model parameters
+        self.device = model_hparams['device']
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
@@ -241,7 +244,7 @@ class LSTM(nn.Module):
         # Dataset parameters
         self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
         self.output_size = dataset.OUTPUT_SIZE
-        self.time_pred = dataset.PRED_TIME
+        self.time_pred = torch.tensor(dataset.PRED_TIME).to(self.device)
 
         ## Recurrent model
         self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
@@ -322,6 +325,7 @@ class MNIST_LSTM(nn.Module):
 
         ## Save stuff
         # Model parameters
+        self.device = model_hparams['device']
         self.state_size = model_hparams['state_size']
         self.hidden_depth = model_hparams['hidden_depth']
         self.hidden_width = model_hparams['hidden_width']
@@ -391,6 +395,7 @@ class ATTN_LSTM(nn.Module):
 
         ## Save stuff
         # Model parameters
+        self.device = model_hparams['device']
         self.state_size = model_hparams['state_size']
         self.recurrent_layers = model_hparams['recurrent_layers']
         self.hidden_depth = model_hparams['hidden_depth']
@@ -503,6 +508,7 @@ class CRNN(nn.Module):
         super(CRNN, self).__init__()
 
         ## Save stuff
+        self.device = model_hparams['device']
         # Model parameters
         self.fc_hidden1, self.fc_hidden2 = model_hparams['fc_hidden']
         self.CNN_embed_dim = model_hparams['CNN_embed_dim']
@@ -579,6 +585,7 @@ class ForecastingTransformer(nn.Module):
     ) -> None:
         super().__init__()
         
+        self.device = model_hparams['device']
         self.input_size = input_size
        
         self.target_shape = dataset.distr_output.event_shape

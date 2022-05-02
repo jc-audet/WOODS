@@ -16,8 +16,6 @@ OBJECTIVES = [
     'SD',
     'ANDMask',
     'IGA',
-    # 'Fish',
-    # 'SANDMask',
     'IB_ERM_features',
     'IB_ERM_logits',
     'IB_IRM'
@@ -90,7 +88,10 @@ class ERM(Objective):
 
         # Compute losses and group then by domains: Classification -> (ENVS, batch_size, len(PRED_TIME), num_classes)
         #                                           Forecasting -> (ENVS, batch_size, PRED_LENGTH, OUTPUT_SIZE)
+        print(out.shape, Y.shape)
         batch_losses = self.dataset.loss(out, Y)
+        print(batch_losses)
+        print(batch_losses.shape)
         env_losses = self.dataset.split_losses(batch_losses)
         
         # Compute objective
@@ -106,8 +107,8 @@ class IRM(ERM):
     Invariant Risk Minimization (IRM)
     """
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(IRM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(IRM, self).__init__(model, dataset, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -128,30 +129,37 @@ class IRM(ERM):
         result = torch.sum(grad_1 * grad_2)
         return result
 
-    def update(self, minibatches_device, dataset, device):
+    def update(self):
 
         # Define stuff
         penalty_weight = (self.penalty_weight   if self.update_count >= self.anneal_iters 
                                                 else 1.0)
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, _ = self.predict(all_x, ts, device)
+        # Put model into training mode
+        self.model.train()
 
+        # Get next batch
+        minibatches_device = self.dataset.get_next_batch()
+
+        # Split input / target
+        X, Y = self.dataset.split_input(minibatches_device)
+
+        # Get logit and make prediction on PRED_TIME
+        out, _ = self.predict(X)
+
+        # Compute losses and group then by domains: Classification -> (ENVS, batch_size, len(PRED_TIME), num_classes)
+        #                                           Forecasting -> (ENVS, batch_size, PRED_LENGTH, OUTPUT_SIZE)
+        batch_losses = self.dataset.loss(out, Y)
+        env_losses = self.dataset.split_losses(batch_losses)
+        
         # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+        out_split = self.dataset.split_output(out)
+        labels_split = self.dataset.split_labels(Y)
 
         # Compute loss and penalty for each environment 
         irm_penalty = torch.zeros(out_split.shape[0]).to(device)
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
         for i in range(out_split.shape[0]):
             for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
                 irm_penalty[i] += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
 
         # Compute objective
