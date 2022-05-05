@@ -278,7 +278,23 @@ class Multi_Domain_Dataset:
 
         data_path = os.path.join(path, self.DATA_PATH)
         return os.path.exists(data_path)
-    
+
+    def loss(self, X, Y):
+        """
+        Computes the loss defined by the dataset
+        Args:
+            X (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
+            Y (torch.tensor): Targets. Shape (batch, time)
+        Returns:
+            torch.tensor: loss of each samples. Shape (batch, time)
+        """
+        
+        X = X.permute(0,2,1)
+        return self.loss_fn(self.log_prob(X), Y)
+
+    def get_pred_time(self, X, device):
+        return torch.tensor(self.PRED_TIME).to(device)
+
     def prepare_data(self, path, download=False):
         """ Prepares the dataset.
 
@@ -298,15 +314,6 @@ class Multi_Domain_Dataset:
                     self.download_fct(path, 'at')
             else:
                 raise ValueError('Dataset not available locally and download is set to False. Set Download = True to download it locally')
-
-    # def loss_fn(self, output, target):
-    #     """ Computes the loss 
-        
-    #     Args:
-    #         output (Tensor): prediction tensor
-    #         target (Tensor): Target tensor
-    #     """
-    #     return self.loss(self.log_prob(output), target)
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -356,64 +363,77 @@ class Multi_Domain_Dataset:
             torch.cat([x for x,y in input]).to(self.device),
             torch.cat([y for x,y in input]).to(self.device)
         )
-
-    def split_output(self, out):
-        """ Group data and prediction by environment
-
-        Args:
-            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-
-        Returns:
-            Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
-            Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
-        """
-        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-        out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
-        all_logits_idx = 0
-        for i in range(n_train_env):
-            out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
-            all_logits_idx += self.batch_size
-
-        return out_split
-
-    def split_labels(self, labels):
-        """ Group data and prediction by environment
+    
+    def split_tensor_by_domains(self, n_domains, tensor):
+        """ Group tensor by domain for source domains datasets
 
         Args:
-            out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-            labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+            n_domains (int): Number of domains in the batch
+            tensor (torch.tensor): tensor to be split. Shape (n_domains*batch, ...)
 
         Returns:
-            Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
-            Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+            Tensor: The reshaped output (n_domains, batch, ...)
         """
-        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-        labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
-        all_logits_idx = 0
-        for i in range(n_train_env):
-            labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
-            all_logits_idx += self.batch_size
+        tensor_shape = tensor.shape
+        return torch.reshape(tensor, (n_domains, self.batch_size, *tensor_shape[1:]))
 
-        return labels_split
+    # def split_output(self, out):
+    #     """ Group data and prediction by environment
 
-    def split_losses(self, losses):
-        """ Group losses by domain
+    #     Args:
+    #         out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+    #         labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
 
-        Args:
-            losses (Tensor): batch losses of the shape (len(ENVS) * batch_size, PRED_LENGTH, OUTPUT_SIZE)
+    #     Returns:
+    #         Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+    #         Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+    #     """
+    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+    #     out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
+    #     all_logits_idx = 0
+    #     for i in range(n_train_env):
+    #         out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
+    #         all_logits_idx += self.batch_size
 
-        Returns:
-            Tensor: The reshaped output (n_train_env, batch_size, PRED_LENGTH, OUTPUT_SIZE)
-        """
-        n_train_env = len(self.ENVS)
-        losses_split = torch.zeros((n_train_env, self.batch_size, self.PRED_LENGTH)).to(self.device)
-        all_logits_idx = 0
-        for i in range(n_train_env):
-            losses_split[i,...] = losses[all_logits_idx:all_logits_idx + self.batch_size,...]
-            all_logits_idx += self.batch_size
+    #     return out_split
 
-        return losses_split
+    # def split_labels(self, labels):
+    #     """ Group data and prediction by environment
+
+    #     Args:
+    #         out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+    #         labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
+
+    #     Returns:
+    #         Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
+    #         Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
+    #     """
+    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
+    #     labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
+    #     all_logits_idx = 0
+    #     for i in range(n_train_env):
+    #         labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
+    #         all_logits_idx += self.batch_size
+
+    #     return labels_split
+
+    # def split_losses(self, losses):
+    #     """ Group losses by domain
+
+    #     Args:
+    #         losses (Tensor): batch losses of the shape (len(ENVS) * batch_size, PRED_LENGTH, OUTPUT_SIZE)
+
+    #     Returns:
+    #         Tensor: The reshaped output (n_train_env, batch_size, PRED_LENGTH, OUTPUT_SIZE)
+    #     """
+    #     n_train_env = len(self.ENVS)
+    #     losses_split = torch.zeros((n_train_env, self.batch_size, len(self.PRED_TIME))).to(self.device)
+    #     all_logits_idx = 0
+    #     for i in range(n_train_env):
+    #         losses_split[i,...] = losses[all_logits_idx:all_logits_idx + self.batch_size,...]
+    #         all_logits_idx += self.batch_size
+
+    #     return losses_split
 
     def get_number_of_batches(self):
         return np.sum([len(train_l) for train_l in self.train_loaders])
@@ -502,7 +522,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
         
 class Spurious_Fourier(Multi_Domain_Dataset):
@@ -656,16 +676,6 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
-    
-    def loss(self, X, Y):
-        """
-        Take the tensors of shape (batch, time, pred) and shapes them for use with loss_fn
-        """
-
-        print(X.shape)
-        X = X.permute(0,2,1)
-        
-        return self.loss_fn(X, Y)
 
     def super_sample(self, signal_0, signal_1):
         """ Sample signals frames with a bunch of offsets """
@@ -766,44 +776,8 @@ class TMNIST(Multi_Domain_Dataset):
             
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
-
-    def plot_samples(TMNIST_images, TMNIST_labels):
-        fig, axs = plt.subplots(3,4)
-        axs[0,0].imshow(TMNIST_images[0,0,:,:], cmap='gray')
-        axs[0,0].set_ylabel('Sequence 1')
-        axs[0,1].imshow(TMNIST_images[0,1,:,:], cmap='gray')
-        axs[0,1].set_title('Label = '+str(TMNIST_labels[0,0].cpu().item()))
-        axs[0,2].imshow(TMNIST_images[0,2,:,:], cmap='gray')
-        axs[0,2].set_title('Label = '+str(TMNIST_labels[0,1].cpu().item()))
-        axs[0,3].imshow(TMNIST_images[0,3,:,:], cmap='gray')
-        axs[0,3].set_title('Label = '+str(TMNIST_labels[0,2].cpu().item()))
-        axs[1,0].imshow(TMNIST_images[1,0,:,:], cmap='gray')
-        axs[1,0].set_ylabel('Sequence 2')
-        axs[1,1].imshow(TMNIST_images[1,1,:,:], cmap='gray')
-        axs[1,1].set_title('Label = '+str(TMNIST_labels[1,0].cpu().item()))
-        axs[1,2].imshow(TMNIST_images[1,2,:,:], cmap='gray')
-        axs[1,2].set_title('Label = '+str(TMNIST_labels[1,1].cpu().item()))
-        axs[1,3].imshow(TMNIST_images[1,3,:,:], cmap='gray')
-        axs[1,3].set_title('Label = '+str(TMNIST_labels[1,2].cpu().item()))
-        axs[2,0].imshow(TMNIST_images[2,0,:,:], cmap='gray')
-        axs[2,0].set_ylabel('Sequence 3')
-        axs[2,0].set_xlabel('Time Step 1')
-        axs[2,1].imshow(TMNIST_images[2,1,:,:], cmap='gray')
-        axs[2,1].set_xlabel('Time Step 2')
-        axs[2,1].set_title('Label = '+str(TMNIST_labels[2,0].cpu().item()))
-        axs[2,2].imshow(TMNIST_images[2,2,:,:], cmap='gray')
-        axs[2,2].set_xlabel('Time Step 3')
-        axs[2,2].set_title('Label = '+str(TMNIST_labels[2,1].cpu().item()))
-        axs[2,3].imshow(TMNIST_images[2,3,:,:], cmap='gray')
-        axs[2,3].set_xlabel('Time Step 4')
-        axs[2,3].set_title('Label = '+str(TMNIST_labels[2,2].cpu().item()))
-        for row in axs:
-            for ax in row:
-                ax.set_xticks([]) 
-                ax.set_yticks([]) 
-        plt.tight_layout()
-        plt.savefig('./figure/TCMNIST_'+self.SETUP+'.pdf')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
 
 class TCMNIST(Multi_Domain_Dataset):
     """ Abstract class for Temporal Colored MNIST
@@ -855,46 +829,6 @@ class TCMNIST(Multi_Domain_Dataset):
         # MNIST_labels = ( MNIST_labels[:,:-1] > MNIST_labels[:,1:] )        # Is the previous one bigger than the current one?
         TCMNIST_labels = ( TCMNIST_labels[:,:-1] + TCMNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
         self.TCMNIST_labels = TCMNIST_labels.long()
-
-    def plot_samples(self, images, labels, name):
-
-        show_images = torch.cat([images,torch.zeros_like(images[:,:,0:1,:,:])], dim=2)
-        fig, axs = plt.subplots(3,4)
-        axs[0,0].imshow(show_images[0,0,:,:,:].permute(1,2,0))
-        axs[0,0].set_ylabel('Sequence 1')
-        axs[0,1].imshow(show_images[0,1,:,:,:].permute(1,2,0))
-        axs[0,1].set_title('Label = '+str(labels[0,0].cpu().item()))
-        axs[0,2].imshow(show_images[0,2,:,:,:].permute(1,2,0))
-        axs[0,2].set_title('Label = '+str(labels[0,1].cpu().item()))
-        axs[0,3].imshow(show_images[0,3,:,:,:].permute(1,2,0))
-        axs[0,3].set_title('Label = '+str(labels[0,2].cpu().item()))
-        axs[1,0].imshow(show_images[1,0,:,:,:].permute(1,2,0))
-        axs[1,0].set_ylabel('Sequence 2')
-        axs[1,1].imshow(show_images[1,1,:,:,:].permute(1,2,0))
-        axs[1,1].set_title('Label = '+str(labels[1,0].cpu().item()))
-        axs[1,2].imshow(show_images[1,2,:,:,:].permute(1,2,0))
-        axs[1,2].set_title('Label = '+str(labels[1,1].cpu().item()))
-        axs[1,3].imshow(show_images[1,3,:,:,:].permute(1,2,0))
-        axs[1,3].set_title('Label = '+str(labels[1,2].cpu().item()))
-        axs[2,0].imshow(show_images[2,0,:,:,:].permute(1,2,0))
-        axs[2,0].set_ylabel('Sequence 3')
-        axs[2,0].set_xlabel('Time Step 1')
-        axs[2,1].imshow(show_images[2,1,:,:,:].permute(1,2,0))
-        axs[2,1].set_xlabel('Time Step 2')
-        axs[2,1].set_title('Label = '+str(labels[2,0].cpu().item()))
-        axs[2,2].imshow(show_images[2,2,:,:,:].permute(1,2,0))
-        axs[2,2].set_xlabel('Time Step 3')
-        axs[2,2].set_title('Label = '+str(labels[2,1].cpu().item()))
-        axs[2,3].imshow(show_images[2,3,:,:,:].permute(1,2,0))
-        axs[2,3].set_xlabel('Time Step 4')
-        axs[2,3].set_title('Label = '+str(labels[2,2].cpu().item()))
-        for row in axs:
-            for ax in row:
-                ax.set_xticks([]) 
-                ax.set_yticks([]) 
-        plt.tight_layout()
-        plt.savefig('./assets/TCMNIST_'+ self.SETUP + '_'+name+'.pdf')
-        # plt.show()
 
 class TCMNIST_Source(TCMNIST):
     """ Temporal Colored MNIST with Source-domains
@@ -968,7 +902,8 @@ class TCMNIST_Source(TCMNIST):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
 
     def color_dataset(self, images, labels, p, d):
         """ Color the dataset
@@ -1062,21 +997,34 @@ class TCMNIST_Time(TCMNIST):
 
         # Make Tensor dataset and dataloader
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
+        in_split, out_split = get_split(dataset, flags.holdout_fraction, seed=i)
 
-        in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
-        in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
+        in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,:-1,...], colored_labels.long()[in_split,:-1,...])
+
+        in_eval_dataset = torch.utils.data.TensorDataset(colored_images[in_split,...], colored_labels.long()[in_split,...])
+        out_eval_dataset = torch.utils.data.TensorDataset(colored_images[out_split,...], colored_labels.long()[out_split,...])
+
+        # train_dataset = torch.utils.data.TensorDataset(colored_images[:,:3,...], colored_labels.long()[:,:2,...])
+        # eval_dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
+        # in_train_dataset, out_train_dataset = make_split(train_dataset, flags.holdout_fraction, seed=i)
+        # in_eval_dataset, out_eval_dataset = make_split(eval_dataset, flags.holdout_fraction, seed=i)
+
+        # Make train dataset
+        in_train_loader = InfiniteLoader(in_train_dataset, batch_size=training_hparams['batch_size'])
         self.train_names = [str(e)+'_in' for e in self.ENVS[:-1]]
-        self.train_loaders.append(in_loader)
-        fast_in_loader = torch.utils.data.DataLoader(copy.deepcopy(in_dataset), batch_size=252, shuffle=False)
+        self.train_loaders.append(in_train_loader)
+
+        fast_in_loader = torch.utils.data.DataLoader(in_eval_dataset, batch_size=252, shuffle=False)
         self.val_names.append([str(e)+'_in' for e in self.ENVS])
         self.val_loaders.append(fast_in_loader)
-        fast_out_loader = torch.utils.data.DataLoader(out_dataset, batch_size=252, shuffle=False)
+        fast_out_loader = torch.utils.data.DataLoader(out_eval_dataset, batch_size=252, shuffle=False)
         self.val_names.append([str(e)+'_out' for e in self.ENVS])
         self.val_loaders.append(fast_out_loader)
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
 
     def color_dataset(self, images, labels, env_id, p, d):
         """ Color a single step 'env_id' of the dataset
@@ -1103,6 +1051,19 @@ class TCMNIST_Time(TCMNIST):
             images[sample,env_id+1,colors[sample].long(),:,:] *= 0 
 
         return images, labels
+
+    def split_tensor_by_domains(self, n_domains, tensor):
+        """ Group tensor by domain for source domains datasets
+
+        Args:
+            n_domains (int): Number of domains in the batch
+            tensor (torch.tensor): tensor to be split. Shape (n_domains*batch, ...)
+
+        Returns:
+            Tensor: The reshaped output (n_domains, batch, ...)
+        """
+        return tensor.permute(0,1,2,3)
+
               
     def split_output(self, out):
         """ Group data and prediction by environment
@@ -1137,6 +1098,10 @@ class TCMNIST_Time(TCMNIST):
             labels_split[i,...] = labels[:,i,...].unsqueeze(1)
 
         return labels_split
+
+    def get_pred_time(self, X, device):
+        times = torch.tensor(self.PRED_TIME)
+        return times[times < X[1]]
 
 class H5_dataset(Dataset):
     """ HDF5 dataset for EEG data
@@ -1250,7 +1215,7 @@ class EEG_DB(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1573,7 +1538,7 @@ class LSA64(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1696,7 +1661,7 @@ class HHAR(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
 
 #############################
 ## Aus Electricity dataset ##
@@ -2076,7 +2041,7 @@ class AusElectricity(Multi_Domain_Dataset):
             self.val_loaders.append(test_dataloader)
 
         self.train_loaders_iter = zip(*self.train_loaders)
-        self.loss = NegativeLogLikelihood()
+        self.loss_fn = NegativeLogLikelihood()
 
     def create_transformation(self) -> Transformation:
             remove_field_names = []

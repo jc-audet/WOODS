@@ -291,7 +291,7 @@ def Basic_Fourier_model():
     """ Spurious Fourier model hparam definition """
     return {
         'model': 'LSTM',
-        'hidden_depth': 1, 
+        'hidden_depth': 2, 
         'hidden_width': 20,
         'recurrent_layers': 2,
         'state_size': 32
@@ -542,7 +542,7 @@ def SANDMask_hyper(sample):
             'betas': lambda r: 0.9
         }        
         
-def IB_ERM_features_hyper(sample):
+def IB_ERM_hyper(sample):
     """ IB_ERM objective hparam definition 
     
     Args:
@@ -557,21 +557,6 @@ def IB_ERM_features_hyper(sample):
             'ib_weight': lambda r: 0.1,
         }
         
-def IB_ERM_logits_hyper(sample):
-    """ IB_ERM objective hparam definition 
-    
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
-    if sample:
-        return {
-            'ib_weight': lambda r: 10**r.uniform(-3,0),
-        }
-    else:
-        return {
-            'ib_weight': lambda r: 0.1,
-        }
- 
 def IB_IRM_hyper(sample):
     """ IB_ERM objective hparam definition 
     

@@ -32,10 +32,232 @@ def get_model(dataset, model_hparams):
 
     return model_fn(dataset, model_hparams)
 
+##################
+## Basic Models ##
+##################
+class LSTM(nn.Module):
+    """ A simple LSTM model
 
-################
-## EEG Models ##
-################
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+
+    Attributes:
+        state_size (int): The size of the hidden state of the LSTM.
+        recurrent_layers (int): The number of recurrent layers stacked on each other.
+        hidden_depth (int): The number of hidden layers of the classifier MLP (after LSTM).
+        hidden_width (int): The width of the hidden layers of the classifier MLP (after LSTM).
+    
+    Notes:
+        All attributes need to be in the model_hparams dictionary.
+    """
+    def __init__(self, dataset, model_hparams, input_size=None):
+        super(LSTM, self).__init__()
+
+        ## Save stuff
+        # Model parameters
+        self.device = model_hparams['device']
+        self.state_size = model_hparams['state_size']
+        self.hidden_depth = model_hparams['hidden_depth']
+        self.hidden_width = model_hparams['hidden_width']
+        self.recurrent_layers = model_hparams['recurrent_layers']
+
+        # Dataset parameters
+        self.dataset = dataset
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.output_size = dataset.OUTPUT_SIZE
+
+        ## Recurrent model
+        self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
+
+        ## Classification model
+        layers = []
+        if self.hidden_depth == 0:
+            layers.append( nn.Linear(self.state_size, self.output_size) )
+        else:
+            layers.append( nn.Linear(self.state_size, self.hidden_width) )
+            for i in range(self.hidden_depth-1):
+                layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
+            layers.append( nn.Linear(self.hidden_width, self.output_size) )
+        
+        seq_arr = []
+        for i, lin in enumerate(layers):
+            seq_arr.append(lin)
+            if i != self.hidden_depth:
+                seq_arr.append(nn.ReLU(True))
+        self.classifier = nn.Sequential(*seq_arr)
+
+    def forward(self, input):
+        """ Forward pass of the model
+
+        Args:
+            input (torch.Tensor): The input to the model.
+
+        Returns:
+            torch.Tensor: The output of the model.
+        """
+
+        # Get prediction steps
+        pred_time = self.dataset.get_pred_time(input.shape, input.device)
+
+        # Setup hidden state
+        hidden = self.initHidden(input.shape[0], input.device)
+
+        # Forward propagate LSTM
+        input = input.view(input.shape[0], input.shape[1], -1)
+        features, hidden = self.lstm(input, hidden)
+
+        # Make prediction with fully connected
+        all_out = torch.zeros((input.shape[0], pred_time.shape[0], self.output_size)).to(input.device)
+        all_features = torch.zeros((input.shape[0], pred_time.shape[0], features.shape[-1])).to(input.device)
+        for i, t in enumerate(pred_time):
+            output = self.classifier(features[:,t,:])
+            all_out[:,i,...] = output
+            all_features[:,i,...] = features[:,t,...]
+
+        return all_out, features
+
+    def initHidden(self, batch_size, device):
+        """ Initialize the hidden state of the LSTM with a normal distribution
+
+        Args:
+            batch_size (int): The batch size of the model.
+            device (torch.device): The device to use.
+        """
+        return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
+                torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
+
+##################
+## MNIST Models ##
+##################
+class MNIST_CNN(nn.Module):
+    """ Hand-tuned architecture for extracting representation from MNIST images
+
+    This was adapted from :
+        https://github.com/facebookresearch/DomainBed
+
+    In our context, it is used to extract the representation from the images which are fed to a recurrent model such as an LSTM
+
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+    """
+    #:int: Size of the output respresentation
+    EMBED_DIM = 32
+    #:int: Size of the representation after convolution, but before FCC layers
+    CNN_OUT_DIM = 32*3*3
+
+    def __init__(self, input_shape):
+        super(MNIST_CNN, self).__init__()
+
+        # Make CNN
+        self.conv = nn.Sequential(
+            nn.Conv2d(input_shape[0], 8, 3, 1, padding=1),
+            nn.Conv2d(8, 32, 3, stride=2, padding=1),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 32, 3, 1, padding=1),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 32, 3, 1, padding=1),
+        )
+
+        # Make FCC layers
+        self.FCC = nn.Sequential(
+            nn.Linear(self.CNN_OUT_DIM, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+        )
+
+    def forward(self, input):
+        """ Forward pass through the model
+
+        Args:
+            input (torch.Tensor): The input to the model.
+
+        Returns:
+            torch.Tensor: The output representation of the model.
+        """
+        x = self.conv(input)
+        x = x.view(x.size(0), -1)
+        x = self.FCC(x)
+        return x
+
+class MNIST_LSTM(nn.Module):
+    """ A simple LSTM model taking inputs from a CNN. (see: MNIST_CNN)
+
+    Args:
+        dataset (Multi_Domain_Dataset): dataset that we will be training on
+        model_hparams (dict): The hyperparameters for the model.
+        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
+
+    Attributes:
+        state_size (int): The size of the hidden state of the LSTM.
+        recurrent_layers (int): The number of recurrent layers stacked on each other.
+        hidden_depth (int): The number of hidden layers of the classifier MLP (after LSTM).
+        hidden_width (int): The width of the hidden layers of the classifier MLP (after LSTM).
+    
+    Notes:
+        All attributes need to be in the model_hparams dictionary.
+    """
+    def __init__(self, dataset, model_hparams, input_size=None):
+        super(MNIST_LSTM, self).__init__()
+
+        ## Save stuff
+        # Model parameters
+        self.device = model_hparams['device']
+        self.state_size = model_hparams['state_size']
+        self.hidden_depth = model_hparams['hidden_depth']
+        self.hidden_width = model_hparams['hidden_width']
+        self.recurrent_layers = model_hparams['recurrent_layers']
+
+        # Dataset parameters
+        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
+        self.output_size = dataset.OUTPUT_SIZE
+        self.time_pred = dataset.PRED_TIME
+
+        # Make CNN
+        self.conv = MNIST_CNN(input_shape=dataset.INPUT_SHAPE)
+        
+        ## Recurrent model
+        self.home_lstm = LSTM(dataset, model_hparams, input_size=self.conv.EMBED_DIM)
+
+    def forward(self, input):
+        """ Forward pass of the model
+
+        Args:
+            input (torch.Tensor): The input to the model.
+            time_pred (torch.Tensor): The time prediction of the input.
+
+        Returns:
+            torch.Tensor: The output of the model.
+        """
+
+        # Forward through the MNIST_CNN
+        cnn_embed_seq = torch.zeros((input.shape[0], input.shape[1], self.conv.EMBED_DIM)).to(input.device)
+        for i in range(input.shape[1]):
+            cnn_embed_seq[:,i,:] = self.conv(input[:,i,:,:,:])
+
+        # Forward propagate LSTM
+        out, features = self.home_lstm(cnn_embed_seq)
+
+        return out, features
+
+    def initHidden(self, batch_size, device):
+        """ Initialize the hidden state of the LSTM with a normal distribution
+
+        Args:
+            batch_size (int): The batch size of the model.
+            device (torch.device): The device to use.
+        """
+        return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
+                torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
+
+
+#########################
+## EEG / Signal Models ##
+#########################
 class deep4(nn.Module):
     """ The DEEP4 model
 
@@ -138,7 +360,6 @@ class EEGNet(nn.Module):
             drop_prob=0.05,
         )
 
-
         self.classifier = nn.Sequential(
             self.model.conv_classifier,
             self.model.permute_back
@@ -158,221 +379,11 @@ class EEGNet(nn.Module):
         out, features = torch.flatten(out, start_dim=1), torch.flatten(features, start_dim=1)
         out, features = out.unsqueeze(1), features.unsqueeze(1)
 
-        return out, features
+        return out, features   
 
-class MNIST_CNN(nn.Module):
-    """ Hand-tuned architecture for extracting representation from MNIST images
-
-    This was adapted from :
-        https://github.com/facebookresearch/DomainBed
-
-    In our context, it is used to extract the representation from the images which are fed to a recurrent model such as an LSTM
-
-    Args:
-        dataset (Multi_Domain_Dataset): dataset that we will be training on
-        model_hparams (dict): The hyperparameters for the model.
-        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
-    """
-    #:int: Size of the output respresentation
-    EMBED_DIM = 32
-    #:int: Size of the representation after convolution, but before FCC layers
-    CNN_OUT_DIM = 32*3*3
-
-    def __init__(self, input_shape):
-        super(MNIST_CNN, self).__init__()
-
-        # Make CNN
-        self.conv = nn.Sequential(
-            nn.Conv2d(input_shape[0], 8, 3, 1, padding=1),
-            nn.Conv2d(8, 32, 3, stride=2, padding=1),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, 3, 1, padding=1),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, 3, 1, padding=1),
-        )
-
-        # Make FCC layers
-        self.FCC = nn.Sequential(
-            nn.Linear(self.CNN_OUT_DIM, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-        )
-
-    def forward(self, x):
-        """ Forward pass through the model
-
-        Args:
-            x (torch.Tensor): The input to the model.
-
-        Returns:
-            torch.Tensor: The output representation of the model.
-        """
-        x = self.conv(x)
-        x = x.view(x.size(0), -1)
-        x = self.FCC(x)
-        return x
-
-class LSTM(nn.Module):
-    """ A simple LSTM model
-
-    Args:
-        dataset (Multi_Domain_Dataset): dataset that we will be training on
-        model_hparams (dict): The hyperparameters for the model.
-        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
-
-    Attributes:
-        state_size (int): The size of the hidden state of the LSTM.
-        recurrent_layers (int): The number of recurrent layers stacked on each other.
-        hidden_depth (int): The number of hidden layers of the classifier MLP (after LSTM).
-        hidden_width (int): The width of the hidden layers of the classifier MLP (after LSTM).
-    
-    Notes:
-        All attributes need to be in the model_hparams dictionary.
-    """
-    def __init__(self, dataset, model_hparams, input_size=None):
-        super(LSTM, self).__init__()
-
-        ## Save stuff
-        # Model parameters
-        self.device = model_hparams['device']
-        self.state_size = model_hparams['state_size']
-        self.hidden_depth = model_hparams['hidden_depth']
-        self.hidden_width = model_hparams['hidden_width']
-        self.recurrent_layers = model_hparams['recurrent_layers']
-
-        # Dataset parameters
-        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
-        self.output_size = dataset.OUTPUT_SIZE
-        self.time_pred = torch.tensor(dataset.PRED_TIME).to(self.device)
-
-        ## Recurrent model
-        self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True)
-
-        ## Classification model
-        layers = []
-        if self.hidden_depth == 0:
-            layers.append( nn.Linear(self.state_size, self.output_size) )
-        else:
-            layers.append( nn.Linear(self.state_size, self.hidden_width) )
-            for i in range(self.hidden_depth-1):
-                layers.append( nn.Linear(self.hidden_width, self.hidden_width) )
-            layers.append( nn.Linear(self.hidden_width, self.output_size) )
-        
-        seq_arr = []
-        for i, lin in enumerate(layers):
-            seq_arr.append(lin)
-            if i != self.hidden_depth:
-                seq_arr.append(nn.ReLU(True))
-        self.classifier = nn.Sequential(*seq_arr)
-
-    def forward(self, input):
-        """ Forward pass of the model
-
-        Args:
-            input (torch.Tensor): The input to the model.
-
-        Returns:
-            torch.Tensor: The output of the model.
-        """
-
-        # Setup array
-        hidden = self.initHidden(input.shape[0], input.device)
-
-        # Forward propagate LSTM
-        input = input.view(input.shape[0], input.shape[1], -1)
-        features, hidden = self.lstm(input, hidden)
-
-        # Make prediction with fully connected
-        all_out = torch.zeros((input.shape[0], self.time_pred.shape[0], self.output_size)).to(input.device)
-        all_features = torch.zeros((input.shape[0], self.time_pred.shape[0], features.shape[-1])).to(input.device)
-        for i, t in enumerate(self.time_pred):
-            output = self.classifier(features[:,t,:])
-            all_out[:,i,...] = output
-            all_features[:,i,...] = features[:,t,...]
-
-        return all_out, all_features
-
-    def initHidden(self, batch_size, device):
-        """ Initialize the hidden state of the LSTM with a normal distribution
-
-        Args:
-            batch_size (int): The batch size of the model.
-            device (torch.device): The device to use.
-        """
-        return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
-                torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
-
-class MNIST_LSTM(nn.Module):
-    """ A simple LSTM model taking inputs from a CNN. (see: MNIST_CNN)
-
-    Args:
-        dataset (Multi_Domain_Dataset): dataset that we will be training on
-        model_hparams (dict): The hyperparameters for the model.
-        input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
-
-    Attributes:
-        state_size (int): The size of the hidden state of the LSTM.
-        recurrent_layers (int): The number of recurrent layers stacked on each other.
-        hidden_depth (int): The number of hidden layers of the classifier MLP (after LSTM).
-        hidden_width (int): The width of the hidden layers of the classifier MLP (after LSTM).
-    
-    Notes:
-        All attributes need to be in the model_hparams dictionary.
-    """
-    def __init__(self, dataset, model_hparams, input_size=None):
-        super(MNIST_LSTM, self).__init__()
-
-        ## Save stuff
-        # Model parameters
-        self.device = model_hparams['device']
-        self.state_size = model_hparams['state_size']
-        self.hidden_depth = model_hparams['hidden_depth']
-        self.hidden_width = model_hparams['hidden_width']
-        self.recurrent_layers = model_hparams['recurrent_layers']
-
-        # Dataset parameters
-        self.input_size = np.prod(dataset.INPUT_SHAPE) if input_size is None else input_size
-        self.output_size = dataset.OUTPUT_SIZE
-        self.time_pred = dataset.PRED_TIME
-
-        # Make CNN
-        self.conv = MNIST_CNN(input_shape=dataset.INPUT_SHAPE)
-        
-        ## Recurrent model
-        self.lstm = LSTM(dataset, model_hparams, input_size=self.conv.EMBED_DIM)
-
-    def forward(self, input):
-        """ Forward pass of the model
-
-        Args:
-            input (torch.Tensor): The input to the model.
-            time_pred (torch.Tensor): The time prediction of the input.
-
-        Returns:
-            torch.Tensor: The output of the model.
-        """
-
-        # Forward through the MNIST_CNN
-        cnn_embed_seq = torch.zeros((input.shape[0], input.shape[1], self.conv.EMBED_DIM)).to(input.device)
-        for i in range(input.shape[1]):
-            cnn_embed_seq[:,i,:] = self.conv(input[:,i,:,:,:])
-
-        # Forward propagate LSTM
-        out, features = self.lstm(cnn_embed_seq, self.time_pred)
-
-        return out, features
-
-    def initHidden(self, batch_size, device):
-        """ Initialize the hidden state of the LSTM with a normal distribution
-
-        Args:
-            batch_size (int): The batch size of the model.
-            device (torch.device): The device to use.
-        """
-        return (torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device), 
-                torch.randn(self.recurrent_layers, batch_size, self.state_size).to(device))
-
+##################
+## Video Models ##
+##################
 class ATTN_LSTM(nn.Module):
     """ A simple LSTM model with self attention
 
@@ -407,7 +418,7 @@ class ATTN_LSTM(nn.Module):
         self.time_pred = dataset.PRED_TIME
 
         # Recurrent model
-        self.lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
+        self.torch_lstm = nn.LSTM(self.input_size, self.state_size, self.recurrent_layers, batch_first=True, dropout=0.2)
 
         # attention model
         layers = []
@@ -453,7 +464,7 @@ class ATTN_LSTM(nn.Module):
         hidden = self.initHidden(input.shape[0], input.device)
 
         # Forward propagate LSTM
-        features, hidden = self.lstm(input, hidden)
+        features, hidden = self.torch_lstm(input, hidden)
 
         # Get attention scores
         attn_scores = self.attn(features)
@@ -534,7 +545,7 @@ class CRNN(nn.Module):
         )
 
         # Define recurrent layers
-        self.lstm = ATTN_LSTM(dataset, model_hparams, self.CNN_embed_dim)
+        self.attn_lstm = ATTN_LSTM(dataset, model_hparams, self.CNN_embed_dim)
 
     def forward(self, input):
         """ Forward pass through CRNN
@@ -551,38 +562,15 @@ class CRNN(nn.Module):
         out = out.view(input.shape[0], input.shape[1], -1)
 
         # Pass through recurrent layers
-        out, features = self.lstm(out, self.time_pred)
+        out, features = self.attn_lstm(out)
         
         return out, features
 
+########################
+## Forecasting Models ##
+########################
 class ForecastingTransformer(nn.Module):
-    def __init__(
-        self,
-        dataset, model_hparams, input_size=None
-        # freq: str,
-        # context_length: int,
-        # prediction_length: int,
-        # num_feat_dynamic_real: int,
-        # num_feat_static_real: int,
-        # num_feat_static_cat: int,
-        # cardinality: List[int],
-        
-        # # transformer arguments
-        # nhead: int,
-        # num_encoder_layers: int,
-        # num_decoder_layers: int,
-        # dim_feedforward: int,
-        # activation: str = "gelu",
-        # dropout: float = 0.1,
-
-        # # univariate input
-        # input_size: int = 1,
-        # embedding_dimension: Optional[List[int]] = None,
-        # distr_output: DistributionOutput = StudentTOutput(),
-        # lags_seq: Optional[List[int]] = None,
-        # scaling: bool = True,
-        # num_parallel_samples: int = 100,
-    ) -> None:
+    def __init__(self, dataset, model_hparams, input_size=None) -> None:
         super().__init__()
         
         self.device = model_hparams['device']
@@ -801,10 +789,7 @@ class ForecastingTransformer(nn.Module):
             sliced_params = [p[:, -trailing_n:] for p in params]
         return self.distr_output.distribution(sliced_params, scale=scale)
     
-    def forward(
-        self,
-        batch
-    ):
+    def forward(self, batch):
 
         feat_static_cat = batch["feat_static_cat"]
         feat_static_real = batch["feat_static_real"]

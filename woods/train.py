@@ -81,15 +81,15 @@ def train(flags, training_hparams, model, objective, dataset, device):
             if dataset.TASK == 'regression':
                 t.add_row([step] 
                         + ["{:.1e} :: {:.1e}".format(record[str(step)][str(e)+'_in_loss'], record[str(step)][str(e)+'_out_loss']) for e in dataset.ENVS] 
-                        + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
-                        + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
+                        + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
+                        + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
                         + ["{:.2f}".format(np.mean(step_times))] 
                         + ["{:.2f}".format(val_time)])
             if dataset.TASK == 'classification':
                 t.add_row([step] 
                         + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
-                        + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in train_names]))] 
-                        + ["{:.2f}".format((step*len(train_loaders)) / n_batches)]
+                        + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
+                        + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
                         + ["{:.2f}".format(np.mean(step_times))] 
                         + ["{:.2f}".format(val_time)])
 
@@ -156,10 +156,9 @@ def get_split_accuracy_source(objective, dataset, loader, device):
 
             data, target = data.to(device), target.to(device)
 
-            all_out, _ = objective.predict(data, ts, device)
-
-            for i, t in enumerate(ts):
-                losses += objective.loss_fn(all_out[:,i,...], target[:,i])
+            all_out, _ = objective.predict(data)
+            loss = dataset.loss(all_out, target)
+            losses += loss.mean()
 
             # get train accuracy and save it
             pred = all_out.argmax(dim=2)
@@ -191,10 +190,9 @@ def get_split_accuracy_time(objective, dataset, loader, device):
 
             data, target = data.to(device), target.to(device)
 
-            all_out, _ = objective.predict(data, ts, device)
+            all_out, _ = objective.predict(data)
 
-            for i, t in enumerate(ts):
-                losses[i] += objective.loss_fn(all_out[:,i,...], target[:,i])
+            losses = dataset.loss(all_out, target)
 
             pred = all_out.argmax(dim=2)
             nb_correct += torch.sum(pred.eq(target), dim=0)

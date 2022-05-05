@@ -14,11 +14,11 @@ OBJECTIVES = [
     'IRM',
     'VREx',
     'SD',
-    'ANDMask',
+    # 'ANDMask', # Requires update
     'IGA',
-    'IB_ERM_features',
-    'IB_ERM_logits',
-    'IB_IRM'
+    # 'Fish', # Requires update
+    'IB_ERM',
+    # 'IB_IRM' # Requires update
 ]
 
 def get_objective_class(objective_name):
@@ -40,7 +40,10 @@ class Objective(nn.Module):
 
         self.hparams = hparams
 
-    def backward(self, losses):
+    def predict(self, all_x):
+        raise NotImplementedError
+
+    def update(self, losses):
         """
         Computes the Gradients for model update
 
@@ -57,7 +60,6 @@ class ERM(Objective):
         super(ERM, self).__init__(hparams)
 
         # Save hparams
-        self.hparams = hparams
         self.device = self.hparams['device']
 
         # Save training components
@@ -66,11 +68,7 @@ class ERM(Objective):
         self.optimizer = optimizer
 
     def predict(self, all_x):
-
-        # Get logit and make prediction
-        out, features = self.model(all_x)
-
-        return out, features
+        return self.model(all_x)
 
     def update(self):
 
@@ -83,19 +81,14 @@ class ERM(Objective):
         # Split input / target
         X, Y = self.dataset.split_input(minibatches_device)
 
-        # Get logit
+        # Get predict and get (logit, features)
         out, _ = self.predict(X)
 
-        # Compute losses and group then by domains: Classification -> (ENVS, batch_size, len(PRED_TIME), num_classes)
-        #                                           Forecasting -> (ENVS, batch_size, PRED_LENGTH, OUTPUT_SIZE)
-        print(out.shape, Y.shape)
+        # Compute losses
         batch_losses = self.dataset.loss(out, Y)
-        print(batch_losses)
-        print(batch_losses.shape)
-        env_losses = self.dataset.split_losses(batch_losses)
         
         # Compute objective
-        objective = env_losses.mean()
+        objective = batch_losses.mean()
 
         # Back propagate
         self.optimizer.zero_grad()
@@ -131,7 +124,7 @@ class IRM(ERM):
 
     def update(self):
 
-        # Define stuff
+        # Define penalty value (Annealing)
         penalty_weight = (self.penalty_weight   if self.update_count >= self.anneal_iters 
                                                 else 1.0)
 
@@ -139,28 +132,28 @@ class IRM(ERM):
         self.model.train()
 
         # Get next batch
-        minibatches_device = self.dataset.get_next_batch()
+        env_batches = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(minibatches_device)
+        X, Y = self.dataset.split_input(env_batches)
 
-        # Get logit and make prediction on PRED_TIME
+        # Get predict and get (logit, features)
         out, _ = self.predict(X)
 
-        # Compute losses and group then by domains: Classification -> (ENVS, batch_size, len(PRED_TIME), num_classes)
-        #                                           Forecasting -> (ENVS, batch_size, PRED_LENGTH, OUTPUT_SIZE)
+        # Compute losses
         batch_losses = self.dataset.loss(out, Y)
-        env_losses = self.dataset.split_losses(batch_losses)
-        
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = self.dataset.split_output(out)
-        labels_split = self.dataset.split_labels(Y)
 
-        # Compute loss and penalty for each environment 
-        irm_penalty = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                irm_penalty[i] += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
+        # Create domain dimension in tensors. 
+        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
+        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
+        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+        
+        # Compute loss and penalty for each domains
+        irm_penalty = torch.zeros(env_out.shape[0]).to(self.device)
+        for i in range(env_out.shape[0]):
+            for t_idx in range(env_out.shape[2]):     # Number of time steps
+                irm_penalty[i] += self._irm_penalty(env_out[i,:,t_idx,:], env_labels[i,:,t_idx])
 
         # Compute objective
         irm_penalty = irm_penalty.mean()
@@ -186,8 +179,8 @@ class VREx(ERM):
     """
     V-REx Objective from http://arxiv.org/abs/2003.00688
     """
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(VREx, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(VREx, self).__init__(model, dataset, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
@@ -196,29 +189,32 @@ class VREx(ERM):
         # Memory
         self.register_buffer('update_count', torch.tensor([0]))
 
-    def update(self, minibatches_device, dataset, device):
+    def update(self):
 
         # Define stuff
         penalty_weight = (self.penalty_weight   if self.update_count >= self.anneal_iters 
                                                 else 1.0)
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, _ = self.predict(all_x, ts, device)
+        # Put model into training mode
+        self.model.train()
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+        # Get next batch
+        env_batches = self.dataset.get_next_batch()
 
-        # Compute loss for each environment 
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+        # Split input / target
+        X, Y = self.dataset.split_input(env_batches)
+
+        # Get predict and get (logit, features)
+        out, _ = self.predict(X)
+
+        # Compute losses
+        batch_losses = self.dataset.loss(out, Y)
+
+        # Create domain dimension in tensors. 
+        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
+        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
+        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # Compute objective
         mean = env_losses.mean()
@@ -246,33 +242,40 @@ class SD(ERM):
     Gradient Starvation: A Learning Proclivity in Neural Networks
     Equation 25 from [https://arxiv.org/pdf/2011.09468.pdf]
     """
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(SD, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(SD, self).__init__(model, dataset, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
 
-    def update(self, minibatches_device, dataset, device):
+    def update(self):
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, _ = self.predict(all_x, ts, device)
+        # Put model into training mode
+        self.model.train()
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+        # Get next batch
+        env_batches = self.dataset.get_next_batch()
+
+        # Split input / target
+        X, Y = self.dataset.split_input(env_batches)
+
+        # Get predict and get (logit, features)
+        out, _ = self.predict(X)
+
+        # Compute losses
+        batch_losses = self.dataset.loss(out, Y)
+
+        # Create domain dimension in tensors. 
+        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
+        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
+        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # Compute loss for each environment 
-        sd_penalty = torch.zeros(out_split.shape[0]).to(device)
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
-                sd_penalty[i] += (out_split[i, :, t_idx, :] ** 2).mean()
+        sd_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
+        for i in range(env_out.shape[0]):
+            for t_idx in range(env_out.shape[2]):     # Number of time steps
+                sd_penalty[i] += (env_out[i, :, t_idx, :] ** 2).mean()
 
         sd_penalty = sd_penalty.mean()
         objective = env_losses.mean() + self.penalty_weight * sd_penalty
@@ -282,63 +285,63 @@ class SD(ERM):
         objective.backward()
         self.optimizer.step()
 
-class ANDMask(ERM):
-    """
-    Learning Explanations that are Hard to Vary [https://arxiv.org/abs/2009.00329]
-    AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
-    """
+# class ANDMask(ERM):
+#     """
+#     Learning Explanations that are Hard to Vary [https://arxiv.org/abs/2009.00329]
+#     AND-Mask implementation from [https://github.com/gibipara92/learning-explanations-hard-to-vary]
+#     """
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(ANDMask, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+#     def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+#         super(ANDMask, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
-        # Hyper parameters
-        self.tau = self.hparams['tau']
+#         # Hyper parameters
+#         self.tau = self.hparams['tau']
 
-    def mask_grads(self, tau, gradients, params):
+#     def mask_grads(self, tau, gradients, params):
 
-        for param, grads in zip(params, gradients):
-            grads = torch.stack(grads, dim=0)
-            grad_signs = torch.sign(grads)
-            mask = torch.mean(grad_signs, dim=0).abs() >= self.tau
-            mask = mask.to(torch.float32)
-            avg_grad = torch.mean(grads, dim=0)
+#         for param, grads in zip(params, gradients):
+#             grads = torch.stack(grads, dim=0)
+#             grad_signs = torch.sign(grads)
+#             mask = torch.mean(grad_signs, dim=0).abs() >= self.tau
+#             mask = mask.to(torch.float32)
+#             avg_grad = torch.mean(grads, dim=0)
 
-            mask_t = (mask.sum() / mask.numel())
-            param.grad = mask * avg_grad
-            param.grad *= (1. / (1e-10 + mask_t))
+#             mask_t = (mask.sum() / mask.numel())
+#             param.grad = mask * avg_grad
+#             param.grad *= (1. / (1e-10 + mask_t))
 
-    def update(self, minibatches_device, dataset, device):
+#     def update(self, minibatches_device, dataset, device):
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+#         ## Group all inputs and send to device
+#         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+#         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, _ = self.predict(all_x, ts, device)
+#         # Get logit and make prediction on PRED_TIME
+#         ts = torch.tensor(dataset.PRED_TIME).to(device)
+#         out, _ = self.predict(all_x, ts, device)
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+#         # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+#         out_split = dataset.split_output(out)
+#         labels_split = dataset.split_labels(all_y)
 
-        # Compute loss for each environment 
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+#         # Compute loss for each environment 
+#         env_losses = torch.zeros(out_split.shape[0]).to(device)
+#         for i in range(out_split.shape[0]):
+#             for t_idx in range(out_split.shape[2]):     # Number of time steps
+#                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
 
-        # Compute gradients for each env
-        param_gradients = [[] for _ in self.model.parameters()]
-        for env_loss in env_losses:
+#         # Compute gradients for each env
+#         param_gradients = [[] for _ in self.model.parameters()]
+#         for env_loss in env_losses:
 
-            env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
-            for grads, env_grad in zip(param_gradients, env_grads):
-                grads.append(env_grad)
+#             env_grads = autograd.grad(env_loss, self.model.parameters(), retain_graph=True)
+#             for grads, env_grad in zip(param_gradients, env_grads):
+#                 grads.append(env_grad)
             
-        # Back propagate
-        self.optimizer.zero_grad()
-        self.mask_grads(self.tau, param_gradients, self.model.parameters())
-        self.optimizer.step()
+#         # Back propagate
+#         self.optimizer.zero_grad()
+#         self.mask_grads(self.tau, param_gradients, self.model.parameters())
+#         self.optimizer.step()
 
 class IGA(ERM):
     """
@@ -346,45 +349,43 @@ class IGA(ERM):
     From https://arxiv.org/abs/2008.01883v2
     """
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(IGA, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(IGA, self).__init__(model, dataset, optimizer, hparams)
 
         # Hyper parameters
         self.penalty_weight = self.hparams['penalty_weight']
 
-    def update(self, minibatches_device, dataset, device):
+    def update(self):
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
-        # Get logit and make prediction on PRED_TIME
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
+        # Put model into training mode
+        self.model.train()
+
+        # Get next batch
+        env_batches = self.dataset.get_next_batch()
+
+        # Split input / target
+        X, Y = self.dataset.split_input(env_batches)
 
         # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
         # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
         with torch.backends.cudnn.flags(enabled=False):
-            out, _ = self.predict(all_x, ts, device)
+            out, _ = self.predict(X)
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        labels_split = dataset.split_labels(all_y)
+        # Compute losses
+        batch_losses = self.dataset.loss(out, Y)
 
-        # Compute loss for each environment 
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+        # Create domain dimension in tensors. 
+        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
+        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
+        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # Get the gradients
         grads = []
         for env_loss in env_losses:
 
-            # env_grad = autograd.grad(env_loss, self.model.parameters(), 
-            #                             create_graph=True)
-            env_grad = autograd.grad(env_loss, [p for p in self.model.parameters() if p.requires_grad], 
+            env_grad = autograd.grad(env_loss.mean(), [p for p in self.model.parameters() if p.requires_grad], 
                                         create_graph=True)
-
             grads.append(env_grad)
 
         # Compute the mean loss and mean loss gradient
@@ -553,11 +554,11 @@ class IGA(ERM):
 #         # Update memory
 #         self.update_count += 1
                 
-class IB_ERM_features(ERM):
+class IB_ERM(ERM):
     """Information Bottleneck based ERM on feature with conditionning"""
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(IB_ERM_features, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(IB_ERM, self).__init__(model, dataset, optimizer, hparams)
 
         # Hyper parameters
         self.ib_weight = self.hparams['ib_weight']
@@ -565,30 +566,35 @@ class IB_ERM_features(ERM):
         # Memory
         self.register_buffer('update_count', torch.tensor([0]))
 
-    def update(self, minibatches_device, dataset, device):
+    def update(self):
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
-        # Get time predictions and get logits
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, features = self.predict(all_x, ts, device)
+        # Put model into training mode
+        self.model.train()
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        features_split = dataset.split_output(features)
-        labels_split = dataset.split_labels(all_y)
+        # Get next batch
+        env_batches = self.dataset.get_next_batch()
+
+        # Split input / target
+        X, Y = self.dataset.split_input(env_batches)
+
+        # Get predict and get (logit, features)
+        out, out_features = self.predict(X)
+
+        # Compute losses
+        batch_losses = self.dataset.loss(out, Y)
+
+        # Create domain dimension in tensors. 
+        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
+        env_features = self.dataset.split_tensor_by_domains(len(env_batches), out_features)
+        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # For each environment, accumulate loss for all time steps
-        ib_penalty = torch.zeros(out_split.shape[0]).to(device)
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                # Compute the penalty
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+        ib_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
+        for i in range(env_out.shape[0]):
+            for t_idx in range(env_out.shape[2]):     # Number of time steps
                 # Compute the information bottleneck
-                ib_penalty[i] += features_split[i, :, t_idx, :].var(dim=0).mean()
+                ib_penalty[i] += env_features[i, :, t_idx, :].var(dim=0).mean()
 
         objective = env_losses.mean() + (self.ib_weight * ib_penalty.mean())
 
@@ -600,53 +606,6 @@ class IB_ERM_features(ERM):
         # Update memory
         self.update_count += 1
          
-class IB_ERM_logits(ERM):
-    """Information Bottleneck based ERM on feature with conditionning"""
-
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(IB_ERM_logits, self).__init__(model, dataset, loss_fn, optimizer, hparams)
-
-        # Hyper parameters
-        self.ib_weight = self.hparams['ib_weight']
-
-        # Memory
-        self.register_buffer('update_count', torch.tensor([0]))
-
-    def update(self, minibatches_device, dataset, device):
-
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
-        
-        # Get time predictions and get logits
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, features = self.predict(all_x, ts, device)
-
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        features_split = dataset.split_output(features)
-        labels_split = dataset.split_labels(all_y)
-
-        # For each environment, accumulate loss for all time steps
-        ib_penalty = torch.zeros(out_split.shape[0]).to(device)
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                # Compute the penalty
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
-                # Compute the information bottleneck
-                ib_penalty[i] += out_split[i, :, t_idx, :].var(dim=0).mean()
-
-        objective = env_losses.mean() + (self.ib_weight * ib_penalty.mean())
-
-        # Back propagate
-        self.optimizer.zero_grad()
-        objective.backward()
-        self.optimizer.step()
-
-        # Update memory
-        self.update_count += 1
-
 class IB_IRM(ERM):
     """Information Bottleneck based IRM on feature with conditionning"""
 
