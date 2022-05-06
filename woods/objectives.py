@@ -145,6 +145,7 @@ class IRM(ERM):
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
         env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
         env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
@@ -212,6 +213,7 @@ class VREx(ERM):
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
         env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
         env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
@@ -265,17 +267,19 @@ class SD(ERM):
         # Compute losses
         batch_losses = self.dataset.loss(out, Y)
 
-        # Create domain dimension in tensors. 
+        # Create domain dimension in tensors:
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
         env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
-        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # Compute loss for each environment 
-        sd_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
-        for i in range(env_out.shape[0]):
-            for t_idx in range(env_out.shape[2]):     # Number of time steps
-                sd_penalty[i] += (env_out[i, :, t_idx, :] ** 2).mean()
+        sd_penalty = torch.pow(env_out, 2).sum(dim=-1)
+
+        # sd_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
+        # for i in range(env_out.shape[0]):
+        #     for t_idx in range(env_out.shape[2]):     # Number of time steps
+        #         sd_penalty[i] += (env_out[i, :, t_idx, :] ** 2).mean()
 
         sd_penalty = sd_penalty.mean()
         objective = env_losses.mean() + self.penalty_weight * sd_penalty
@@ -376,8 +380,6 @@ class IGA(ERM):
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
-        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # Get the gradients
@@ -585,14 +587,13 @@ class IB_ERM(ERM):
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
         env_features = self.dataset.split_tensor_by_domains(len(env_batches), out_features)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # For each environment, accumulate loss for all time steps
-        ib_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
-        for i in range(env_out.shape[0]):
-            for t_idx in range(env_out.shape[2]):     # Number of time steps
+        ib_penalty = torch.zeros(env_features.shape[0]).to(env_features.device)
+        for i in range(env_features.shape[0]):
+            for t_idx in range(env_features.shape[2]):     # Number of time steps
                 # Compute the information bottleneck
                 ib_penalty[i] += env_features[i, :, t_idx, :].var(dim=0).mean()
 

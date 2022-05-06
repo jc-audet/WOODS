@@ -99,7 +99,7 @@ class LSTM(nn.Module):
         """
 
         # Get prediction steps
-        pred_time = self.dataset.get_pred_time(input.shape, input.device)
+        pred_time = self.dataset.get_pred_time(input.shape)
 
         # Setup hidden state
         hidden = self.initHidden(input.shape[0], input.device)
@@ -116,7 +116,7 @@ class LSTM(nn.Module):
             all_out[:,i,...] = output
             all_features[:,i,...] = features[:,t,...]
 
-        return all_out, features
+        return all_out, all_features
 
     def initHidden(self, batch_size, device):
         """ Initialize the hidden state of the LSTM with a normal distribution

@@ -288,12 +288,11 @@ class Multi_Domain_Dataset:
         Returns:
             torch.tensor: loss of each samples. Shape (batch, time)
         """
-        
         X = X.permute(0,2,1)
         return self.loss_fn(self.log_prob(X), Y)
 
-    def get_pred_time(self, X, device):
-        return torch.tensor(self.PRED_TIME).to(device)
+    def get_pred_time(self, X):
+        return torch.tensor(self.PRED_TIME)
 
     def prepare_data(self, path, download=False):
         """ Prepares the dataset.
@@ -376,64 +375,6 @@ class Multi_Domain_Dataset:
         """
         tensor_shape = tensor.shape
         return torch.reshape(tensor, (n_domains, self.batch_size, *tensor_shape[1:]))
-
-    # def split_output(self, out):
-    #     """ Group data and prediction by environment
-
-    #     Args:
-    #         out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-    #         labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-
-    #     Returns:
-    #         Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
-    #         Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
-    #     """
-    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-    #     out_split = torch.zeros((n_train_env, self.batch_size, *out.shape[1:])).to(out.device)
-    #     all_logits_idx = 0
-    #     for i in range(n_train_env):
-    #         out_split[i,...] = out[all_logits_idx:all_logits_idx + self.batch_size,...]
-    #         all_logits_idx += self.batch_size
-
-    #     return out_split
-
-    # def split_labels(self, labels):
-    #     """ Group data and prediction by environment
-
-    #     Args:
-    #         out (Tensor): output from a model of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-    #         labels (Tensor): labels of shape ((n_env-1)*batch_size, len(PRED_TIME), output_size)
-
-    #     Returns:
-    #         Tensor: The reshaped output (n_train_env, batch_size, len(PRED_TIME), output_size)
-    #         Tensor: The labels (n_train_env, batch_size, len(PRED_TIME))
-    #     """
-    #     n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-    #     labels_split = torch.zeros((n_train_env, self.batch_size, labels.shape[-1])).long().to(labels.device)
-    #     all_logits_idx = 0
-    #     for i in range(n_train_env):
-    #         labels_split[i,...] = labels[all_logits_idx:all_logits_idx + self.batch_size,...]
-    #         all_logits_idx += self.batch_size
-
-    #     return labels_split
-
-    # def split_losses(self, losses):
-    #     """ Group losses by domain
-
-    #     Args:
-    #         losses (Tensor): batch losses of the shape (len(ENVS) * batch_size, PRED_LENGTH, OUTPUT_SIZE)
-
-    #     Returns:
-    #         Tensor: The reshaped output (n_train_env, batch_size, PRED_LENGTH, OUTPUT_SIZE)
-    #     """
-    #     n_train_env = len(self.ENVS)
-    #     losses_split = torch.zeros((n_train_env, self.batch_size, len(self.PRED_TIME))).to(self.device)
-    #     all_logits_idx = 0
-    #     for i in range(n_train_env):
-    #         losses_split[i,...] = losses[all_logits_idx:all_logits_idx + self.batch_size,...]
-    #         all_logits_idx += self.batch_size
-
-    #     return losses_split
 
     def get_number_of_batches(self):
         return np.sum([len(train_l) for train_l in self.train_loaders])
@@ -979,6 +920,9 @@ class TCMNIST_Time(TCMNIST):
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
 
+        # Because of time pred for this dataset, it's better we store it now in a torch tensor
+        self.PRED_TIME = torch.tensor(self.PRED_TIME)
+
         # Define array of training environment dataloaders
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
@@ -1062,7 +1006,7 @@ class TCMNIST_Time(TCMNIST):
         Returns:
             Tensor: The reshaped output (n_domains, batch, ...)
         """
-        return tensor.permute(0,1,2,3)
+        return tensor.transpose(0,1).unsqueeze(2)
 
               
     def split_output(self, out):
@@ -1099,9 +1043,8 @@ class TCMNIST_Time(TCMNIST):
 
         return labels_split
 
-    def get_pred_time(self, X, device):
-        times = torch.tensor(self.PRED_TIME)
-        return times[times < X[1]]
+    def get_pred_time(self, X):
+        return self.PRED_TIME[self.PRED_TIME < X[1]]
 
 class H5_dataset(Dataset):
     """ HDF5 dataset for EEG data
@@ -1216,6 +1159,7 @@ class EEG_DB(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
 
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1539,6 +1483,7 @@ class LSA64(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
 
     def get_class_weight(self):
         """Compute class weight for class balanced training
@@ -1662,6 +1607,7 @@ class HHAR(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
 
 #############################
 ## Aus Electricity dataset ##
@@ -1862,18 +1808,18 @@ class ChristmasHolidays(holidays.HolidayBase):
 class DummyHolidays(holidays.HolidayBase):
 
     def _populate(self, year):
-        self[datetime.date(year, 6, 23)] = "Pre-Christmas Eve"
-        self[datetime.date(year, 6, 24)] = "Christmas Eve"
-        self[datetime.date(year, 6, 25)] = "Christmas"
-        self[datetime.date(year, 6, 26)] = "Post-Christmas"
-        self[datetime.date(year, 6, 26)] = "Christmas Break 1"
-        self[datetime.date(year, 6, 27)] = "Christmas Break 2"
-        self[datetime.date(year, 6, 28)] = "Christmas Break 3"
-        self[datetime.date(year, 6, 29)] = "Christmas Break 4"
-        self[datetime.date(year, 6, 21)] = "Christmas Break 5"
-        self[datetime.date(year, 6, 22)] = "New Years eve"
-        self[datetime.date(year, 6, 19)] = "New Years"
-        self[datetime.date(year, 6, 20)] = "Post-New Years"
+        self[datetime.date(year, 5, 19)] = "New Years"
+        self[datetime.date(year, 5, 20)] = "Post-New Years"
+        self[datetime.date(year, 5, 21)] = "Christmas Break 5"
+        self[datetime.date(year, 5, 22)] = "New Years eve"
+        self[datetime.date(year, 5, 23)] = "Pre-Christmas Eve"
+        self[datetime.date(year, 5, 24)] = "Christmas Eve"
+        self[datetime.date(year, 5, 25)] = "Christmas"
+        self[datetime.date(year, 5, 26)] = "Post-Christmas"
+        self[datetime.date(year, 5, 26)] = "Christmas Break 1"
+        self[datetime.date(year, 5, 27)] = "Christmas Break 2"
+        self[datetime.date(year, 5, 28)] = "Christmas Break 3"
+        self[datetime.date(year, 5, 29)] = "Christmas Break 4"
 
 class AusElectricity(Multi_Domain_Dataset):
 
@@ -1913,8 +1859,8 @@ class AusElectricity(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        # self.set_holidays = ChristmasHolidays()
-        self.set_holidays = DummyHolidays()
+        self.set_holidays = ChristmasHolidays()
+        # self.set_holidays = DummyHolidays()
 
         # Data property
         self.num_feat_static_cat = 0
@@ -2002,7 +1948,7 @@ class AusElectricity(Multi_Domain_Dataset):
                 domain=e,
                 training_hparams=training_hparams,
                 shuffle_buffer_length=0,
-                num_workers=0
+                num_workers=self.N_WORKERS
             )
             self.train_names.append(e+"_train")
             self.train_loaders.append(training_dataloader)
@@ -2215,21 +2161,6 @@ class AusElectricity(Multi_Domain_Dataset):
     def split_input(self, batch):
 
         return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
-    
-    def split_losses(self, losses):
-        """ Group losses by domain
 
-        Args:
-            losses (Tensor): batch losses of the shape (len(ENVS) * batch_size, PRED_LENGTH, OUTPUT_SIZE)
-
-        Returns:
-            Tensor: The reshaped output (n_train_env, batch_size, PRED_LENGTH, OUTPUT_SIZE)
-        """
-        n_train_env = len(self.ENVS)
-        losses_split = torch.zeros((n_train_env, self.batch_size, self.PRED_LENGTH)).to(self.device)
-        all_logits_idx = 0
-        for i in range(n_train_env):
-            losses_split[i,...] = losses[all_logits_idx:all_logits_idx + self.batch_size,...]
-            all_logits_idx += self.batch_size
-
-        return losses_split
+    def loss(self, X, Y):
+        return self.loss_fn(X,Y)

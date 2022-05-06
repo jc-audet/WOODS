@@ -179,11 +179,11 @@ def get_split_accuracy_time(objective, dataset, loader, device):
         device: device on which we are training
     """
 
-    ts = torch.tensor(dataset.PRED_TIME).to(device)
+    pred_time = dataset.PRED_TIME
 
-    losses = torch.zeros(*ts.shape).to(device)
-    nb_correct = torch.zeros(*ts.shape).to(device)
-    nb_item = torch.zeros(*ts.shape).to(device)
+    losses = torch.zeros(*pred_time.shape).to(device)
+    nb_correct = torch.zeros(*pred_time.shape).to(device)
+    nb_item = torch.zeros(*pred_time.shape).to(device)
     with torch.no_grad():
 
         for b, (data, target) in enumerate(loader):
