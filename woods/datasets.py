@@ -1685,7 +1685,7 @@ class training_domain_sampler(InstanceSampler):
             holidays_idx = []
             for idx in range(max_length):
                 running_time += min_increment
-                if running_time in set_holidays or running_time + day_increment in set_holidays:
+                if running_time in set_holidays:# or running_time + day_increment in set_holidays:
                     holidays_idx.append(idx)
 
             self.domain_idx = holidays_idx
@@ -1694,7 +1694,7 @@ class training_domain_sampler(InstanceSampler):
             non_holidays_idx = []
             for idx in range(max_length):
                 running_time += min_increment
-                if running_time not in set_holidays and running_time + day_increment not in set_holidays:
+                if running_time not in set_holidays:# and running_time + day_increment not in set_holidays:
                     non_holidays_idx.append(idx)
 
             self.domain_idx = non_holidays_idx
@@ -1751,7 +1751,7 @@ class evaluation_domain_sampler(InstanceSampler):
             holidays_idx = []
             for idx in range(int(max_length / 48)):
                 running_time += day_increment
-                if running_time in set_holidays or running_time + day_increment in set_holidays:
+                if running_time in set_holidays:# or running_time + day_increment in set_holidays:
                     holidays_idx.append(idx * 48)
 
             self.domain_idx = holidays_idx
@@ -1760,7 +1760,7 @@ class evaluation_domain_sampler(InstanceSampler):
             non_holidays_idx = []
             for idx in range(int(max_length / 48)):
                 running_time += day_increment
-                if running_time not in set_holidays and running_time + day_increment not in set_holidays and running_time.month == 7:
+                if running_time not in set_holidays and running_time.month == 7:# and running_time + day_increment not in set_holidays :
                     non_holidays_idx.append(idx * 48)
 
             self.domain_idx = non_holidays_idx
@@ -1768,6 +1768,8 @@ class evaluation_domain_sampler(InstanceSampler):
         self.domain_idx = np.array(self.domain_idx)
         self.domain_idx = self.domain_idx[self.domain_idx >= self.start_idx]
         self.domain_idx = self.domain_idx[self.domain_idx < self.last_idx]
+
+        print(self.start_idx, self.last_idx, self.domain_idx)
 
 
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
@@ -1888,16 +1890,22 @@ class AusElectricity(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        train_eval_first_idx = 175296
-        val_first_idx = 192864  # Training split is 11 years (11 * 365 days + 2 leap days sampled at a frequency of 30 minutes)
-        test_first_idx = 210384 # Validation split is 1 year (365 days sampled at a frequency of 30 minutes)
-        test_last_idx =  227904 # Test split is also 1 year 
+        train_first_idx = 157776 # Only for evaluation
+        train_last_idx = 175296
+        val_first_idx = train_last_idx
+        val_last_idx = 192864
+        test_first_idx = val_last_idx
+        test_last_idx = 210384
+        # train_eval_first_idx = 175296
+        # val_first_idx = 192864  # Training split is 11 years (11 * 365 days + 2 leap days sampled at a frequency of 30 minutes)
+        # test_first_idx = 210384 # Validation split is 1 year (365 days sampled at a frequency of 30 minutes)
+        # test_last_idx =  227904 # Test split is also 1 year 
 
         # Create ListDatasets
         train_dataset = ListDataset(
             [
                 {  
-                    FieldName.TARGET: tgt[:val_first_idx],
+                    FieldName.TARGET: tgt[:train_last_idx],
                     FieldName.START: strt
                 } for (tgt, strt) in zip(
                     self.raw_data['test']['target'], 
@@ -1908,7 +1916,7 @@ class AusElectricity(Multi_Domain_Dataset):
         validation_dataset = ListDataset(
             [
                 {
-                    FieldName.TARGET: tgt[:test_first_idx],
+                    FieldName.TARGET: tgt[:val_last_idx],
                     FieldName.START: strt
                 } for (tgt, strt) in zip(
                     self.raw_data['test']['target'], 
@@ -1957,8 +1965,8 @@ class AusElectricity(Multi_Domain_Dataset):
                 train_transformed,
                 domain=e,
                 training_hparams=training_hparams,
-                start_idx=train_eval_first_idx,
-                last_idx=val_first_idx,
+                start_idx=train_first_idx,
+                last_idx=train_last_idx,
                 num_workers=0
             )
             self.val_names.append(e+"_train")
@@ -1969,7 +1977,7 @@ class AusElectricity(Multi_Domain_Dataset):
                 domain=e,
                 training_hparams=training_hparams,
                 start_idx=val_first_idx,
-                last_idx=test_first_idx,
+                last_idx=val_last_idx,
                 num_workers=0
             )
             self.val_names.append(e+"_val")

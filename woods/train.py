@@ -128,7 +128,7 @@ def get_accuracies(objective, dataset, device):
                                 e+'_loss': losses[i]})
 
         elif dataset.SETUP == 'subpopulation':
-            error, loss = get_split_errors(objective, dataset, loader, device)
+            error, loss = get_split_errors(objective, name, dataset, loader, device)
 
             record.update({ name+'_rmse': error,
                             name+'_loss': loss})
@@ -200,7 +200,7 @@ def get_split_accuracy_time(objective, dataset, loader, device):
             
     return (nb_correct / nb_item).tolist(), (losses/len(loader)).tolist()
 
-def get_split_errors(objective, dataset, loader, device):
+def get_split_errors(objective, name, dataset, loader, device):
     """ Get error and loss for a dataset that is of the `source` setup
 
     Args:
@@ -227,7 +227,11 @@ def get_split_errors(objective, dataset, loader, device):
 
             # Get errors
             out = objective.model.inference(X)
-            # plot_forecast(0, {k: X[k].cpu() for k in X}, out.cpu())
+            if name == 'Holidays_val':
+                for i in range(out.shape[0]):
+                    print(i)
+                    plot_forecast(i, {k: X[k].cpu() for k in X}, out.cpu())
+                # plot_forecast(-1, {k: X[k].cpu() for k in X}, out.cpu())
             out_avg = torch.mean(out, dim=1)
             errors += torch.sqrt(MSE(out_avg, Y)).item() * Y.shape[0]
 
