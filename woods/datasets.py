@@ -1760,7 +1760,7 @@ class evaluation_domain_sampler(InstanceSampler):
             non_holidays_idx = []
             for idx in range(int(max_length / 48)):
                 running_time += day_increment
-                if running_time not in set_holidays and running_time.month == 7:# and running_time + day_increment not in set_holidays :
+                if running_time not in set_holidays:# and running_time.month == 7:# and running_time + day_increment not in set_holidays :
                     non_holidays_idx.append(idx * 48)
 
             self.domain_idx = non_holidays_idx
@@ -1888,18 +1888,18 @@ class AusElectricity(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        # train_first_idx = 157776 # Only for evaluation
-        # train_last_idx = 175296
-        # val_first_idx = train_last_idx
-        # val_last_idx = 192864
-        # test_first_idx = val_last_idx
-        # test_last_idx = 210384
-        train_first_idx = 175296 # Only for evaluation
-        train_last_idx = 192864
+        train_first_idx = 157776 # Only for evaluation
+        train_last_idx = 175296
         val_first_idx = train_last_idx
-        val_last_idx = 210384
+        val_last_idx = 192864
         test_first_idx = val_last_idx
-        test_last_idx = 227904
+        test_last_idx = 210384
+        # train_first_idx = 175296 # Only for evaluation
+        # train_last_idx = 192864
+        # val_first_idx = train_last_idx
+        # val_last_idx = 210384
+        # test_first_idx = val_last_idx
+        # test_last_idx = 227904
         # val_first_idx = 192864  # Training split is 11 years (11 * 365 days + 2 leap days sampled at a frequency of 30 minutes)
         # test_first_idx = 210384 # Validation split is 1 year (365 days sampled at a frequency of 30 minutes)
         # test_last_idx =  227904 # Test split is also 1 year 
