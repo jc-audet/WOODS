@@ -227,10 +227,10 @@ def get_split_errors(objective, name, dataset, loader, device):
 
             # Get errors
             out = objective.model.inference(X)
-            if name == 'Holidays_val':
-                for i in range(out.shape[0]):
-                    print(i)
-                    plot_forecast(i, {k: X[k].cpu() for k in X}, out.cpu())
+            # if name == 'Holidays_val':
+                # for i in range(out.shape[0]):
+                #     print(i)
+                #     plot_forecast(i, {k: X[k].cpu() for k in X}, out.cpu())
                 # plot_forecast(-1, {k: X[k].cpu() for k in X}, out.cpu())
             out_avg = torch.mean(out, dim=1)
             errors += torch.sqrt(MSE(out_avg, Y)).item() * Y.shape[0]
