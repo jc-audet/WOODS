@@ -1769,9 +1769,6 @@ class evaluation_domain_sampler(InstanceSampler):
         self.domain_idx = self.domain_idx[self.domain_idx >= self.start_idx]
         self.domain_idx = self.domain_idx[self.domain_idx < self.last_idx]
 
-        print(self.start_idx, self.last_idx, self.domain_idx)
-
-
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
         return (
             self.min_past,
@@ -1861,7 +1858,8 @@ class AusElectricity(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        self.set_holidays = ChristmasHolidays()
+        self.set_holidays = holidays.country_holidays('AU')
+        # self.set_holidays = ChristmasHolidays()
         # self.set_holidays = DummyHolidays()
 
         # Data property
