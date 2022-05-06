@@ -1888,13 +1888,18 @@ class AusElectricity(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        train_first_idx = 157776 # Only for evaluation
-        train_last_idx = 175296
+        # train_first_idx = 157776 # Only for evaluation
+        # train_last_idx = 175296
+        # val_first_idx = train_last_idx
+        # val_last_idx = 192864
+        # test_first_idx = val_last_idx
+        # test_last_idx = 210384
+        train_first_idx = 175296 # Only for evaluation
+        train_last_idx = 192864
         val_first_idx = train_last_idx
-        val_last_idx = 192864
+        val_last_idx = 210384
         test_first_idx = val_last_idx
-        test_last_idx = 210384
-        # train_eval_first_idx = 175296
+        test_last_idx = 227904
         # val_first_idx = 192864  # Training split is 11 years (11 * 365 days + 2 leap days sampled at a frequency of 30 minutes)
         # test_first_idx = 210384 # Validation split is 1 year (365 days sampled at a frequency of 30 minutes)
         # test_last_idx =  227904 # Test split is also 1 year 
