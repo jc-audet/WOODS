@@ -42,7 +42,7 @@ def multi_gpu_launcher(commands):
 
     n_gpus = torch.cuda.device_count()
     procs_by_gpu = [None]*n_gpus
-    
+
     while len(commands) > 0:
         for gpu_idx in range(n_gpus):
             proc = procs_by_gpu[gpu_idx]
@@ -110,4 +110,5 @@ REGISTRY = {
     'dummy': dummy_launcher,
     'local': local_launcher,
     'slurm_launcher': slurm_launcher,
+    'multi_gpu': multi_gpu_launcher,
 }
