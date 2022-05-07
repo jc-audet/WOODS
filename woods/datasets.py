@@ -1823,7 +1823,7 @@ class DummyHolidays(holidays.HolidayBase):
 class AusElectricity(Multi_Domain_Dataset):
 
     # Training parameters
-    N_STEPS = 5001
+    N_STEPS = 3001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -1858,8 +1858,8 @@ class AusElectricity(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        self.set_holidays = holidays.country_holidays('AU')
-        # self.set_holidays = ChristmasHolidays()
+        # self.set_holidays = holidays.country_holidays('AU')
+        self.set_holidays = ChristmasHolidays()
         # self.set_holidays = DummyHolidays()
 
         # Data property
@@ -1900,9 +1900,6 @@ class AusElectricity(Multi_Domain_Dataset):
         # val_last_idx = 210384
         # test_first_idx = val_last_idx
         # test_last_idx = 227904
-        # val_first_idx = 192864  # Training split is 11 years (11 * 365 days + 2 leap days sampled at a frequency of 30 minutes)
-        # test_first_idx = 210384 # Validation split is 1 year (365 days sampled at a frequency of 30 minutes)
-        # test_last_idx =  227904 # Test split is also 1 year 
 
         # Create ListDatasets
         train_dataset = ListDataset(
