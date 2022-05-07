@@ -607,82 +607,82 @@ class IB_ERM(ERM):
         # Update memory
         self.update_count += 1
          
-class IB_IRM(ERM):
-    """Information Bottleneck based IRM on feature with conditionning"""
+# class IB_IRM(ERM):
+#     """Information Bottleneck based IRM on feature with conditionning"""
 
-    def __init__(self, model, dataset, loss_fn, optimizer, hparams):
-        super(IB_IRM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
+#     def __init__(self, model, dataset, loss_fn, optimizer, hparams):
+#         super(IB_IRM, self).__init__(model, dataset, loss_fn, optimizer, hparams)
 
-        # Hyper parameters
-        self.ib_weight = self.hparams['ib_weight']
-        self.ib_anneal = self.hparams['ib_anneal']
-        self.irm_weight = self.hparams['irm_weight']
-        self.irm_anneal = self.hparams['irm_anneal']
+#         # Hyper parameters
+#         self.ib_weight = self.hparams['ib_weight']
+#         self.ib_anneal = self.hparams['ib_anneal']
+#         self.irm_weight = self.hparams['irm_weight']
+#         self.irm_anneal = self.hparams['irm_anneal']
 
-        # Memory
-        self.register_buffer('update_count', torch.tensor([0]))
+#         # Memory
+#         self.register_buffer('update_count', torch.tensor([0]))
 
-    @staticmethod
-    def _irm_penalty(logits, y):
-        device = "cuda" if logits[0][0].is_cuda else "cpu"
-        scale = torch.tensor(1.).to(device).requires_grad_()
-        loss_1 = F.cross_entropy(logits[::2] * scale, y[::2])
-        loss_2 = F.cross_entropy(logits[1::2] * scale, y[1::2])
-        grad_1 = autograd.grad(loss_1, [scale], create_graph=True)[0]
-        grad_2 = autograd.grad(loss_2, [scale], create_graph=True)[0]
-        result = torch.sum(grad_1 * grad_2)
-        return result
+#     @staticmethod
+#     def _irm_penalty(logits, y):
+#         device = "cuda" if logits[0][0].is_cuda else "cpu"
+#         scale = torch.tensor(1.).to(device).requires_grad_()
+#         loss_1 = F.cross_entropy(logits[::2] * scale, y[::2])
+#         loss_2 = F.cross_entropy(logits[1::2] * scale, y[1::2])
+#         grad_1 = autograd.grad(loss_1, [scale], create_graph=True)[0]
+#         grad_2 = autograd.grad(loss_2, [scale], create_graph=True)[0]
+#         result = torch.sum(grad_1 * grad_2)
+#         return result
 
-    def update(self, minibatches_device, dataset, device):
+#     def update(self, minibatches_device, dataset, device):
 
-        # Get penalty weight
-        ib_penalty_weight = (self.ib_weight if self.update_count
-                          >= self.ib_anneal else
-                          0.0)
-        irm_penalty_weight = (self.irm_weight if self.update_count
-                          >= self.irm_anneal else
-                          1.0)
+#         # Get penalty weight
+#         ib_penalty_weight = (self.ib_weight if self.update_count
+#                           >= self.ib_anneal else
+#                           0.0)
+#         irm_penalty_weight = (self.irm_weight if self.update_count
+#                           >= self.irm_anneal else
+#                           1.0)
 
-        ## Group all inputs and send to device
-        all_x = torch.cat([x for x,y in minibatches_device]).to(device)
-        all_y = torch.cat([y for x,y in minibatches_device]).to(device)
+#         ## Group all inputs and send to device
+#         all_x = torch.cat([x for x,y in minibatches_device]).to(device)
+#         all_y = torch.cat([y for x,y in minibatches_device]).to(device)
         
-        # Get time predictions and get logits
-        ts = torch.tensor(dataset.PRED_TIME).to(device)
-        out, features = self.predict(all_x, ts, device)
+#         # Get time predictions and get logits
+#         ts = torch.tensor(dataset.PRED_TIME).to(device)
+#         out, features = self.predict(all_x, ts, device)
 
-        # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
-        out_split = dataset.split_output(out)
-        features_split = dataset.split_output(features)
-        labels_split = dataset.split_labels(all_y)
+#         # Split data in shape (n_train_envs, batch_size, len(PRED_TIME), num_classes)
+#         out_split = dataset.split_output(out)
+#         features_split = dataset.split_output(features)
+#         labels_split = dataset.split_labels(all_y)
 
-        # For each environment, accumulate loss for all time steps
-        ib_penalty = torch.zeros(out_split.shape[0]).to(device)
-        irm_penalty = torch.zeros(out_split.shape[0]).to(device)
-        env_losses = torch.zeros(out_split.shape[0]).to(device)
-        for i in range(out_split.shape[0]):
-            for t_idx in range(out_split.shape[2]):     # Number of time steps
-                # Compute the penalty
-                env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
-                # Compute the information bottleneck penalty
-                ib_penalty[i] += features_split[i, :, t_idx, :].var(dim=0).mean()
-                # Compute the invariant risk minimization penalty
-                irm_penalty[i] += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
+#         # For each environment, accumulate loss for all time steps
+#         ib_penalty = torch.zeros(out_split.shape[0]).to(device)
+#         irm_penalty = torch.zeros(out_split.shape[0]).to(device)
+#         env_losses = torch.zeros(out_split.shape[0]).to(device)
+#         for i in range(out_split.shape[0]):
+#             for t_idx in range(out_split.shape[2]):     # Number of time steps
+#                 # Compute the penalty
+#                 env_losses[i] += self.loss_fn(out_split[i, :, t_idx, :], labels_split[i,:,t_idx]) 
+#                 # Compute the information bottleneck penalty
+#                 ib_penalty[i] += features_split[i, :, t_idx, :].var(dim=0).mean()
+#                 # Compute the invariant risk minimization penalty
+#                 irm_penalty[i] += self._irm_penalty(out_split[i,:,t_idx,:], labels_split[i,:,t_idx])
 
-        objective = env_losses.mean() + ib_penalty_weight * ib_penalty.mean() + irm_penalty_weight * irm_penalty.mean()
+#         objective = env_losses.mean() + ib_penalty_weight * ib_penalty.mean() + irm_penalty_weight * irm_penalty.mean()
 
-        if self.update_count == self.ib_anneal or self.update_count == self.irm_anneal:
-            # Reset Adam, because it doesn't like the sharp jump in gradient
-            # magnitudes that happens at this step.
-            self.optimizer = torch.optim.Adam(
-                self.model.parameters(),
-                lr=self.optimizer.param_groups[0]['lr'],
-                weight_decay=self.optimizer.param_groups[0]['weight_decay'])
+#         if self.update_count == self.ib_anneal or self.update_count == self.irm_anneal:
+#             # Reset Adam, because it doesn't like the sharp jump in gradient
+#             # magnitudes that happens at this step.
+#             self.optimizer = torch.optim.Adam(
+#                 self.model.parameters(),
+#                 lr=self.optimizer.param_groups[0]['lr'],
+#                 weight_decay=self.optimizer.param_groups[0]['weight_decay'])
 
-        # Back propagate
-        self.optimizer.zero_grad()
-        objective.backward()
-        self.optimizer.step()
+#         # Back propagate
+#         self.optimizer.zero_grad()
+#         objective.backward()
+#         self.optimizer.step()
 
-        # Update memory
-        self.update_count += 1
+#         # Update memory
+#         self.update_count += 1

@@ -1823,7 +1823,7 @@ class DummyHolidays(holidays.HolidayBase):
 class AusElectricity(Multi_Domain_Dataset):
 
     # Training parameters
-    N_STEPS = 3001
+    N_STEPS = 1
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -1949,7 +1949,6 @@ class AusElectricity(Multi_Domain_Dataset):
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
         for j, e in enumerate(self.ENVS):
-
 
             training_dataloader = self.create_training_data_loader(
                 train_transformed,
