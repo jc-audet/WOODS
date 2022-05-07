@@ -1823,7 +1823,7 @@ class DummyHolidays(holidays.HolidayBase):
 class AusElectricity(Multi_Domain_Dataset):
 
     # Training parameters
-    N_STEPS = 1
+    N_STEPS = 3001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters

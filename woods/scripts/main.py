@@ -136,7 +136,6 @@ if __name__ == '__main__':
             record['hparams'] = hparams
             record['flags'] = vars(flags)
             os.makedirs(os.path.join(flags.save_path, 'logs'), exist_ok=True)
-            print(record)
             with open(os.path.join(flags.save_path, 'logs', job_name+'.json'), 'w') as f:
                 json.dump(record, f)
             os.makedirs(os.path.join(flags.save_path, 'models'), exist_ok=True)
