@@ -1837,7 +1837,7 @@ class AusElectricity(Multi_Domain_Dataset):
 
     ## Environment parameters
     ENVS = ['Holidays', 'NonHolidays']
-    SWEEP_ENVS = [None] # This is a subpopulation shift problem
+    SWEEP_ENVS = [-1] # This is a subpopulation shift problem
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [
