@@ -6,6 +6,7 @@ import os
 import time
 import math
 import subprocess
+import torch
 from multiprocessing import Pool
 
 def dummy_launcher(commands):
