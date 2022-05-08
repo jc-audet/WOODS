@@ -154,16 +154,15 @@ if __name__ == '__main__':
 
 
     elif flags.mode == 'eval':
-        raise NotImplementedError('This part is in quarantine')
-        # # Load the weights
-        # assert flags.model_path != None, "You must give the model_path in order to evaluate a model"
-        # model.load_state_dict(torch.load(os.path.join(flags.model_path)))
+        # raise NotImplementedError('This part is in quarantine')
+        # Load the weights
+        assert flags.model_path != None, "You must give the model_path in order to evaluate a model"
+        model.load_state_dict(torch.load(os.path.join(flags.model_path)))
 
-        # # Get accuracies
-        # loss_fn = nn.NLLLoss(weight=dataset.get_class_weight().to(device))
-        # val_start = time.time()
-        # record = get_accuracies(objective, dataset, device)
-        # val_time = time.time() - val_start
+        # Get accuracies
+        val_start = time.time()
+        record = get_accuracies(objective, dataset, device)
+        val_time = time.time() - val_start
 
         # train_names, _ = dataset.get_train_loaders()
         # t = utils.setup_pretty_table(flags)

@@ -107,6 +107,37 @@ def get_setup(dataset_name):
     """
     return get_dataset_class(dataset_name).SETUP
 
+def get_model_selection(dataset_name):
+    """ Returns the model selection for a dataset
+
+    Args:
+        dataset_name (str): Name of the dataset
+
+    Returns:
+        list: list of model selection name 
+    """
+
+    if dataset_name in [ 'Spurious_Fourier', "TCMNIST_Source", "TCMNIST_Time"]:
+        return ['train_domain_validation', 'test_domain_validation']
+    if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR']:
+        return ['train_domain_validation', 'oracle_train_domain_validation']
+    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced']:
+        return ['average_validation', 'weighted_average_validation', 'worse_domain_validation']
+
+def get_domain_weights(dataset_name):
+    """ Returns the relative weights of domains in a subpopulation shift dataset
+
+    Args:
+        dataset_name (str): Name of the dataset
+
+    Returns:
+        list: list of weights
+    """
+
+    assert get_setup(dataset_name) == 'subpopulation', "Only subpopulation shift have domain weights"
+
+    return get_dataset_class(dataset_name).ENVS_WEIGHTS
+
 def XOR(a, b):
     """ Returns a XOR b (the 'Exclusive or' gate) 
     
@@ -1795,7 +1826,6 @@ class ChristmasHolidays(holidays.HolidayBase):
         self[datetime.date(year, 12, 24)] = "Christmas Eve"
         self[datetime.date(year, 12, 25)] = "Christmas"
         self[datetime.date(year, 12, 26)] = "Post-Christmas"
-        self[datetime.date(year, 12, 26)] = "Christmas Break 1"
         self[datetime.date(year, 12, 27)] = "Christmas Break 2"
         self[datetime.date(year, 12, 28)] = "Christmas Break 3"
         self[datetime.date(year, 12, 29)] = "Christmas Break 4"
@@ -1839,6 +1869,8 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
     ## Environment parameters
     ENVS = ['Holidays', 'NonHolidays']  # For training, we do not equally sample holidays and non holidays
     SWEEP_ENVS = [-1] # This is a subpopulation shift problem
+    ENVS_WEIGHTS = [11./365, 354./365.]
+
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [
@@ -2192,6 +2224,7 @@ class AusElectricity(Multi_Domain_Dataset):
     ## Environment parameters
     ENVS = ['Holidays', 'NonHolidays']
     SWEEP_ENVS = [-1] # This is a subpopulation shift problem
+    ENVS_WEIGHTS = [11./365, 354./365.]
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [

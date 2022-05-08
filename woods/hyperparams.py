@@ -519,7 +519,7 @@ def IGA_hyper(sample):
     """
     if sample:
         return {
-            'penalty_weight': lambda r: 10**r.uniform(-1,5)
+            'penalty_weight': lambda r: 10**r.uniform(1,5)
         }
     else:
         return {

@@ -53,12 +53,9 @@ if __name__ == "__main__":
             except IOError:
                 pass
 
-    # Choose model selection under study
-    model_selection_methods = [ 'train_domain_validation',
-                                'test_domain_validation',
-                                'oracle_train_domain_validation']
-
     if 'hparams' in flags.mode:
+
+        raise NotImplementedError('Quarantined due to changes in the repo')
 
         # Perform model selection onto the checkpoints from results
         for ms_method in model_selection_methods:
@@ -86,35 +83,64 @@ if __name__ == "__main__":
     elif 'tables' in flags.mode:
 
         # Perform model selection onto the checkpoints from results
-        for ms_method in model_selection_methods:
+        for dataset_name, dataset_dict in records.items():
 
-            for dataset_name, dataset_dict in records.items():
-                t = PrettyTable()
-                sweep_envs = datasets.get_sweep_envs(dataset_name)
-                all_envs = datasets.get_environments(dataset_name)
-                envs = [all_envs[i] for i in sweep_envs]
-                t.field_names = ['Objective'] + envs + ["Average"]
+            model_selection_methods = datasets.get_model_selection(dataset_name)
 
-                for objective_name, objective_dict in dataset_dict.items():
-                    acc_arr = []
-                    obj_results = [objective_name]
+            for ms_method in model_selection_methods:
 
-                    for env_id in sweep_envs:
-                        # If the environment wasn't part of the sweep, that's fine, we just can't report those results
-                        if env_id not in objective_dict.keys():
-                            obj_results.append(" X ")
-                        else:
-                            val_acc, val_var, test_acc, test_var = model_selection.get_chosen_test_acc(objective_dict[env_id], ms_method)
-                            acc_arr.append(test_acc*100)
+                if datasets.get_setup(dataset_name) in ['source', 'time']:
+                    t = PrettyTable()
+                    sweep_envs = datasets.get_sweep_envs(dataset_name)
+                    all_envs = datasets.get_environments(dataset_name)
+                    envs = [all_envs[i] for i in sweep_envs]
+                    t.field_names = ['Objective'] + envs + ["Average"]
+
+                    for objective_name, objective_dict in dataset_dict.items():
+                        acc_arr = []
+                        obj_results = [objective_name]
+
+                        for env_id in sweep_envs:
+                            # If the environment wasn't part of the sweep, that's fine, we just can't report those results
+                            if env_id not in objective_dict.keys():
+                                obj_results.append(" X ")
+                            else:
+                                val_acc, val_var, test_acc, test_var = model_selection.choose_model_domain_generalization(objective_dict[env_id], ms_method)
+                                acc_arr.append(test_acc*100)
+
+                                if flags.latex:
+                                    obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=test_acc*100, var=test_var*100))
+                                else:
+                                    obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=test_acc*100, var=test_var*100))
+                                
+                        avg_test = np.mean(acc_arr)
+                        obj_results.append(" {acc:.2f} ".format(acc=avg_test))
+                        t.add_row(obj_results)
+
+                if datasets.get_setup(dataset_name) in ['subpopulation']:
+                    
+                    t = PrettyTable()
+                    all_envs = datasets.get_environments(dataset_name)
+                    sweep_envs = datasets.get_sweep_envs(dataset_name)
+                    domain_weights = datasets.get_domain_weights(dataset_name)
+                    t.field_names = ['Objective', 'Average', 'Worse']
+
+                    for objective_name, objective_dict in dataset_dict.items():
+                        acc_arr = []
+                        obj_results = [objective_name]
+
+                        for env_id in sweep_envs:
+                            # If the environment wasn't part of the sweep, that's fine, we just can't report those results
+                            avg_performance, avg_performance_var, worse_performance, worse_performance_var = model_selection.choose_model_subpopulation(objective_dict[env_id], ms_method, domain_weights)
 
                             if flags.latex:
-                                obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=test_acc*100, var=test_var*100))
+                                obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=avg_performance, var=avg_performance_var))
+                                obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=worse_performance, var=worse_performance_var))
                             else:
-                                obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=test_acc*100, var=test_var*100))
-                            
-                    avg_test = np.mean(acc_arr)
-                    obj_results.append(" {acc:.2f} ".format(acc=avg_test))
-                    t.add_row(obj_results)
+                                obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=avg_performance, var=avg_performance_var))
+                                obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=worse_performance, var=worse_performance_var))
+                                
+                        t.add_row(obj_results)
 
                 max_width = {}
                 min_width = {}
@@ -131,6 +157,8 @@ if __name__ == "__main__":
                     print(t.get_string(title=ms_method + ' Results for ' + dataset_name))
 
     elif 'summary' in flags.mode:
+
+        raise NotImplementedError('Quarantined due to changes in the repo')
 
         # Perform model selection onto the checkpoints from results
         for ms_method in model_selection_methods:

@@ -69,7 +69,7 @@ def get_best_hparams(records, selection_method):
     
     return flags_dict, hparams_dict, val_best_acc, test_best_acc
 
-def get_chosen_test_acc(records, selection_method):
+def choose_model_domain_generalization(records, selection_method):
     """ Get the test accuracy that will be chosen through the selection method for a given a record from a sweep 
 
     The way model selection is performed is by computing the validation accuracy of all training checkpoints. 
@@ -95,21 +95,23 @@ def get_chosen_test_acc(records, selection_method):
     test_acc_arr = []
     for t_seed, t_dict in records.items():
         val_acc_dict = {}
-        val_var_dict = {}
         test_acc_dict = {}
-        test_var_dict = {}
         for h_seed, h_dict in t_dict.items():
             val_acc, test_acc = selection_method(h_dict)
 
             val_acc_dict[h_seed] = val_acc
             test_acc_dict[h_seed] = test_acc
 
-        best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
+        # best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
+        best_seed = [k for k,v in val_acc_dict.items() if v==min(val_acc_dict.values())][0]
 
         val_acc_arr.append(val_acc_dict[best_seed])
         test_acc_arr.append(test_acc_dict[best_seed])
 
+    print(val_acc_arr, test_acc_arr)
+
     return np.mean(val_acc_arr, axis=0), np.std(val_acc_arr, axis=0) / np.sqrt(len(val_acc_arr)), np.mean(test_acc_arr, axis=0), np.std(test_acc_arr, axis=0) / np.sqrt(len(test_acc_arr))
+
 
 def IID_validation(records):
     """ Perform the IID validation model section on a single training run with NO TEST ENVIRONMENT and returns the results
@@ -188,9 +190,9 @@ def train_domain_validation(records):
 
     ## Picking the max value from a dict
     # Fastest:
-    best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
+    # best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
     # Cleanest:
-    # best_step = max(val_dict, key=val_dict.get)
+    best_step = max(val_dict, key=val_dict.get)
     
     return val_dict[best_step], test_dict[best_step]
 
@@ -245,20 +247,192 @@ def oracle_train_domain_validation(records):
 
     val_keys = [str(e)+'_out_acc' for i,e in enumerate(env_name) if i != flags['test_env']]
     test_key = str(env_name[flags['test_env']]) + '_in_acc'
+    validation_test_key = str(env_name[flags['test_env']]) + '_out_acc'
 
     val_dict = {}
     test_dict = {}
+    validation_test_dict = {}
     for step, step_dict in records.items():
 
         val_array = [step_dict[k] for k in val_keys]
         val_dict[step] = np.mean(val_array)
 
         test_dict[step] = step_dict[test_key]
+        validation_test_dict[step] = step_dict[validation_test_key]
 
     ## Picking the max value from a dict
     # Fastest:
-    best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
+    # best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
     # Cleanest:
-    # best_step = max(val_dict, key=val_dict.get)
+    best_step = max(val_dict, key=val_dict.get)
     
-    return test_dict[best_step], test_dict[best_step]
+    return validation_test_dict[best_step], test_dict[best_step]
+
+
+def choose_model_subpopulation(records, selection_method, weights=None):
+    """ Get the test accuracy that will be chosen through the selection method for a given a record from a sweep 
+
+    The way model selection is performed is by computing the validation accuracy of all training checkpoints. 
+    The definition of the validation accuracy is given by the selection method. 
+    Then using these validation accuracies, we choose the best checkpoint and report the test accuracy linked to that checkpoint.
+
+    Args:
+        records (dict): Dictionary of records from a sweep
+        selection_method (str): Selection method to use
+        weights (list): domain weights for weighted average
+
+    Returns:
+        float: validation accuracy of the chosen models averaged over all trial seeds
+        float: variance of the validation accuracy of the chosen models accross all trial seeds
+        float: test accuracy of the chosen models averaged over all trial seeds
+        float: variance of the test accuracy of the chosen models accross all trial seeds
+    """
+
+    if selection_method not in globals():
+        raise NotImplementedError("Dataset not found: {}".format(selection_method))
+    selection_method = globals()[selection_method]
+
+    chosen_avg_performance = []
+    chosen_worse_performance = []
+    for t_seed, t_dict in records.items():
+        val_acc_dict = {}
+        avg_test_acc_dict = {}
+        worse_test_acc_dict = {}
+
+        for h_seed, h_dict in t_dict.items():
+            val_acc, avg_test_acc, worse_test_acc = selection_method(h_dict, weights)
+
+            val_acc_dict[h_seed] = val_acc
+            avg_test_acc_dict[h_seed] = avg_test_acc
+            worse_test_acc_dict[h_seed] = worse_test_acc
+
+        best_seed = min(val_acc_dict, key=val_acc_dict.get)
+
+        chosen_avg_performance.append(avg_test_acc_dict[best_seed])
+        chosen_worse_performance.append(worse_test_acc_dict[best_seed])
+
+    return (
+        np.mean(chosen_avg_performance),
+        np.std(chosen_avg_performance) / np.sqrt(len(chosen_avg_performance)),
+        np.mean(chosen_worse_performance),
+        np.std(chosen_worse_performance) / np.sqrt(len(chosen_worse_performance))
+    )
+
+
+def average_validation(records, weights):
+    """ This is for population shift datasets
+
+    Args:
+        records (dict): Dictionary of records from a single training run
+        weight (list): List of domains weights
+
+    Returns:
+        float: validation accuracy of the best checkpoint of the training run
+        float: test accuracy of the best checkpoint (highest validation accuracy) of the training run
+    """
+
+    # Make copy of record
+    records = copy.deepcopy(records)
+
+    flags = records.pop('flags')
+    hparams = records.pop('hparams')
+    env_name = datasets.get_environments(flags['dataset'])
+
+    val_keys = [str(e)+'_val_rmse' for i,e in enumerate(env_name)]
+    test_keys = [str(e)+'_test_rmse' for i,e in enumerate(env_name)]
+
+    avg_val_dict = {}
+    avg_test_dict = {}
+    worse_test_dict = {}
+    for step, step_dict in records.items():
+
+        val_values = [step_dict[k] for k in val_keys]
+        avg_val_dict[step] = np.average(val_values)
+        
+        test_values = [step_dict[k] for k in test_keys]
+        avg_test_dict[step] = np.average(test_values, weights=weights)
+        worse_test_dict[step] = max(test_values)
+
+    ## Picking the max value from a dict
+    best_step = min(avg_val_dict, key=avg_val_dict.get)
+    
+    return avg_val_dict[best_step], avg_test_dict[best_step], worse_test_dict[best_step]
+
+def weighted_average_validation(records, weights):
+    """ This is for population shift datasets
+
+    Args:
+        records (dict): Dictionary of records from a single training run
+        weight (list): List of domains weights
+
+    Returns:
+        float: validation accuracy of the best checkpoint of the training run
+        float: test accuracy of the best checkpoint (highest validation accuracy) of the training run
+    """
+
+    # Make copy of record
+    records = copy.deepcopy(records)
+
+    flags = records.pop('flags')
+    hparams = records.pop('hparams')
+    env_name = datasets.get_environments(flags['dataset'])
+
+    val_keys = [str(e)+'_val_rmse' for i,e in enumerate(env_name)]
+    test_keys = [str(e)+'_test_rmse' for i,e in enumerate(env_name)]
+
+    avg_val_dict = {}
+    avg_test_dict = {}
+    worse_test_dict = {}
+    for step, step_dict in records.items():
+
+        val_values = [step_dict[k] for k in val_keys]
+        avg_val_dict[step] = np.average(val_values, weights=weights)
+        
+        test_values = [step_dict[k] for k in test_keys]
+        avg_test_dict[step] = np.average(test_values, weights=weights)
+        worse_test_dict[step] = max(test_values)
+
+    ## Picking the max value from a dict
+    best_step = min(avg_val_dict, key=avg_val_dict.get)
+    
+    return avg_val_dict[best_step], avg_test_dict[best_step], worse_test_dict[best_step]
+
+
+def worse_domain_validation(records, weights):
+    """ This is for population shift datasets
+
+    Args:
+        records (dict): Dictionary of records from a single training run
+        weight (list): List of domains weights
+
+    Returns:
+        float: validation accuracy of the best checkpoint of the training run
+        float: test accuracy of the best checkpoint (highest validation accuracy) of the training run
+    """
+
+    # Make copy of record
+    records = copy.deepcopy(records)
+
+    flags = records.pop('flags')
+    hparams = records.pop('hparams')
+    env_name = datasets.get_environments(flags['dataset'])
+
+    val_keys = [str(e)+'_val_rmse' for i,e in enumerate(env_name)]
+    test_keys = [str(e)+'_test_rmse' for i,e in enumerate(env_name)]
+
+    avg_val_dict = {}
+    avg_test_dict = {}
+    worse_test_dict = {}
+    for step, step_dict in records.items():
+
+        val_values = [step_dict[k] for k in val_keys]
+        avg_val_dict[step] = max(val_values)
+        
+        test_values = [step_dict[k] for k in test_keys]
+        avg_test_dict[step] = np.average(test_values, weights=weights)
+        worse_test_dict[step] = max(test_values)
+
+    ## Picking the max value from a dict
+    best_step = min(avg_val_dict, key=avg_val_dict.get)
+    
+    return avg_val_dict[best_step], avg_test_dict[best_step], worse_test_dict[best_step]
