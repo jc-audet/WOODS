@@ -1858,8 +1858,6 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
-        # Make important checks
-        assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
 
         # Domain property
         # self.set_holidays = holidays.country_holidays('AU')
