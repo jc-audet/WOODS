@@ -1809,14 +1809,14 @@ class ChristmasHolidays(holidays.HolidayBase):
         self[datetime.date(year, 12, 23)] = "Pre-Christmas Eve"
         self[datetime.date(year, 12, 24)] = "Christmas Eve"
         self[datetime.date(year, 12, 25)] = "Christmas"
-        self[datetime.date(year, 12, 26)] = "Post-Christmas"
-        self[datetime.date(year, 12, 27)] = "Christmas Break 2"
-        self[datetime.date(year, 12, 28)] = "Christmas Break 3"
-        self[datetime.date(year, 12, 29)] = "Christmas Break 4"
-        self[datetime.date(year, 12, 30)] = "Christmas Break 5"
+        # self[datetime.date(year, 12, 26)] = "Post-Christmas"
+        # self[datetime.date(year, 12, 27)] = "Christmas Break 2"
+        # self[datetime.date(year, 12, 28)] = "Christmas Break 3"
+        # self[datetime.date(year, 12, 29)] = "Christmas Break 4"
+        # self[datetime.date(year, 12, 30)] = "Christmas Break 5"
         self[datetime.date(year, 12, 31)] = "New Years eve"
         self[datetime.date(year, 1, 1)] = "New Years"
-        self[datetime.date(year, 1, 2)] = "Post-New Years"
+        # self[datetime.date(year, 1, 2)] = "Post-New Years"
 
 
 class DummyHolidays(holidays.HolidayBase):
@@ -2584,8 +2584,8 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        self.set_holidays = holidays.country_holidays('AU')
-        # self.set_holidays = ChristmasHolidays()
+        # self.set_holidays = holidays.country_holidays('AU')
+        self.set_holidays = ChristmasHolidays()
         # self.set_holidays = DummyHolidays()
 
         # Data property
