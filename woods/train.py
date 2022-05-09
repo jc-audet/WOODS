@@ -110,50 +110,50 @@ def get_accuracies(objective, dataset, device):
     # Get loaders and their names
     val_names, val_loaders = dataset.get_val_loaders()
 
-    # ## Get test accuracy and loss
-    # record = {}
-    # for name, loader in zip(val_names, val_loaders):
+    ## Get test accuracy and loss
+    record = {}
+    for name, loader in zip(val_names, val_loaders):
 
-    #     if dataset.TASK == 'classification':
+        if dataset.TASK == 'classification':
 
-    #         if dataset.SETUP == 'source':
-    #             accuracy, loss = get_split_accuracy_source(objective, dataset, loader, device)
+            if dataset.SETUP == 'source':
+                accuracy, loss = get_split_accuracy_source(objective, dataset, loader, device)
             
-    #             record.update({ name+'_acc': accuracy,
-    #                             name+'_loss': loss})
+                record.update({ name+'_acc': accuracy,
+                                name+'_loss': loss})
 
-    #         elif dataset.SETUP == 'time':
-    #             accuracies, losses = get_split_accuracy_time(objective, dataset, loader, device)
+            elif dataset.SETUP == 'time':
+                accuracies, losses = get_split_accuracy_time(objective, dataset, loader, device)
 
-    #             for i, e in enumerate(name):
-    #                 record.update({ e+'_acc': accuracies[i],
-    #                                 e+'_loss': losses[i]})
+                for i, e in enumerate(name):
+                    record.update({ e+'_acc': accuracies[i],
+                                    e+'_loss': losses[i]})
 
-    #     elif dataset.TASK == 'forecasting':
+        elif dataset.TASK == 'forecasting':
 
-    #         if dataset.SETUP == 'subpopulation':
-    #             error, loss = get_split_errors(objective, name, dataset, loader, device)
+            if dataset.SETUP == 'subpopulation':
+                error, loss = get_split_errors(objective, name, dataset, loader, device)
 
-    #             record.update({ name+'_rmse': error,
-    #                             name+'_loss': loss})
+                record.update({ name+'_rmse': error,
+                                name+'_loss': loss})
                 
 
-    all_day_losses = np.zeros(365)
-    all_day_counts = np.zeros(365)
-    for name, loader in zip(
-        [val_names[1], val_names[4]], 
-        [val_loaders[1], val_loaders[4]]
-    ):
-        errors, counts = get_split_errors_alt(objective, name, dataset, loader, device)
-        all_day_losses += errors
-        all_day_counts += counts
+    # all_day_losses = np.zeros(365)
+    # all_day_counts = np.zeros(365)
+    # for name, loader in zip(
+    #     [val_names[1], val_names[4]], 
+    #     [val_loaders[1], val_loaders[4]]
+    # ):
+    #     errors, counts = get_split_errors_alt(objective, name, dataset, loader, device)
+    #     all_day_losses += errors
+    #     all_day_counts += counts
     
-    plt.figure()
-    plt.bar(list(range(365)), all_day_losses/all_day_counts)
-    plt.bar(list(range(365)), all_day_counts)
-    ax = plt.gca()
-    ax.axvspan(355, 364, alpha=0.2)
-    plt.show()
+    # plt.figure()
+    # plt.bar(list(range(365)), all_day_losses/all_day_counts)
+    # plt.bar(list(range(365)), all_day_counts)
+    # ax = plt.gca()
+    # ax.axvspan(355, 364, alpha=0.2)
+    # plt.show()
 
     return record
 
