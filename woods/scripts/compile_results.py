@@ -85,7 +85,7 @@ if __name__ == "__main__":
         # Perform model selection onto the checkpoints from results
         for dataset_name, dataset_dict in records.items():
 
-            model_selection_methods = datasets.get_model_selection(dataset_name)
+            model_selection_methods = model_selection.get_model_selection(dataset_name)
 
             for ms_method in model_selection_methods:
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                             if env_id not in objective_dict.keys():
                                 obj_results.append(" X ")
                             else:
-                                val_acc, val_var, test_acc, test_var = model_selection.choose_model_domain_generalization(objective_dict[env_id], ms_method)
+                                val_acc, val_var, test_acc, test_var, _ = model_selection.choose_model_domain_generalization(objective_dict[env_id], ms_method)
                                 acc_arr.append(test_acc*100)
 
                                 if flags.latex:
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
                         for env_id in sweep_envs:
                             # If the environment wasn't part of the sweep, that's fine, we just can't report those results
-                            avg_performance, avg_performance_var, worse_performance, worse_performance_var = model_selection.choose_model_subpopulation(objective_dict[env_id], ms_method, domain_weights)
+                            avg_performance, avg_performance_var, worse_performance, worse_performance_var, _ = model_selection.choose_model_subpopulation(objective_dict[env_id], ms_method, domain_weights)
 
                             if flags.latex:
                                 obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=avg_performance, var=avg_performance_var))

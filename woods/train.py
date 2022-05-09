@@ -110,32 +110,50 @@ def get_accuracies(objective, dataset, device):
     # Get loaders and their names
     val_names, val_loaders = dataset.get_val_loaders()
 
-    ## Get test accuracy and loss
-    record = {}
-    for name, loader in zip(val_names, val_loaders):
+    # ## Get test accuracy and loss
+    # record = {}
+    # for name, loader in zip(val_names, val_loaders):
 
-        if dataset.TASK == 'classification':
+    #     if dataset.TASK == 'classification':
+
+    #         if dataset.SETUP == 'source':
+    #             accuracy, loss = get_split_accuracy_source(objective, dataset, loader, device)
             
-            if dataset.SETUP == 'source':
-                accuracy, loss = get_split_accuracy_source(objective, dataset, loader, device)
-            
-                record.update({ name+'_acc': accuracy,
-                                name+'_loss': loss})
+    #             record.update({ name+'_acc': accuracy,
+    #                             name+'_loss': loss})
 
-            elif dataset.SETUP == 'time':
-                accuracies, losses = get_split_accuracy_time(objective, dataset, loader, device)
+    #         elif dataset.SETUP == 'time':
+    #             accuracies, losses = get_split_accuracy_time(objective, dataset, loader, device)
 
-                for i, e in enumerate(name):
-                    record.update({ e+'_acc': accuracies[i],
-                                    e+'_loss': losses[i]})
+    #             for i, e in enumerate(name):
+    #                 record.update({ e+'_acc': accuracies[i],
+    #                                 e+'_loss': losses[i]})
 
-        elif dataset.TASK == 'forecasting':
+    #     elif dataset.TASK == 'forecasting':
 
-            if dataset.SETUP == 'subpopulation':
-                error, loss = get_split_errors(objective, name, dataset, loader, device)
+    #         if dataset.SETUP == 'subpopulation':
+    #             error, loss = get_split_errors(objective, name, dataset, loader, device)
 
-                record.update({ name+'_rmse': error,
-                                name+'_loss': loss})
+    #             record.update({ name+'_rmse': error,
+    #                             name+'_loss': loss})
+                
+
+    all_day_losses = np.zeros(365)
+    all_day_counts = np.zeros(365)
+    for name, loader in zip(
+        [val_names[1], val_names[4]], 
+        [val_loaders[1], val_loaders[4]]
+    ):
+        errors, counts = get_split_errors_alt(objective, name, dataset, loader, device)
+        all_day_losses += errors
+        all_day_counts += counts
+    
+    plt.figure()
+    plt.bar(list(range(365)), all_day_losses/all_day_counts)
+    plt.bar(list(range(365)), all_day_counts)
+    ax = plt.gca()
+    ax.axvspan(355, 364, alpha=0.2)
+    plt.show()
 
     return record
 
@@ -217,7 +235,7 @@ def get_split_errors(objective, name, dataset, loader, device):
     losses = 0
     errors = 0
     nb_items = 0
-    MSE = nn.MSELoss()
+    MSE = nn.MSELoss(reduction='none')
     with torch.no_grad():
 
         for b, batch in enumerate(loader):
@@ -231,13 +249,10 @@ def get_split_errors(objective, name, dataset, loader, device):
 
             # Get errors
             out = objective.model.inference(X)
-            # if name == 'Holidays_test':
-            #     for i in range(out.shape[0]):
-            #         print(i)
-            #         plot_forecast(i, {k: X[k].cpu() for k in X}, out.cpu())
-                # plot_forecast(-1, {k: X[k].cpu() for k in X}, out.cpu())
             out_avg = torch.mean(out, dim=1)
-            errors += torch.sqrt(MSE(out_avg, Y)).item() * Y.shape[0]
+
+            mse = MSE(out_avg, Y)
+            errors += torch.sqrt(mse.mean(dim=-1)).sum().item()
 
             # Count
             nb_items += Y.shape[0]
@@ -246,6 +261,52 @@ def get_split_errors(objective, name, dataset, loader, device):
         avg_loss = losses / nb_items
 
     return avg_error, avg_loss
+
+def get_split_errors_alt(objective, name, dataset, loader, device):
+    """ Get error and loss for a dataset that is of the `source` setup
+
+    Args:
+        objective: objective we are using for training
+        dataset: dataset object we are training on
+        loader: data loader of which we want the accuracy
+        device: device on which we are training
+    """
+
+    losses = 0
+    errors = 0
+    nb_items = 0
+    MSE = nn.MSELoss(reduction='none')
+    day_mse = np.zeros(365)
+    day_count = np.zeros(365)
+    with torch.no_grad():
+
+        for b, batch in enumerate(loader):
+
+            X, Y = dataset.split_input(batch)
+
+            # Get loss
+            out, _ = objective.predict(X)
+            loss = dataset.loss(out, Y)
+            losses += torch.mean(loss).item()
+
+            # Get errors
+            out = objective.model.inference(X)
+            out_avg = torch.mean(out, dim=1)
+
+            mse = MSE(out_avg, Y)
+            
+            years = get_year(batch['future_time_feat'][0,:,-1])
+            days = [int(np.around(get_day_of_year(batch['future_time_feat'][k,0,-2]).item()))-1 for k in range(out.shape[0]) if (int(np.around(get_day_of_year(batch['future_time_feat'][k,0,-2]).item()))-1) < 365 ]
+            for i in range(len(days)):
+                day_mse[days[i]] += np.sqrt(mse[i,:].mean().item())
+                day_count[days[i]] += 1
+
+            errors += torch.sqrt(mse.mean(dim=-1)).sum().item()
+
+            # Count
+            nb_items += Y.shape[0]
+
+    return day_mse, day_count
 
 import matplotlib.pyplot as plt
 import datetime

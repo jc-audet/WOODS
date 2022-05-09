@@ -6,6 +6,23 @@ import numpy as np
 from woods import datasets
 from woods import utils
 
+def get_model_selection(dataset_name):
+    """ Returns the model selection for a dataset
+
+    Args:
+        dataset_name (str): Name of the dataset
+
+    Returns:
+        list: list of model selection name 
+    """
+
+    if dataset_name in [ 'Spurious_Fourier', "TCMNIST_Source", "TCMNIST_Time"]:
+        return ['train_domain_validation', 'test_domain_validation']
+    if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR']:
+        return ['train_domain_validation', 'oracle_train_domain_validation']
+    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced']:
+        return ['average_validation', 'weighted_average_validation', 'worse_domain_validation']
+
 def ensure_dict_path(dict, key):
     """Ensure that a path of a nested dictionnary exists. 
     
@@ -93,6 +110,7 @@ def choose_model_domain_generalization(records, selection_method):
 
     val_acc_arr = []
     test_acc_arr = []
+    best_seeds = []
     for t_seed, t_dict in records.items():
         val_acc_dict = {}
         test_acc_dict = {}
@@ -107,10 +125,15 @@ def choose_model_domain_generalization(records, selection_method):
 
         val_acc_arr.append(val_acc_dict[best_seed])
         test_acc_arr.append(test_acc_dict[best_seed])
+        best_seeds.append((t_seed, best_seed))
 
-    print(val_acc_arr, test_acc_arr)
-
-    return np.mean(val_acc_arr, axis=0), np.std(val_acc_arr, axis=0) / np.sqrt(len(val_acc_arr)), np.mean(test_acc_arr, axis=0), np.std(test_acc_arr, axis=0) / np.sqrt(len(test_acc_arr))
+    return (
+        np.mean(val_acc_arr, axis=0),
+        np.std(val_acc_arr, axis=0) / np.sqrt(len(val_acc_arr)),
+        np.mean(test_acc_arr, axis=0),
+        np.std(test_acc_arr, axis=0) / np.sqrt(len(test_acc_arr)),
+        best_seeds
+    )
 
 
 def IID_validation(records):
@@ -294,6 +317,7 @@ def choose_model_subpopulation(records, selection_method, weights=None):
 
     chosen_avg_performance = []
     chosen_worse_performance = []
+    chosen_seeds = []
     for t_seed, t_dict in records.items():
         val_acc_dict = {}
         avg_test_acc_dict = {}
@@ -310,12 +334,16 @@ def choose_model_subpopulation(records, selection_method, weights=None):
 
         chosen_avg_performance.append(avg_test_acc_dict[best_seed])
         chosen_worse_performance.append(worse_test_acc_dict[best_seed])
+        chosen_seeds.append((t_seed, best_seed))
+
+    print(chosen_seeds)
 
     return (
         np.mean(chosen_avg_performance),
         np.std(chosen_avg_performance) / np.sqrt(len(chosen_avg_performance)),
         np.mean(chosen_worse_performance),
-        np.std(chosen_worse_performance) / np.sqrt(len(chosen_worse_performance))
+        np.std(chosen_worse_performance) / np.sqrt(len(chosen_worse_performance)),
+        chosen_seeds
     )
 
 
