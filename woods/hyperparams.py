@@ -299,7 +299,7 @@ def AusElectricityMonthly_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 1
+            'batch_size': lambda r: 10
         }
 
 def AusElectricityMonthlyBalanced_train(sample):
@@ -320,7 +320,7 @@ def AusElectricityMonthlyBalanced_train(sample):
             'class_balance': lambda r: True,
             'weight_decay': lambda r: 0,
             'lr': lambda r: 10**-4,
-            'batch_size': lambda r: 1
+            'batch_size': lambda r: 10
         }
 
 def get_model_hparams(dataset_name):

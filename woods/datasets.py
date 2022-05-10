@@ -3130,7 +3130,7 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
                 domain=e,
                 training_hparams=training_hparams,
                 shuffle_buffer_length=0,
-                num_workers=self.N_WORKERS
+                num_workers=0
             )
             self.train_names.append(e+"_train")
             self.train_loaders.append(training_dataloader)
