@@ -57,7 +57,6 @@ def train(flags, training_hparams, model, objective, dataset, device):
     for step in range(1, dataset.N_STEPS + 1):
 
         ## Make training step and report accuracies and losses
-        print("trainin")
         step_start = time.time()
         objective.update()
         step_times.append(time.time() - step_start)

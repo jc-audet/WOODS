@@ -3134,7 +3134,6 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
             )
             self.train_names.append(e+"_train")
             self.train_loaders.append(training_dataloader)
-            print(e)
 
             training_evaluation_dataloader = self.create_evaluation_data_loader(
                 train_transformed,
@@ -3337,9 +3336,9 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
     def get_next_batch(self):
 
         batch = next(self.train_loaders_iter)
-        # batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
+        batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
 
-        return batch[0]
+        return batch
 
     def split_input(self, batch):
 
