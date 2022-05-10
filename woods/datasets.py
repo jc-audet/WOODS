@@ -1804,6 +1804,93 @@ class evaluation_domain_sampler(InstanceSampler):
 
         return in_range_idx + a
 
+
+class monthly_training_domain_sampler(InstanceSampler):
+
+    axis: int = -1
+    min_past: int = 0
+    min_future: int = 0
+
+    domain_idx: list = []
+    month_idx: dict = {
+        'January': 1,
+        'February': 2,
+        'March': 3,
+        'April': 4,
+        'May': 5,
+        'June': 6,
+        'July': 7,
+        'August': 8,
+        'September': 9,
+        'October': 10,
+        'November': 11,
+        'December': 12
+    }
+
+    num_instances: float
+    total_length: int = 0
+    n: int = 0
+
+    def set_attribute(self, domain, set_holidays, start, max_length=0):
+        
+        min_increment = datetime.timedelta(minutes=30)
+        day_increment = datetime.timedelta(days=1)
+        running_time = start
+
+        if domain == 'All':
+            holidays_idx = []
+            for idx in range(max_length):
+                running_time += min_increment
+                holidays_idx.append(idx)
+
+            self.domain_idx = holidays_idx
+
+        if domain == 'Holidays':
+            holidays_idx = []
+            for idx in range(max_length):
+                running_time += min_increment
+                if running_time in set_holidays:# or running_time + day_increment in set_holidays:
+                    holidays_idx.append(idx)
+
+            self.domain_idx = holidays_idx
+        
+        if domain != 'Holidays':
+            month_ID = self.month_idx[domain]
+            non_holidays_idx = []
+            for idx in range(max_length):
+                running_time += min_increment
+                if running_time not in set_holidays and running_time.month == month_ID:
+                    non_holidays_idx.append(idx)
+
+            self.domain_idx = non_holidays_idx
+
+    def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
+        return (
+            self.min_past,
+            ts.shape[self.axis] - self.min_future,
+        )
+
+    def __call__(self, ts: np.ndarray) -> np.ndarray:
+        a, b = self._get_bounds(ts)
+        in_range_idx = np.array(self.domain_idx)
+        in_range_idx = in_range_idx[in_range_idx > a]
+        in_range_idx = in_range_idx[in_range_idx < b]
+        window_size = len(in_range_idx)
+
+        if window_size <= 0:
+            return np.array([], dtype=int)
+
+        self.n += 1
+        self.total_length += window_size
+        avg_length = self.total_length / self.n
+
+        if avg_length <= 0:
+            return np.array([], dtype=int)
+
+        p = self.num_instances / avg_length
+        (indices,) = np.where(np.random.random_sample(window_size) < p)
+        return in_range_idx[indices] + a
+
 class monthly_evaluation_domain_sampler(InstanceSampler):
 
     axis: int = -1
@@ -3130,7 +3217,7 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
                 domain=e,
                 training_hparams=training_hparams,
                 shuffle_buffer_length=0,
-                num_workers=0
+                num_workers=self.N_WORKERS
             )
             self.train_names.append(e+"_train")
             self.train_loaders.append(training_dataloader)
@@ -3265,7 +3352,7 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
         **kwargs,
     ) -> Iterable:
 
-        instance_sampler = training_domain_sampler(
+        instance_sampler = monthly_training_domain_sampler(
             min_future=self.PRED_LENGTH, 
             num_instances=1.0
         )
