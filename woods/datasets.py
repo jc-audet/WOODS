@@ -43,6 +43,7 @@ DATASETS = [
     "AusElectricity",
     "AusElectricityUnbalanced",
     "AusElectricityMonthly",
+    "AusElectricityMonthlyBalanced",
 ]
 
 def get_dataset_class(dataset_name):
