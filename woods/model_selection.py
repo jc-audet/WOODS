@@ -20,7 +20,7 @@ def get_model_selection(dataset_name):
         return ['train_domain_validation', 'test_domain_validation']
     if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR']:
         return ['train_domain_validation', 'oracle_train_domain_validation']
-    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced']:
+    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced', 'AusElectricityMonthly']:
         return ['average_validation', 'weighted_average_validation', 'worse_domain_validation']
 
 def ensure_dict_path(dict, key):
@@ -336,7 +336,7 @@ def choose_model_subpopulation(records, selection_method, weights=None):
         chosen_worse_performance.append(worse_test_acc_dict[best_seed])
         chosen_seeds.append((t_seed, best_seed))
 
-    print(chosen_seeds)
+    print(chosen_seeds, chosen_avg_performance, chosen_worse_performance)
 
     return (
         np.mean(chosen_avg_performance),
