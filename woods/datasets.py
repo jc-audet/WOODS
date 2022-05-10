@@ -1772,11 +1772,88 @@ class evaluation_domain_sampler(InstanceSampler):
 
             self.domain_idx = holidays_idx
         
-        if domain == 'NonHolidays': # Pick only the month of July (no holidays, pretty standard month)
+        if domain == 'NonHolidays':
             non_holidays_idx = []
             for idx in range(int(max_length / 48)):
                 running_time += day_increment
                 if running_time not in set_holidays:# and running_time.month == 7:# and running_time + day_increment not in set_holidays :
+                    non_holidays_idx.append(idx * 48)
+
+            self.domain_idx = non_holidays_idx
+
+        self.domain_idx = np.array(self.domain_idx)
+        self.domain_idx = self.domain_idx[self.domain_idx >= self.start_idx]
+        self.domain_idx = self.domain_idx[self.domain_idx < self.last_idx]
+
+    def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
+        return (
+            self.min_past,
+            ts.shape[self.axis] - self.min_future,
+        )
+
+    def __call__(self, ts: np.ndarray) -> np.ndarray:
+        a, b = self._get_bounds(ts)
+        in_range_idx = self.domain_idx
+        in_range_idx = in_range_idx[in_range_idx > a]
+        in_range_idx = in_range_idx[in_range_idx <= b]
+        window_size = len(in_range_idx)
+
+        if window_size <= 0:
+            return np.array([], dtype=int)
+
+        return in_range_idx + a
+
+class monthly_evaluation_domain_sampler(InstanceSampler):
+
+    axis: int = -1
+    min_past: int = 0
+    min_future: int = 0
+
+    domain_idx: list = []
+    
+    num_instances: float
+    total_length: int = 0
+    n: int = 0
+
+    start_idx: int
+    last_idx: int # This is excluded
+
+    month_idx: dict = {
+        'January': 1,
+        'February': 2,
+        'March': 3,
+        'April': 4,
+        'May': 5,
+        'June': 6,
+        'July': 7,
+        'August': 8,
+        'September': 9,
+        'October': 10,
+        'November': 11,
+        'December': 12
+    }
+
+    def set_attribute(self, domain, set_holidays, start, max_length=0):
+        
+        min_increment = datetime.timedelta(minutes=30)
+        day_increment = datetime.timedelta(days=1)
+        running_time = start
+
+        if domain == 'Holidays':
+            holidays_idx = []
+            for idx in range(int(max_length / 48)):
+                running_time += day_increment
+                if running_time in set_holidays:# or running_time + day_increment in set_holidays:
+                    holidays_idx.append(idx * 48)
+
+            self.domain_idx = holidays_idx
+        
+        if domain != 'Holidays':
+            domain_idx = self.month_idx[domain]
+            non_holidays_idx = []
+            for idx in range(int(max_length / 48)):
+                running_time += day_increment
+                if running_time not in set_holidays and running_time.month == domain_idx:
                     non_holidays_idx.append(idx * 48)
 
             self.domain_idx = non_holidays_idx
@@ -2560,8 +2637,8 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
     PRED_LENGTH = 48
 
     ## Environment parameters
-    # ENVS = ['Holidays', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    ENVS = ['Holidays', 'NonHolidays']
+    ENVS = ['Holidays', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    # ENVS = ['Holidays', 'NonHolidays']
     SWEEP_ENVS = [-1] # This is a subpopulation shift problem
     ENVS_WEIGHTS = [11./365, 354./365.]
 
@@ -2584,8 +2661,8 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        # self.set_holidays = holidays.country_holidays('AU')
-        self.set_holidays = ChristmasHolidays()
+        self.set_holidays = holidays.country_holidays('AU')
+        # self.set_holidays = ChristmasHolidays()
         # self.set_holidays = DummyHolidays()
 
         # Data property
@@ -2614,18 +2691,19 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        train_first_idx = 157776 # Only for evaluation
-        train_last_idx = 175296
-        val_first_idx = train_last_idx
-        val_last_idx = 192864
-        test_first_idx = val_last_idx
-        test_last_idx = 210384
-        # train_first_idx = 175296 # Only for evaluation
-        # train_last_idx = 192864
+        time_pt_per_year = 365 * 24 * 2
+        # train_first_idx = 157776 # Only for evaluation
+        # train_last_idx = 175296
         # val_first_idx = train_last_idx
-        # val_last_idx = 210384
+        # val_last_idx = 192864
         # test_first_idx = val_last_idx
-        # test_last_idx = 227904
+        # test_last_idx = 210384
+        train_first_idx = 175296 # Only for evaluation
+        train_last_idx = 192864
+        val_first_idx = train_last_idx
+        val_last_idx = 210384
+        test_first_idx = val_last_idx
+        test_last_idx = 227904
 
         # Create ListDatasets
         train_dataset = ListDataset(
@@ -2673,18 +2751,31 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
 
         ## Create tensor dataset and dataloader
         self.train_names, self.train_loaders = [], []
+
+        ## Create tensor dataset and dataloader
+        self.train_names, self.train_loaders = [], []
+        training_dataloader = self.create_training_data_loader(
+            train_transformed,
+            domain='All',
+            training_hparams=training_hparams,
+            shuffle_buffer_length=0,
+            num_workers=self.N_WORKERS
+        )
+        self.train_names.append("All_train")
+        self.train_loaders.append(training_dataloader)
+
         self.val_names, self.val_loaders = [], []
         for j, e in enumerate(self.ENVS):
 
-            training_dataloader = self.create_training_data_loader(
-                train_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                shuffle_buffer_length=0,
-                num_workers=self.N_WORKERS
-            )
-            self.train_names.append(e+"_train")
-            self.train_loaders.append(training_dataloader)
+            # training_dataloader = self.create_training_data_loader(
+            #     train_transformed,
+            #     domain=e,
+            #     training_hparams=training_hparams,
+            #     shuffle_buffer_length=0,
+            #     num_workers=self.N_WORKERS
+            # )
+            # self.train_names.append(e+"_train")
+            # self.train_loaders.append(training_dataloader)
 
             training_evaluation_dataloader = self.create_evaluation_data_loader(
                 train_transformed,
@@ -2858,7 +2949,7 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
         **kwargs,
     ) -> Iterable:
 
-        instance_sampler = evaluation_domain_sampler(
+        instance_sampler = monthly_evaluation_domain_sampler(
             min_future=self.PRED_LENGTH, 
             num_instances=1.0,
             start_idx=start_idx,
@@ -2887,9 +2978,9 @@ class AusElectricityMonthly(Multi_Domain_Dataset):
     def get_next_batch(self):
 
         batch = next(self.train_loaders_iter)
-        batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
+        # batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
 
-        return batch
+        return batch[0]
 
     def split_input(self, batch):
 
