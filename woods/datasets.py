@@ -3414,7 +3414,7 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
     def get_next_batch(self):
 
         batch = next(self.train_loaders_iter)
-        batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
+        batch = {k: torch.cat((batch[b][k] for b in range(len(batch))), dim=0) for k in batch[0]}
 
         return batch
 
