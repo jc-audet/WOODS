@@ -20,7 +20,7 @@ def get_model_selection(dataset_name):
         return ['train_domain_validation', 'test_domain_validation']
     if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR']:
         return ['train_domain_validation', 'oracle_train_domain_validation']
-    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced', 'AusElectricityMonthly']:
+    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced', 'AusElectricityMonthly', 'AusElectricityMonthlyBalanced']:
         return ['average_validation', 'weighted_average_validation', 'worse_domain_validation']
 
 def ensure_dict_path(dict, key):

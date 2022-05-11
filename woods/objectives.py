@@ -102,7 +102,7 @@ class GroupDRO(ERM):
     """
 
     def __init__(self, model, dataset, optimizer, hparams):
-        super(GroupDRO, self).__init__(hparams)
+        super(GroupDRO, self).__init__(model, dataset, optimizer, hparams)
 
         # Save hparams
         self.device = self.hparams['device']
@@ -126,7 +126,7 @@ class GroupDRO(ERM):
         env_batches = self.dataset.get_next_batch()
 
         if not len(self.q):
-            self.q = torch.ones(len(env_batches)).to(device)
+            self.q = torch.ones(len(env_batches)).to(self.device)
 
         # Split input / target
         X, Y = self.dataset.split_input(env_batches)
@@ -137,13 +137,15 @@ class GroupDRO(ERM):
         # Compute losses
         batch_losses = self.dataset.loss(out, Y)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+        env_losses = env_losses.mean(dim=[1,2])
 
         # Update weights
         for env_i in range(env_losses.shape[0]):
-            self.q[env_i] *= (self.eta * env_losses[env_i])
-        
+            self.q[env_i] *= (self.eta * env_losses[env_i,...].data).exp()
+        self.q /= self.q.sum()
+
         # Compute objective
-        objective = batch_losses.mean()
+        objective = torch.dot(env_losses, self.q)
 
         # Back propagate
         self.optimizer.zero_grad()

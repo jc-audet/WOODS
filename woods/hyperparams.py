@@ -532,6 +532,21 @@ def ERM_hyper(sample):
     """
     return {}
 
+def GroupDRO_hyper(sample):
+    """ IRM objective hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'eta': lambda r: 10**r.uniform(-3,-1),
+        }
+    else:
+        return {
+            'eta': lambda r: 1e-2,
+        }
+
 def IRM_hyper(sample):
     """ IRM objective hparam definition 
     
