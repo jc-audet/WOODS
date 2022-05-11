@@ -124,9 +124,10 @@ class GroupDRO(ERM):
 
         # Get next batch
         env_batches = self.dataset.get_next_batch()
+        nb_domains = len(self.dataset.train_names)
 
         if not len(self.q):
-            self.q = torch.ones(len(env_batches)).to(self.device)
+            self.q = torch.ones(nb_domains).to(self.device)
 
         # Split input / target
         X, Y = self.dataset.split_input(env_batches)
@@ -136,7 +137,7 @@ class GroupDRO(ERM):
 
         # Compute losses
         batch_losses = self.dataset.loss(out, Y)
-        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+        env_losses = self.dataset.split_tensor_by_domains(nb_domains, batch_losses)
         env_losses = env_losses.mean(dim=[1,2])
 
         # Update weights
