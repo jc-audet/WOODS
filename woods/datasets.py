@@ -391,7 +391,7 @@ class Multi_Domain_Dataset:
             Tensor: The reshaped output (n_domains, batch, ...)
         """
         tensor_shape = tensor.shape
-        return torch.reshape(tensor, (n_domains, self.batch_size, *tensor_shape[1:]))
+        return torch.reshape(tensor, (n_domains, tensor_shape[0]//n_domains, *tensor_shape[1:]))
 
     def get_number_of_batches(self):
         return np.sum([len(train_l) for train_l in self.train_loaders])
