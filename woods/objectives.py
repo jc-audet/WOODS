@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 OBJECTIVES = [
     'ERM',
+    'GroupDRO',
     'IRM',
     'VREx',
     'SD',
@@ -86,6 +87,60 @@ class ERM(Objective):
 
         # Compute losses
         batch_losses = self.dataset.loss(out, Y)
+        
+        # Compute objective
+        objective = batch_losses.mean()
+
+        # Back propagate
+        self.optimizer.zero_grad()
+        objective.backward()
+        self.optimizer.step()
+
+class GroupDRO(ERM):
+    """
+    GroupDRO
+    """
+
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(GroupDRO, self).__init__(hparams)
+
+        # Save hparams
+        self.device = self.hparams['device']
+        self.eta = hparams['eta']
+        self.register_buffer("q", torch.Tensor())
+
+        # Save training components
+        self.model = model
+        self.dataset = dataset
+        self.optimizer = optimizer
+
+    def predict(self, all_x):
+        return self.model(all_x)
+
+    def update(self):
+
+        # Put model into training mode
+        self.model.train()
+
+        # Get next batch
+        env_batches = self.dataset.get_next_batch()
+
+        if not len(self.q):
+            self.q = torch.ones(len(env_batches)).to(device)
+
+        # Split input / target
+        X, Y = self.dataset.split_input(env_batches)
+
+        # Get predict and get (logit, features)
+        out, _ = self.predict(X)
+
+        # Compute losses
+        batch_losses = self.dataset.loss(out, Y)
+        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+
+        # Update weights
+        for env_i in range(env_losses.shape[0]):
+            self.q[env_i] *= (self.eta * env_losses[env_i])
         
         # Compute objective
         objective = batch_losses.mean()

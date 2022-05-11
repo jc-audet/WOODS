@@ -3199,16 +3199,6 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
 
         ## Create tensor dataset and dataloader
         self.train_names, self.train_loaders = [], []
-        # training_dataloader = self.create_training_data_loader(
-        #     train_transformed,
-        #     domain='All',
-        #     training_hparams=training_hparams,
-        #     shuffle_buffer_length=0,
-        #     num_workers=self.N_WORKERS
-        # )
-        # self.train_names.append("All_train")
-        # self.train_loaders.append(training_dataloader)
-
         self.val_names, self.val_loaders = [], []
         for j, e in enumerate(self.ENVS):
 
