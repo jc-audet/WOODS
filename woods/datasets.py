@@ -1468,7 +1468,6 @@ class LSA64(Multi_Domain_Dataset):
         self.val_names, self.val_loaders = [], []
         self.train_names, self.train_loaders = [], []
         for j, e in enumerate(self.ENVS):
-            datasets = []
 
             env_paths = []
             for speaker in e.split('-'):
@@ -3423,3 +3422,133 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
 
     def loss(self, X, Y):
         return self.loss_fn(X,Y)
+
+from torch.nn.utils.rnn import pad_sequence
+
+class IEMOCAPDataset(Dataset):
+
+    def __init__(self, path, split=None, domain=None):
+        allvideoIDs, allvideoSpeakers, allvideoLabels, allvideoText,\
+        allvideoAudio, allvideoVisual, allvideoSentence, alltrainVid,\
+        allvalidVid, alltestVid = pickle.load(open(path, 'rb'), encoding='latin1')
+        '''
+        label index mapping = {'hap':0, 'sad':1, 'neu':2, 'ang':3, 'exc':4, 'fru':5}
+        '''
+        if split == "train":
+            self.keys = alltrainVid
+        elif split =='valid':
+            self.keys = allvalidVid
+        elif split == 'test':
+            self.keys = alltestVid
+
+        self.videoSpeakers, self.videoLabels, self.videoText, self.videoAudio, self.videoVisual = {}, {}, {}, {}, {}
+        for k in self.keys:
+            self.videoSpeakers[k] = torch.FloatTensor(np.array([[1,0] if x=='M' else [0,1] for x in allvideoSpeakers[k]]))
+            self.videoLabels[k] = torch.LongTensor(allvideoLabels[k])
+            self.videoText[k] = torch.FloatTensor(np.array(allvideoText[k]))
+            self.videoVisual[k] = torch.FloatTensor(np.array(allvideoVisual[k]))
+            self.videoAudio[k] = torch.FloatTensor(np.array(allvideoAudio[k]))
+
+        if domain is not None:
+            # Create list of video which have at least one of the domain sample
+            raise NotImplementedError()
+
+        self.len = len(self.keys)
+
+    def __getitem__(self, index):
+        vid = self.keys[index]
+        return self.videoText[vid],\
+               self.videoVisual[vid],\
+               self.videoAudio[vid],\
+               self.videoSpeakers[vid],\
+               torch.ones_like(self.videoLabels[vid]),\
+               self.videoLabels[vid],\
+               vid
+
+    def __len__(self):
+        return self.len
+
+    def collate_fn(self, data):
+        dat = pd.DataFrame(data)
+        return [pad_sequence(dat[i]) if i<4 else pad_sequence(dat[i], True) if i<6 else dat[i].tolist() for i in dat]
+
+class IEMOCAPUnbalanced(Multi_Domain_Dataset):
+    """ IEMOCAP
+    """
+    ## Training parameters
+    N_STEPS = 5001
+    CHECKPOINT_FREQ = 100
+
+    ## Dataset parameters
+    SETUP = 'time'
+    TASK = 'classification'
+    #:int: number of frames in each video
+    INPUT_SHAPE = None
+    OUTPUT_SIZE = 6
+    #:str: path to the folder containing the data
+    DATA_PATH = 'IEMOCAP/IEMOCAP_features_raw_OOD.pkl'
+
+    ## Environment parameters
+    ENVS = []
+    SWEEP_ENVS = [-1]
+
+    def __init__(self, flags, training_hparams):
+        super().__init__()
+
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        ## Save stuff
+        self.device = training_hparams['device']
+        self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
+
+        ## Prepare the data (Download if needed)
+        ## Reminder to do later
+
+        ## Create tensor dataset and dataloader
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
+
+        # Make training dataset/loader and append it to training containers
+        train_dataset = IEMOCAPDataset(flags.data_path, split='train')
+        train_loader = InfiniteLoader(train_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
+        self.train_names.append('All_train')
+        self.train_loaders.append(train_loader)
+
+        # Make validation loaders
+        fast_train_dataset = IEMOCAPDataset(flags.data_path, split='train')
+        fast_train_loader = torch.utils.data.DataLoader(fast_train_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+        self.val_names.append('All_train')
+        self.val_loaders.append(fast_train_loader)
+        fast_val_dataset = IEMOCAPDataset(flags.data_path, split='valid')
+        fast_val_loader = torch.utils.data.DataLoader(fast_val_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+        self.val_names.append('All_val')
+        self.val_loaders.append(fast_val_loader)
+        fast_test_dataset = IEMOCAPDataset(flags.data_path, split='test')
+        fast_test_loader = torch.utils.data.DataLoader(fast_test_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+        self.val_names.append('All_test')
+        self.val_loaders.append(fast_test_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
+
+    def get_next_batch(self):
+
+        batch = next(self.train_loaders_iter)
+        print(len(batch))
+        print(batch[0].shape)
+        batch = (torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in batch[0])
+        print(len(batch))
+        print(batch[0].shape)
+
+        return batch
+
+    def split_input(self, batch):
+
+        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
