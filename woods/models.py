@@ -6,6 +6,8 @@ import copy
 import torch
 from torch import nn
 from torchvision import models
+import torch.nn.functional as F
+from torch.nn.utils.rnn import pad_sequence
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1111,26 +1113,30 @@ class DialogueRNN(nn.Module):
         
 class BiModel(nn.Module):
 
-    def __init__(self, D_m, D_g, D_p, D_e, D_h,
-                 n_classes=7, listener_state=False, context_attention='simple', D_a=100, dropout_rec=0.5,
-                 dropout=0.5):
+    def __init__(self, dataset, model_hparams, input_size=None) -> None:
+    # def __init__(self, D_m, D_g, D_p, D_e, D_h,
+    #              n_classes=7, listener_state=False, context_attention='simple', D_a=100, dropout_rec=0.5,
+    #              dropout=0.5):
         super(BiModel, self).__init__()
 
-        self.D_m       = D_m
-        self.D_g       = D_g
-        self.D_p       = D_p
-        self.D_e       = D_e
-        self.D_h       = D_h
-        self.n_classes = n_classes
-        self.dropout   = nn.Dropout(dropout)
-        self.dropout_rec = nn.Dropout(dropout+0.15)
-        self.dialog_rnn_f = DialogueRNN(D_m, D_g, D_p, D_e,listener_state,
-                                    context_attention, D_a, dropout_rec)
-        self.dialog_rnn_r = DialogueRNN(D_m, D_g, D_p, D_e,listener_state,
-                                    context_attention, D_a, dropout_rec)
-        self.linear     = nn.Linear(2*D_e, 2*D_h)
-        self.smax_fc    = nn.Linear(2*D_h, n_classes)
-        self.matchatt = MatchingAttention(2*D_e,2*D_e,att_type='general2')
+        self.att2 = True
+
+        self.D_m       = model_hparams['D_m']
+        self.D_g       = model_hparams['D_g']
+        self.D_p       = model_hparams['D_p']
+        self.D_e       = model_hparams['D_e']
+        self.D_h       = model_hparams['D_h']
+        self.D_a       = model_hparams['D_a']
+        self.n_classes = dataset.OUTPUT_SIZE
+        self.dropout   = nn.Dropout(model_hparams['dropout'])
+        self.dropout_rec = nn.Dropout(model_hparams['dropout']+0.15)
+        self.dialog_rnn_f = DialogueRNN(self.D_m, self.D_g, self.D_p, self.D_e, model_hparams['active_listener'],
+                                    model_hparams['context_attention'], self.D_a, model_hparams['dropout_rec'])
+        self.dialog_rnn_r = DialogueRNN(self.D_m, self.D_g, self.D_p, self.D_e, model_hparams['active_listener'],
+                                    model_hparams['context_attention'], self.D_a, model_hparams['dropout_rec'])
+        self.linear     = nn.Linear(2*self.D_e, 2*self.D_h)
+        self.smax_fc    = nn.Linear(2*self.D_h, self.n_classes)
+        self.matchatt = MatchingAttention(2*self.D_e, 2*self.D_e, att_type='general2')
 
     def _reverse_seq(self, X, mask):
         """
@@ -1147,12 +1153,15 @@ class BiModel(nn.Module):
 
         return pad_sequence(xfs)
 
-
-    def forward(self, U, qmask, umask,att2=True):
+    def forward(self, input):
+    # def forward(self, U, qmask, umask,att2=True):
         """
         U -> seq_len, batch, D_m
         qmask -> seq_len, batch, party
         """
+        text, video, audio, qmask, umask = input
+
+        U = torch.cat((text,video,audio), dim=2)
 
         emotions_f, alpha_f = self.dialog_rnn_f(U, qmask) # seq_len, batch, D_e
         emotions_f = self.dropout_rec(emotions_f)
@@ -1162,7 +1171,8 @@ class BiModel(nn.Module):
         emotions_b = self._reverse_seq(emotions_b, umask)
         emotions_b = self.dropout_rec(emotions_b)
         emotions = torch.cat([emotions_f,emotions_b],dim=-1)
-        if att2:
+
+        if self.att2:
             att_emotions = []
             alpha = []
             for t in emotions:
@@ -1175,8 +1185,11 @@ class BiModel(nn.Module):
             hidden = F.relu(self.linear(emotions))
         #hidden = F.relu(self.linear(emotions))
         hidden = self.dropout(hidden)
+
+        # Need to remove this
         log_prob = F.log_softmax(self.smax_fc(hidden), 2) # seq_len, batch, n_classes
-        if att2:
+        return log_prob, []
+        if self.att2:
             return log_prob, alpha, alpha_f, alpha_b
         else:
             return log_prob, [], alpha_f, alpha_b

@@ -44,6 +44,9 @@ DATASETS = [
     "AusElectricityUnbalanced",
     "AusElectricityMonthly",
     "AusElectricityMonthlyBalanced",
+    ## Emotion recognition
+    "IEMOCAPUnbalanced",
+    "IEMOCAP",
 ]
 
 def get_dataset_class(dataset_name):
@@ -233,9 +236,14 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
 
         batch_sampler = torch.utils.data.BatchSampler(sampler, batch_size, drop_last=True)
 
-        self.infinite_iterator = iter(
-            torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=pin_memory)
-        )
+        if hasattr(self.dataset, 'collate_fn'):
+            self.infinite_iterator = iter(
+                torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=pin_memory, collate_fn=self.dataset.collate_fn)
+            )
+        else:
+            self.infinite_iterator = iter(
+                torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=pin_memory)
+            )
 
     def __iter__(self):
         while True:
@@ -3423,6 +3431,8 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
     def loss(self, X, Y):
         return self.loss_fn(X,Y)
 
+import pickle
+import pandas as pd
 from torch.nn.utils.rnn import pad_sequence
 
 class IEMOCAPDataset(Dataset):
@@ -3462,8 +3472,7 @@ class IEMOCAPDataset(Dataset):
                self.videoAudio[vid],\
                self.videoSpeakers[vid],\
                torch.ones_like(self.videoLabels[vid]),\
-               self.videoLabels[vid],\
-               vid
+               self.videoLabels[vid]
 
     def __len__(self):
         return self.len
@@ -3513,22 +3522,24 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
 
+        full_data_path = os.path.join(flags.data_path, self.DATA_PATH)
+
         # Make training dataset/loader and append it to training containers
-        train_dataset = IEMOCAPDataset(flags.data_path, split='train')
+        train_dataset = IEMOCAPDataset(full_data_path, split='train')
         train_loader = InfiniteLoader(train_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
         self.train_names.append('All_train')
         self.train_loaders.append(train_loader)
 
         # Make validation loaders
-        fast_train_dataset = IEMOCAPDataset(flags.data_path, split='train')
+        fast_train_dataset = IEMOCAPDataset(full_data_path, split='train')
         fast_train_loader = torch.utils.data.DataLoader(fast_train_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
         self.val_names.append('All_train')
         self.val_loaders.append(fast_train_loader)
-        fast_val_dataset = IEMOCAPDataset(flags.data_path, split='valid')
+        fast_val_dataset = IEMOCAPDataset(full_data_path, split='valid')
         fast_val_loader = torch.utils.data.DataLoader(fast_val_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
         self.val_names.append('All_val')
         self.val_loaders.append(fast_val_loader)
-        fast_test_dataset = IEMOCAPDataset(flags.data_path, split='test')
+        fast_test_dataset = IEMOCAPDataset(full_data_path, split='test')
         fast_test_loader = torch.utils.data.DataLoader(fast_test_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
         self.val_names.append('All_test')
         self.val_loaders.append(fast_test_loader)
@@ -3538,17 +3549,30 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
 
+    def get_class_weight(self):
+        """ Compute class weight for class balanced training
+
+        Returns:
+            list: list of weights of length OUTPUT_SIZE
+        """
+        _, train_loaders = self.get_train_loaders()
+
+        n_labels = torch.zeros(self.OUTPUT_SIZE)
+
+        for env_loader in train_loaders:
+            labels = torch.cat(list(env_loader.dataset.videoLabels.values()))
+            for i in range(self.OUTPUT_SIZE):
+                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+
+        weights = n_labels.max() / n_labels
+
+        return weights
+
     def get_next_batch(self):
 
         batch = next(self.train_loaders_iter)
-        print(len(batch))
-        print(batch[0].shape)
-        batch = (torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in batch[0])
-        print(len(batch))
-        print(batch[0].shape)
-
+        batch = [torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in range(len(batch[0]))]
         return batch
 
     def split_input(self, batch):
-
-        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
+        return [input_item.to(self.device) for input_item in batch[:-1]], batch[-1].to(self.device)
