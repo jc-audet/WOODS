@@ -258,3 +258,30 @@ def get_latex_table(table, caption=None, label=None):
     s += r'\end{center}' + '\n'
 
     return s
+
+import torch
+from torch import nn
+
+class MaskedNLLLoss(nn.Module):
+
+    def __init__(self, weight=None, reduction='None'):
+        super(MaskedNLLLoss, self).__init__()
+        self.weight = weight
+        self.loss = nn.NLLLoss(weight=weight,
+                               reduction=reduction)
+
+    def forward(self, pred, target, mask):
+        """
+        pred -> batch, num_classes, seq_len
+        target -> batch, seq_len
+        mask -> batch, seq_len
+        """
+        mask_ = mask.unsqueeze(1) # batch, 1, seq_len
+        print("masked_select: ", torch.masked_select(pred, mask_.bool()).shape)
+        # if type(self.weight)==type(None):
+        loss = self.loss(pred*mask_, target)#/torch.sum(mask)
+        # else:
+        #     loss = self.loss(pred*mask_, target)\
+        #                     /torch.sum(self.weight[target]*mask_.squeeze())
+        print("loss", loss.shape)
+        return loss

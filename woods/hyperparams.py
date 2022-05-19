@@ -514,7 +514,7 @@ def IEMOCAPUnbalanced_model():
     """ IEMOCAP dataset model hparam definition """
     return {
         'model': 'BiModel',
-        'D_m': 712, # Uterance representation (text:100 + video:512 + audio:100)
+        'D_m': 712, # Uterance representation (text: 100 + video: 512 + audio: 100)
         'D_g': 500, # Global state size
         'D_p': 500, # Party state size
         'D_e': 300, # Emotion encoded output size

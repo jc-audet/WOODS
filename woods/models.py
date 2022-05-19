@@ -1188,8 +1188,8 @@ class BiModel(nn.Module):
 
         # Need to remove this
         log_prob = F.log_softmax(self.smax_fc(hidden), 2) # seq_len, batch, n_classes
-        return log_prob, []
-        if self.att2:
-            return log_prob, alpha, alpha_f, alpha_b
-        else:
-            return log_prob, [], alpha_f, alpha_b
+        return log_prob.transpose(0,1), []
+        # if self.att2:
+        #     return log_prob, alpha, alpha_f, alpha_b
+        # else:
+        #     return log_prob, [], alpha_f, alpha_b

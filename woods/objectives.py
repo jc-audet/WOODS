@@ -79,17 +79,17 @@ class ERM(Objective):
         # Get next batch
         minibatches_device = self.dataset.get_next_batch()
 
-        # Split input / target
-        X, Y = self.dataset.split_input(minibatches_device)
+        # Split into input / target / mask (for padded inputs)
+        X, Y, mask = self.dataset.split_input(minibatches_device)
 
         # Get predict and get (logit, features)
-        out, _ = self.predict(X)
+        out, _ = self.predict(X, mask)
 
         # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
+        batch_losses = self.dataset.loss(out, Y, X[-1])
         
         # Compute objective
-        objective = batch_losses.mean()
+        objective = self.dataset.loss_mean(batch_losses, mask)
 
         # Back propagate
         self.optimizer.zero_grad()
@@ -124,7 +124,7 @@ class GroupDRO(ERM):
 
         # Get next batch
         env_batches = self.dataset.get_next_batch()
-        nb_domains = len(self.dataset.train_names)
+        nb_domains = self.dataset.get_nb_training_domains()
 
         if not len(self.q):
             self.q = torch.ones(nb_domains).to(self.device)
@@ -137,12 +137,11 @@ class GroupDRO(ERM):
 
         # Compute losses
         batch_losses = self.dataset.loss(out, Y)
-        env_losses = self.dataset.split_tensor_by_domains(nb_domains, batch_losses)
-        env_losses = env_losses.mean(dim=[1,2])
+        env_losses = self.dataset.get_domain_losses(nb_domains, batch_losses)
 
         # Update weights
-        for env_i in range(env_losses.shape[0]):
-            self.q[env_i] *= (self.eta * env_losses[env_i,...].data).exp()
+        for env_i, env_loss in enumerate(env_losses):
+            self.q[env_i] *= (self.eta * env_loss.data).exp()
         self.q /= self.q.sum()
 
         # Compute objective
@@ -271,13 +270,14 @@ class VREx(ERM):
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
+        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...)
         env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
         env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
         # Compute objective
         mean = env_losses.mean()
+        print(mean.shape, env_losses.shape)
         penalty = ((env_losses - mean) ** 2).mean()
         objective = mean + penalty_weight * penalty
 

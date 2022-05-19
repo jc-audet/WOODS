@@ -201,18 +201,25 @@ def get_split_accuracy_time(objective, dataset, loader, device):
         device: device on which we are training
     """
 
-    pred_time = dataset.PRED_TIME
+    # pred_time = dataset.PRED_TIME
+    domains = dataset.ENVS
 
-    losses = torch.zeros(*pred_time.shape).to(device)
-    nb_correct = torch.zeros(*pred_time.shape).to(device)
-    nb_item = torch.zeros(*pred_time.shape).to(device)
+    # losses = torch.zeros(*pred_time.shape).to(device)
+    # nb_correct = torch.zeros(*pred_time.shape).to(device)
+    # nb_item = torch.zeros(*pred_time.shape).to(device)
+    losses = torch.zeros(len(domains)).to(device)
+    nb_correct = torch.zeros(len(domains)).to(device)
+    nb_item = torch.zeros(len(domains)).to(device)
     with torch.no_grad():
 
-        for b, (data, target) in enumerate(loader):
+        for batch in loader:
 
-            data, target = data.to(device), target.to(device)
+            data, target = dataset.split_input([batch])
+
+            # data, target = data.to(device), target.to(device)
 
             all_out, _ = objective.predict(data)
+            # print(all_out.shape, target.shape)
 
             losses = dataset.loss(all_out, target)
 

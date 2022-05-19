@@ -387,7 +387,30 @@ class Multi_Domain_Dataset:
             torch.cat([x for x,y in input]).to(self.device),
             torch.cat([y for x,y in input]).to(self.device)
         )
-    
+
+    def get_nb_training_domains(self):
+
+        if self.test_env is None:
+            return len(self.ENVS)
+        return len(self.ENVS) - 1
+
+    def loss_mean(self, losses):
+        return losses.mean()
+
+    def get_domain_losses(self, n_domains, losses):
+        """ Average losses by domain for source domains datasets
+
+        Args:
+            n_domains (int): Number of domains in the batch
+            losses (torch.tensor): tensor to be split. Shape (n_domains*batch, 1)
+
+        Returns:
+            Tensor: Averaged losses by domains (n_domains)
+        """
+        
+        reshaped_losses = self.split_tensor_by_domains(n_domains, losses).squeeze()
+        return reshaped_losses.mean(dim=-1)
+
     def split_tensor_by_domains(self, n_domains, tensor):
         """ Group tensor by domain for source domains datasets
 
@@ -968,7 +991,10 @@ class TCMNIST_Time(TCMNIST):
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
         in_split, out_split = get_split(dataset, flags.holdout_fraction, seed=i)
 
-        in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,:-1,...], colored_labels.long()[in_split,:-1,...])
+        if self.test_env is not None:
+            in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,:-1,...], colored_labels.long()[in_split,:-1,...])
+        else:
+            in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,...], colored_labels.long()[in_split,...])
 
         in_eval_dataset = torch.utils.data.TensorDataset(colored_images[in_split,...], colored_labels.long()[in_split,...])
         out_eval_dataset = torch.utils.data.TensorDataset(colored_images[out_split,...], colored_labels.long()[out_split,...])
@@ -3434,6 +3460,7 @@ class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
 import pickle
 import pandas as pd
 from torch.nn.utils.rnn import pad_sequence
+from woods.utils import MaskedNLLLoss
 
 class IEMOCAPDataset(Dataset):
 
@@ -3498,7 +3525,17 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     DATA_PATH = 'IEMOCAP/IEMOCAP_features_raw_OOD.pkl'
 
     ## Environment parameters
-    ENVS = []
+    ENVS = ['no-shift', 'rare-shift', 
+            '0-1', '1-0',
+            '0-2', '2-0', 
+            '0-4', '4-0', 
+            '1-2', '2-1', 
+            '1-5', '5-1',
+            '2-3', '3-2', 
+            '2-4', '4-2',
+            '2-5', '5-2',
+            '3-5', '5-3',
+            '3-1']
     SWEEP_ENVS = [-1]
 
     def __init__(self, flags, training_hparams):
@@ -3546,8 +3583,37 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = MaskedNLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
+
+    def loss(self, X, Y, mask=None):
+        """
+        Computes the masked NLL loss for the IEMOCAP dataset
+        Args:
+            X (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
+            Y (torch.tensor): Targets. Shape (batch, time)
+        Returns:
+            torch.tensor: loss of each samples. Shape (batch, time)
+        """
+        X = X.permute(0,2,1)
+        return self.loss_fn(self.log_prob(X), Y, mask)
+    
+    def loss_mean(self, losses, mask=None):
+        """Masked loss
+
+        Required because of the masking of the data
+
+        Args:
+            losses (torch.tensor): loss tensor of the shape (batch, seq_len), where seq_len is the longest dialogue in the batch
+            mask (torch.tensor): Mask that keeps the losses to be considered in the loss
+        """
+
+        if mask is None:
+            mask = torch.ones_like(losses)
+
+        considered_losses = torch.masked_select(losses, mask)
+
+        return considered_losses.mean()
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
