@@ -1097,6 +1097,22 @@ class TCMNIST_Time(TCMNIST):
     def get_pred_time(self, X):
         return self.PRED_TIME[self.PRED_TIME < X[1]]
 
+    def get_nb_correct(self, pred, target):
+        """Time domain correct count
+
+        Args:
+            pred (_type_): _description_
+            target (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        pred = all_out.argmax(dim=2)
+        nb_correct += torch.sum(pred.eq(target), dim=0)
+
+        return pred.eq(target).sum(dim=0)
+
 class H5_dataset(Dataset):
     """ HDF5 dataset for EEG data
 
@@ -3569,15 +3585,15 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
 
         # Make validation loaders
         fast_train_dataset = IEMOCAPDataset(full_data_path, split='train')
-        fast_train_loader = torch.utils.data.DataLoader(fast_train_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+        fast_train_loader = torch.utils.data.DataLoader(fast_train_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_train_dataset.collate_fn)
         self.val_names.append('All_train')
         self.val_loaders.append(fast_train_loader)
         fast_val_dataset = IEMOCAPDataset(full_data_path, split='valid')
-        fast_val_loader = torch.utils.data.DataLoader(fast_val_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+        fast_val_loader = torch.utils.data.DataLoader(fast_val_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_val_dataset.collate_fn)
         self.val_names.append('All_val')
         self.val_loaders.append(fast_val_loader)
         fast_test_dataset = IEMOCAPDataset(full_data_path, split='test')
-        fast_test_loader = torch.utils.data.DataLoader(fast_test_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+        fast_test_loader = torch.utils.data.DataLoader(fast_test_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_test_dataset.collate_fn)
         self.val_names.append('All_test')
         self.val_loaders.append(fast_test_loader)
 
@@ -3586,7 +3602,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         self.loss_fn = MaskedNLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
 
-    def loss(self, X, Y, mask=None):
+    def loss(self, X, Y):
         """
         Computes the masked NLL loss for the IEMOCAP dataset
         Args:
@@ -3595,26 +3611,16 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         Returns:
             torch.tensor: loss of each samples. Shape (batch, time)
         """
+
+        pred, mask = Y
+
         X = X.permute(0,2,1)
-        return self.loss_fn(self.log_prob(X), Y, mask)
+
+        losses = self.loss_fn(self.log_prob(X), pred, mask)
+        mean_losses = losses.sum()/torch.sum(mask)
+
+        return mean_losses
     
-    def loss_mean(self, losses, mask=None):
-        """Masked loss
-
-        Required because of the masking of the data
-
-        Args:
-            losses (torch.tensor): loss tensor of the shape (batch, seq_len), where seq_len is the longest dialogue in the batch
-            mask (torch.tensor): Mask that keeps the losses to be considered in the loss
-        """
-
-        if mask is None:
-            mask = torch.ones_like(losses)
-
-        considered_losses = torch.masked_select(losses, mask)
-
-        return considered_losses.mean()
-
     def get_class_weight(self):
         """ Compute class weight for class balanced training
 
@@ -3638,7 +3644,30 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
 
         batch = next(self.train_loaders_iter)
         batch = [torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in range(len(batch[0]))]
-        return batch
+        return [batch]
 
     def split_input(self, batch):
-        return [input_item.to(self.device) for input_item in batch[:-1]], batch[-1].to(self.device)
+        """
+        Outputs the split input and labels
+        This dataset has padded sequences, therefore it returns a tuple with the mask that indicate what is padded and what isn't
+        """
+        x = torch.cat([torch.cat([input_item for input_item in env_batch[:-3]], dim=2) for env_batch in batch], dim=0).to(self.device)
+        y = torch.cat([env_batch[-1] for env_batch in batch]).to(self.device)
+        pad_mask = torch.cat([env_batch[-2] for env_batch in batch]).to(self.device)
+        q_mask = torch.cat([env_batch[-3] for env_batch in batch]).to(self.device)
+
+        return (x, q_mask, pad_mask), (y, pad_mask)
+
+    def get_nb_correct(self, pred, target):
+        """Time domain correct count
+
+        Args:
+            pred (_type_): _description_
+            target (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        
+        nb_correct += torch.sum(pred.eq(target[0]), dim=0)
+        return pred.eq(target).sum()

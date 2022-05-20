@@ -28,7 +28,6 @@ def get_objective_class(objective_name):
         raise NotImplementedError("objective not found: {}".format(objective_name))
     return globals()[objective_name]
 
-
 class Objective(nn.Module):
     """
     A subclass of Objective implements a domain generalization Gradients.
@@ -79,18 +78,18 @@ class ERM(Objective):
         # Get next batch
         minibatches_device = self.dataset.get_next_batch()
 
-        # Split into input / target / mask (for padded inputs)
-        X, Y, mask = self.dataset.split_input(minibatches_device)
+        # Split into input / target
+        X, Y = self.dataset.split_input(minibatches_device)
 
         # Get predict and get (logit, features)
-        out, _ = self.predict(X, mask)
+        out, _ = self.predict(X)
 
-        # Compute losses
-        batch_losses = self.dataset.loss(out, Y, X[-1])
-        
+        # Compute unreduced losses
+        env_losses = self.dataset.loss(out, Y)
+
         # Compute objective
-        objective = self.dataset.loss_mean(batch_losses, mask)
-
+        objective = env_losses.mean()
+        
         # Back propagate
         self.optimizer.zero_grad()
         objective.backward()

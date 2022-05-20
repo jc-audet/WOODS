@@ -277,11 +277,9 @@ class MaskedNLLLoss(nn.Module):
         mask -> batch, seq_len
         """
         mask_ = mask.unsqueeze(1) # batch, 1, seq_len
-        print("masked_select: ", torch.masked_select(pred, mask_.bool()).shape)
         # if type(self.weight)==type(None):
         loss = self.loss(pred*mask_, target)#/torch.sum(mask)
         # else:
         #     loss = self.loss(pred*mask_, target)\
         #                     /torch.sum(self.weight[target]*mask_.squeeze())
-        print("loss", loss.shape)
         return loss

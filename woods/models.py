@@ -1159,9 +1159,7 @@ class BiModel(nn.Module):
         U -> seq_len, batch, D_m
         qmask -> seq_len, batch, party
         """
-        text, video, audio, qmask, umask = input
-
-        U = torch.cat((text,video,audio), dim=2)
+        U, qmask, umask = input
 
         emotions_f, alpha_f = self.dialog_rnn_f(U, qmask) # seq_len, batch, D_e
         emotions_f = self.dropout_rec(emotions_f)

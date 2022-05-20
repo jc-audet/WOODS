@@ -174,9 +174,9 @@ def get_split_accuracy_source(objective, dataset, loader, device):
     nb_item = 0
     with torch.no_grad():
 
-        for b, (data, target) in enumerate(loader):
+        for batch in loader:
 
-            data, target = data.to(device), target.to(device)
+            data, target = dataset.split_input(batch)
 
             all_out, _ = objective.predict(data)
             loss = dataset.loss(all_out, target)
@@ -216,15 +216,12 @@ def get_split_accuracy_time(objective, dataset, loader, device):
 
             data, target = dataset.split_input([batch])
 
-            # data, target = data.to(device), target.to(device)
-
             all_out, _ = objective.predict(data)
-            # print(all_out.shape, target.shape)
 
             losses = dataset.loss(all_out, target)
 
             pred = all_out.argmax(dim=2)
-            nb_correct += torch.sum(pred.eq(target), dim=0)
+            nb_correct += dataset.get_nb_correct(pred, target)
             nb_item += pred.shape[0]
             
     return (nb_correct / nb_item).tolist(), (losses/len(loader)).tolist()
