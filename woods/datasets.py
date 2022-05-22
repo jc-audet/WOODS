@@ -1108,7 +1108,7 @@ class TCMNIST_Time(TCMNIST):
             _type_: _description_
         """
 
-        pred = all_out.argmax(dim=2)
+        pred = pred.argmax(dim=2)
         nb_correct += torch.sum(pred.eq(target), dim=0)
 
         return pred.eq(target).sum(dim=0)
