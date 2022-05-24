@@ -189,19 +189,23 @@ def setup_pretty_table(flags):
 
     env_name = datasets.get_environments(flags.dataset)
     setup = datasets.get_setup(flags.dataset)
+    paradigm = datasets.get_paradigm(flags.dataset)
 
-    if setup == 'source':
-        t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
-    if setup == 'time':
-        if flags.test_env is not None:
-            t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
-        else:
-            t.field_names = ['Env'] + [str(e) for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
-    
-    if setup == 'subpopulation':
-        t.field_names = ['Split'] + ['Train', 'Validation','Test'] + [' ', '  ', '   ', '    ']
+    if paradigm == 'domain_generalization':
 
-    if setup in ['source', 'time']: 
+        # Set the field names
+        if setup == 'source':
+            t.field_names = ['Env'] + [str(e) if i != flags.test_env else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+        if setup == 'time':
+            if flags.test_env is not None:
+                t.field_names = ['Env'] + [str(e) if i != len(env_name)-1 else '** ' + str(e) + ' **' for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+            else:
+                t.field_names = ['Env'] + [str(e) for i, e in enumerate(env_name)] + [' ', '  ', '   ', '    ']
+        
+        # Add second row
+        t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])
+
+        # Set the width
         max_width = {}
         min_width = {}
         for n in t.field_names:
@@ -209,10 +213,12 @@ def setup_pretty_table(flags):
             min_width.update({n: 15})
         t._min_width = min_width
         t._max_width = max_width
-        t.add_row(['Steps'] + ['in   :: out' for e in env_name] + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])
-    if setup == 'subpopulation':
+    
+    if paradigm == 'subpopulation_shift':
+        t.field_names = ['Split'] + ['Train', 'Validation','Test'] + [' ', '  ', '   ', '    ']
         column = " :: ".join([str(e) for i, e in enumerate(env_name)])
         t.add_row(['Steps'] + [column] * 3 + ['Avg Train Loss', 'Epoch', 'Step Time', 'Val Time'])
+
     print(t.get_string(title=job_id, border=True, hrule=0))
     t.del_row(0)
     

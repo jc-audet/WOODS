@@ -102,15 +102,39 @@ def get_environments(dataset_name):
     return get_dataset_class(dataset_name).ENVS
 
 def get_setup(dataset_name):
-    """ Returns the setup of a dataset 
+    """ Returns the setup of a dataset ('source' or 'time')
     
     Args:
         dataset_name (str): Name of the dataset to get the number of environments of. (Must be a part of the DATASETS list)
 
     Returns:
-        dict: The setup of the dataset ('seq' or 'step')
+        str: The setup of the dataset
     """
     return get_dataset_class(dataset_name).SETUP
+
+def get_task(dataset_name):
+    """ Return the task of a dataset ('classification' or 'regression')
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the task of. (Must be part of the DATASETS list)
+        
+    Return:
+        str: The task of the dataset 
+    """
+
+    return get_dataset_class(dataset_name).TASK
+
+def get_paradigm(dataset_name):
+    """ Return the paradigm of a dataset ('domain_generalization' or 'subpopulation_shift')
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the paradigm of. (Must be part of the DATASETS list)
+        
+    Return:
+        str: The paradigm of the dataset
+    """
+
+    return get_dataset_class(dataset_name).PARADIGM
 
 def get_domain_weights(dataset_name):
     """ Returns the relative weights of domains in a subpopulation shift dataset
@@ -3532,6 +3556,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
+    PARADIGM = 'subpopulation_shift'
     SETUP = 'time'
     TASK = 'classification'
     #:int: number of frames in each video
@@ -3586,40 +3611,64 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         # Make validation loaders
         fast_train_dataset = IEMOCAPDataset(full_data_path, split='train')
         fast_train_loader = torch.utils.data.DataLoader(fast_train_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_train_dataset.collate_fn)
-        self.val_names.append('All_train')
+        self.val_names.append([str(e)+'_train' for e in self.ENVS])
         self.val_loaders.append(fast_train_loader)
         fast_val_dataset = IEMOCAPDataset(full_data_path, split='valid')
         fast_val_loader = torch.utils.data.DataLoader(fast_val_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_val_dataset.collate_fn)
-        self.val_names.append('All_val')
+        self.val_names.append([str(e)+'_val' for e in self.ENVS])
         self.val_loaders.append(fast_val_loader)
         fast_test_dataset = IEMOCAPDataset(full_data_path, split='test')
         fast_test_loader = torch.utils.data.DataLoader(fast_test_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_test_dataset.collate_fn)
-        self.val_names.append('All_test')
+        self.val_names.append([str(e)+'_test' for e in self.ENVS])
         self.val_loaders.append(fast_test_loader)
 
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
-        self.loss_fn = MaskedNLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
 
-    def loss(self, X, Y):
+    def loss(self, pred, Y, by_domain=False):
         """
         Computes the masked NLL loss for the IEMOCAP dataset
         Args:
-            X (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
+            pred (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
             Y (torch.tensor): Targets. Shape (batch, time)
         Returns:
             torch.tensor: loss of each samples. Shape (batch, time)
         """
 
-        pred, mask = Y
+        target, mask = Y
 
-        X = X.permute(0,2,1)
+        pred = pred.permute(0,2,1)
+        if by_domain:
+            # Get all losses without reduction
+            losses = self.loss_fn(self.log_prob(pred), target)
 
-        losses = self.loss_fn(self.log_prob(X), pred, mask)
-        mean_losses = losses.sum()/torch.sum(mask)
+            # Get mask of which predictions were of which domains
+            domain_mask = self.get_domain_mask(target)
 
-        return mean_losses
+            # Fetch losses - domain wise
+            mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
+            for i in range(len(self.ENVS)):
+                pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+
+                env_losses = torch.masked_select(losses, pad_env_mask.bool())
+
+                if env_losses.numel():
+                    mean_env_losses[i] = env_losses.mean()
+                else:
+                    mean_env_losses[i] = 0
+
+            return mean_env_losses
+        else:
+            # Get all losses without reduction
+            losses = self.loss_fn(self.log_prob(pred), target)
+
+            # Keep only losses that weren't padded
+            masked_losses = torch.masked_select(losses, mask.bool())
+
+            # Return mean
+            return masked_losses.mean()
     
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3673,12 +3722,31 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         pred = out.argmax(dim=2)
 
         # Make domain masking
-        domain_mask = torch.zeros_like(pred)
-        domain_mask = domain_mask.unsqueeze(0).expand(len(self.ENVS), *domain_mask.shape)
+        domain_mask = self.get_domain_mask(target[0])
 
+        # Get right guesses and stuff
+        pad_mask = target[1]
+        batch_correct = torch.zeros(len(self.ENVS)).to(out.device)
+        batch_numel = torch.zeros(len(self.ENVS)).to(out.device)
+        for i in range(len(self.ENVS)):
+            pad_env_mask = torch.logical_and(pad_mask, domain_mask[i,...])
+
+            domain_pred = torch.masked_select(pred, pad_env_mask.bool())
+            domain_target = torch.masked_select(target[0], pad_env_mask.bool())
+
+            batch_correct[i] = domain_pred.eq(domain_target).sum()
+            batch_numel[i] = domain_target.numel()
+
+        # Remove padded sequences of input / targets
+        return batch_correct, batch_numel
+
+    def get_domain_mask(self, target):
+        """ Creates the domain masks for a batch
+        """
+        domain_mask = torch.zeros(len(self.ENVS), *target.shape).to(target.device)
         for i, env in enumerate(self.ENVS):
-            for spl in range(pred.shape[0]):
-                for j, (l1, l2) in enumerate(zip(target[0][spl,:-1], target[0][spl,1:])):
+            for spl in range(target.shape[0]):
+                for j, (l1, l2) in enumerate(zip(target[spl,:-1], target[spl,1:])):
                     if env == 'no-shift':
                         if str(l1.item()) == str(l2.item()):
                             domain_mask[i, spl, j+1] = 1
@@ -3688,12 +3756,5 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
                     else:
                         if str(l1.item())+'-'+str(l2.item()) == env:
                             domain_mask[i, spl, j+1] = 1
-
-        # Remove padded sequences of input / targets
-        pred = torch.masked_select(pred, target[1].bool())
-        target = torch.masked_select(target[0], target[1].bool())
-
-        # Get number of predictions
-        n_pred = pred.numel()
-
-        return pred.eq(target).sum(), n_pred
+        
+        return domain_mask

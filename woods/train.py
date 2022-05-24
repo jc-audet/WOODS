@@ -69,29 +69,41 @@ def train(flags, training_hparams, model, objective, dataset, device):
 
             record[str(step)] = checkpoint_record
 
-            if dataset.TASK == 'forecasting':
-                t.add_row([step] 
-                        + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_train_rmse']) for e in dataset.ENVS])] 
-                        + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_val_rmse']) for e in dataset.ENVS])] 
-                        + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_test_rmse']) for e in dataset.ENVS])] 
-                        + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_train_loss'] for e in dataset.ENVS]))] 
-                        + ["0"]
-                        + ["{:.2f}".format(np.mean(step_times))] 
-                        + ["{:.2f}".format(val_time)])
-            if dataset.TASK == 'regression':
-                t.add_row([step] 
-                        + ["{:.1e} :: {:.1e}".format(record[str(step)][str(e)+'_in_loss'], record[str(step)][str(e)+'_out_loss']) for e in dataset.ENVS] 
-                        + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
-                        + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
-                        + ["{:.2f}".format(np.mean(step_times))] 
-                        + ["{:.2f}".format(val_time)])
-            if dataset.TASK == 'classification':
-                t.add_row([step] 
-                        + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
-                        + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
-                        + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
-                        + ["{:.2f}".format(np.mean(step_times))] 
-                        + ["{:.2f}".format(val_time)])
+            if dataset.PARADIGM == 'subpopulation_shift':
+                if dataset.TASK == 'forecasting':
+                    t.add_row([step] 
+                            + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_train_rmse']) for e in dataset.ENVS])] 
+                            + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_val_rmse']) for e in dataset.ENVS])] 
+                            + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_test_rmse']) for e in dataset.ENVS])] 
+                            + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_train_loss'] for e in dataset.ENVS]))] 
+                            + ["0"]
+                            + ["{:.2f}".format(np.mean(step_times))] 
+                            + ["{:.2f}".format(val_time)])
+
+                if dataset.TASK == 'classification':
+                    t.add_row([step] 
+                            + [" :: ".join(["{:.2f}".format(record[str(step)][str(e)+'_train_acc']) for e in dataset.ENVS])] 
+                            + [" :: ".join(["{:.2f}".format(record[str(step)][str(e)+'_val_acc']) for e in dataset.ENVS])] 
+                            + [" :: ".join(["{:.2f}".format(record[str(step)][str(e)+'_test_acc']) for e in dataset.ENVS])] 
+                            + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_train_loss'] for e in dataset.ENVS]))] 
+                            + ["0"]
+                            + ["{:.2f}".format(np.mean(step_times))] 
+                            + ["{:.2f}".format(val_time)])
+            if dataset.PARADIGM == 'domain_generalization':
+                if dataset.TASK == 'regression':
+                    t.add_row([step] 
+                            + ["{:.1e} :: {:.1e}".format(record[str(step)][str(e)+'_in_loss'], record[str(step)][str(e)+'_out_loss']) for e in dataset.ENVS] 
+                            + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
+                            + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
+                            + ["{:.2f}".format(np.mean(step_times))] 
+                            + ["{:.2f}".format(val_time)])
+                if dataset.TASK == 'classification':
+                    t.add_row([step] 
+                            + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
+                            + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
+                            + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
+                            + ["{:.2f}".format(np.mean(step_times))] 
+                            + ["{:.2f}".format(val_time)])
 
             step_times = [] 
             print("\n".join(t.get_string().splitlines()[-2:-1]))
@@ -218,10 +230,15 @@ def get_split_accuracy_time(objective, dataset, loader, device):
 
             all_out, _ = objective.predict(data)
 
-            losses = dataset.loss(all_out, target)
+            losses += dataset.loss(all_out, target, by_domain=True)
 
-            nb_correct += dataset.get_nb_correct(all_out, target)
-            
+            batch_correct, batch_numel = dataset.get_nb_correct(all_out, target)
+
+            nb_correct += batch_correct
+            nb_item += batch_numel
+
+    print((nb_correct/ nb_item).tolist())
+    # This assumes that there will be at least one sample per domain
     return (nb_correct / nb_item).tolist(), (losses/len(loader)).tolist()
 
 def get_split_errors(objective, name, dataset, loader, device):
