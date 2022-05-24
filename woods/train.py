@@ -220,9 +220,7 @@ def get_split_accuracy_time(objective, dataset, loader, device):
 
             losses = dataset.loss(all_out, target)
 
-            pred = all_out.argmax(dim=2)
-            nb_correct += dataset.get_nb_correct(pred, target)
-            nb_item += pred.shape[0]
+            nb_correct += dataset.get_nb_correct(all_out, target)
             
     return (nb_correct / nb_item).tolist(), (losses/len(loader)).tolist()
 

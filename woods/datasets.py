@@ -3658,7 +3658,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
 
         return (x, q_mask, pad_mask), (y, pad_mask)
 
-    def get_nb_correct(self, pred, target):
+    def get_nb_correct(self, out, target):
         """Time domain correct count
 
         Args:
@@ -3668,6 +3668,32 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         Returns:
             _type_: _description_
         """
-        
-        nb_correct += torch.sum(pred.eq(target[0]), dim=0)
-        return pred.eq(target).sum()
+
+        # Get predictions
+        pred = out.argmax(dim=2)
+
+        # Make domain masking
+        domain_mask = torch.zeros_like(pred)
+        domain_mask = domain_mask.unsqueeze(0).expand(len(self.ENVS), *domain_mask.shape)
+
+        for i, env in enumerate(self.ENVS):
+            for spl in range(pred.shape[0]):
+                for j, (l1, l2) in enumerate(zip(target[0][spl,:-1], target[0][spl,1:])):
+                    if env == 'no-shift':
+                        if str(l1.item()) == str(l2.item()):
+                            domain_mask[i, spl, j+1] = 1
+                    if env == 'rare-shift':
+                        if str(l1.item())+'-'+str(l2.item()) not in self.ENVS and str(l1.item()) != str(l2.item()):
+                            domain_mask[i, spl, j+1] = 1
+                    else:
+                        if str(l1.item())+'-'+str(l2.item()) == env:
+                            domain_mask[i, spl, j+1] = 1
+
+        # Remove padded sequences of input / targets
+        pred = torch.masked_select(pred, target[1].bool())
+        target = torch.masked_select(target[0], target[1].bool())
+
+        # Get number of predictions
+        n_pred = pred.numel()
+
+        return pred.eq(target).sum(), n_pred
