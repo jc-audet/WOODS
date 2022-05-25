@@ -1,18 +1,17 @@
 """Defining the benchmarks for OoD generalization in time-series"""
-
 import os
 import copy
 import h5py
 from PIL import Image
-import warnings
 
-import scipy.io
+import pickle
 import numpy as np
-from scipy import fft, signal
-import matplotlib.pyplot as plt
+import pandas as pd
+from scipy import fft
 
 import torch
-from torch import nn, optim
+from torch import nn
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
@@ -20,6 +19,7 @@ from torchvision import datasets, transforms
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+## Local Import
 import woods.download as download
 
 DATASETS = [
@@ -40,11 +40,10 @@ DATASETS = [
     ## Activity Recognition
     "HHAR",
     ## Electricity
-    "AusElectricity",
     "AusElectricityUnbalanced",
-    "AusElectricityMonthly",
-    "AusElectricityMonthlyBalanced",
+    "AusElectricity",
     ## Emotion recognition
+    "IEMOCAPOriginal",
     "IEMOCAPUnbalanced",
     "IEMOCAP",
 ]
@@ -113,7 +112,7 @@ def get_setup(dataset_name):
     return get_dataset_class(dataset_name).SETUP
 
 def get_task(dataset_name):
-    """ Return the task of a dataset ('classification' or 'regression')
+    """ Return the task of a dataset ('classification' or 'forecasting')
     
     Args:
         dataset_name (str): Name of the dataset to get the task of. (Must be part of the DATASETS list)
@@ -294,10 +293,16 @@ class Multi_Domain_Dataset:
     N_WORKERS = 4
 
     ## Dataset parameters
+    #:string: The performance measure of the dataset (Usually 'acc' for classification and 'rmse' for regression/forecasting)
+    PERFORMANCE_MEASURE = None
+    #:string: Challenge paradigm of the dataset ('domain_generalization' and 'subpopulation_shift')
+    PARADIGM = None
     #:string: The setup of the dataset ('source' for Source-domains or 'time' for time-domains)
     SETUP = None
-    #:string: The type of prediction task ('classification' of 'regression')
+    #:string: The type of prediction task ('classification' of 'forecasting')
     TASK = None
+
+    ## Data parameters
     #:int: The sequence length of the dataset
     SEQ_LEN = None
     #:list: The time steps where predictions are made
@@ -309,7 +314,7 @@ class Multi_Domain_Dataset:
     #:str: Path to the data
     DATA_PATH = None
 
-    ## Environment parameters
+    ## Domain parameters
     #:list: The environments of the dataset
     ENVS = [None]
     #:list: The environments that should be used for testing (One at a time). These will be the test environments used in the sweeps
@@ -328,23 +333,8 @@ class Multi_Domain_Dataset:
         data_path = os.path.join(path, self.DATA_PATH)
         return os.path.exists(data_path)
 
-    def loss(self, X, Y):
-        """
-        Computes the loss defined by the dataset
-        Args:
-            X (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
-            Y (torch.tensor): Targets. Shape (batch, time)
-        Returns:
-            torch.tensor: loss of each samples. Shape (batch, time)
-        """
-        X = X.permute(0,2,1)
-        return self.loss_fn(self.log_prob(X), Y)
-
-    def get_pred_time(self, X):
-        return torch.tensor(self.PRED_TIME)
-
     def prepare_data(self, path, download=False):
-        """ Prepares the dataset.
+        """ Prepares the dataset, download if necessary
 
         Args:
             path (str): Path to the dataset
@@ -362,6 +352,56 @@ class Multi_Domain_Dataset:
                     self.download_fct(path, 'at')
             else:
                 raise ValueError('Dataset not available locally and download is set to False. Set Download = True to download it locally')
+    
+    def loss(self, X, Y):
+        """
+        Computes the loss defined by the dataset
+        Args:
+            X (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
+            Y (torch.tensor): Targets. Shape (batch, time)
+        Returns:
+            torch.tensor: loss of each samples. Shape (batch, time)
+        """
+
+        # Make the predictions of shape (batch, n_classes, time) such that pytorch will get losses for all time steps
+        X = X.permute(0,2,1)
+
+        # Get log probability and compute loss 
+        return self.loss_fn(self.log_prob(X), Y)
+
+    def loss_by_domain(self, X, Y, n_domains):
+        """ Computes the loss for each domain and returns them in a tensor
+
+        Args:
+            X (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
+            Y (torch.tensor): Targets. Shape (batch, time)
+            n_domains (int): Number of domains in the batch
+
+        Returns:
+            torch.tensor: tensor containing domain-wise losses. Shape (n_domains)
+        """
+
+        # Compute all losses
+        all_losses = self.loss(X, Y)
+
+        # Split them by domains
+        env_losses = self.split_tensor_by_domains(n_domains, all_losses)
+
+        # Return average accross time steps and batch
+        return env_losses.mean(dim=(1,2))
+
+    def split_tensor_by_domains(self, n_domains, tensor):
+        """ Group tensor by domain for source domains datasets
+
+        Args:
+            n_domains (int): Number of domains in the batch
+            tensor (torch.tensor): tensor to be split. Shape (n_domains*batch, ...)
+
+        Returns:
+            Tensor: The reshaped output (n_domains, batch, ...)
+        """
+        tensor_shape = tensor.shape
+        return torch.reshape(tensor, (n_domains, tensor_shape[0]//n_domains, *tensor_shape[1:]))
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -383,7 +423,7 @@ class Multi_Domain_Dataset:
         return weights
 
     def get_train_loaders(self):
-        """ Fetch all training dataloaders and their ID 
+        """ Fetch all training dataloaders and their names 
 
         Returns:
             list: list of string names of the data splits used for training
@@ -392,7 +432,7 @@ class Multi_Domain_Dataset:
         return self.train_names, self.train_loaders
     
     def get_val_loaders(self):
-        """ Fetch all validation/test dataloaders and their ID 
+        """ Fetch all validation/test dataloaders and their names 
 
         Returns:
             list: list of string names of the data splits used for validation and test
@@ -401,11 +441,25 @@ class Multi_Domain_Dataset:
         return self.val_names, self.val_loaders
               
     def get_next_batch(self):
+        """ Fetch the next batch of data
+        
+        Returns:
+            list[tuple[torch.tensor, torch.tensor]]: Batch data. List of tuple of pairs of data and labels with shape (batch, time, *INPUT_SHAPE) and (batch, time, 1) respectively
+        """
         
         batch_loaders = next(self.train_loaders_iter)
         return [(x, y) for x, y in batch_loaders]
 
     def split_input(self, input):
+        """ Split the input into the input and target.
+        
+        Args:
+            batch (list[tuple[torch.tensor, torch.tensor]]): Batch data. List of tuple of pairs of data and labels with shape (batch, time, *INPUT_SHAPE) and (batch, time, 1) respectively
+            
+        Returns:
+            torch.tensor: Input data with shape (batch, time, *INPUT_SHAPE)
+            torch.tensor: Target data with shape (batch, time)
+        """
 
         return (
             torch.cat([x for x,y in input]).to(self.device),
@@ -413,48 +467,44 @@ class Multi_Domain_Dataset:
         )
 
     def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
 
         if self.test_env is None:
             return len(self.ENVS)
         return len(self.ENVS) - 1
 
-    def loss_mean(self, losses):
-        return losses.mean()
-
-    def get_domain_losses(self, n_domains, losses):
-        """ Average losses by domain for source domains datasets
-
-        Args:
-            n_domains (int): Number of domains in the batch
-            losses (torch.tensor): tensor to be split. Shape (n_domains*batch, 1)
-
-        Returns:
-            Tensor: Averaged losses by domains (n_domains)
-        """
-        
-        reshaped_losses = self.split_tensor_by_domains(n_domains, losses).squeeze()
-        return reshaped_losses.mean(dim=-1)
-
-    def split_tensor_by_domains(self, n_domains, tensor):
-        """ Group tensor by domain for source domains datasets
-
-        Args:
-            n_domains (int): Number of domains in the batch
-            tensor (torch.tensor): tensor to be split. Shape (n_domains*batch, ...)
-
-        Returns:
-            Tensor: The reshaped output (n_domains, batch, ...)
-        """
-        tensor_shape = tensor.shape
-        return torch.reshape(tensor, (n_domains, tensor_shape[0]//n_domains, *tensor_shape[1:]))
-
     def get_number_of_batches(self):
+        """ Return the total number of batches in the dataset 
+        
+        Returns:
+            int: Total number of batches in the dataset
+        """
         return np.sum([len(train_l) for train_l in self.train_loaders])
+    
+    def get_pred_time(self, X):
+        """ Get the prediction times for the current batch
+        
+        Args:
+            input_shape (tuple): shape of the input data
+            
+        Returns:
+            int: the prediction times
+        """
+        return torch.tensor(self.PRED_TIME)
 
+###########################
+## Basic_Fourier dataset ##
+###########################
 class Basic_Fourier(Multi_Domain_Dataset):
     """ Fourier_basic dataset
 
     A dataset of 1D sinusoid signal to classify according to their Fourier spectrum. 
+
+    This is primarily a sanity check to see whether the underlying task of the Spurious_Fourier dataset is feasible under the prescribed conditions.
     
     Args:
         flags (argparse.Namespace): argparse of training arguments
@@ -464,14 +514,18 @@ class Basic_Fourier(Multi_Domain_Dataset):
         No download is required as it is purely synthetic
     """
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = 'source'
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 50
     PRED_TIME = [49]
     INPUT_SHAPE = [1]
     OUTPUT_SIZE = 2
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['no_spur']
     SWEEP_ENVS = [None]
 
@@ -536,8 +590,13 @@ class Basic_Fourier(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
         
+##############################
+## Spurious_Fourier dataset ##
+##############################
 class Spurious_Fourier(Multi_Domain_Dataset):
     """ Spurious_Fourier dataset
 
@@ -553,14 +612,18 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         No download is required as it is purely synthetic
     """
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = 'source'
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 50
     PRED_TIME = [49]
     INPUT_SHAPE = [1]
     OUTPUT_SIZE = 2
 
-    ## Environment parameters
+    ## Domain parameters
     #:float: Level of noise added to the labels
     LABEL_NOISE = 0.25
     #:list: The correlation rate between the label and the spurious peaks
@@ -587,18 +650,11 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         self.fourier_1 = np.zeros(1000)
         self.fourier_1[850] = 1
 
-        ## Define the spurious Fourier spectrum (one direct and the inverse)
+        ## Define the spurious Fourier spectrum (one direct and the inverse correlation)
         self.direct_fourier_0 = copy.deepcopy(self.fourier_0)
         self.direct_fourier_1 = copy.deepcopy(self.fourier_1)
         self.direct_fourier_0[200] = 0.5
         self.direct_fourier_1[400] = 0.5
-
-        def conv(signal):
-            blurred_signal = np.zeros_like(signal)
-            for i in range(1, np.shape(blurred_signal)[0]-1):
-                blurred_signal[i] = np.mean(signal[i-1:i+1])
-            return blurred_signal
-
 
         self.inverse_fourier_0 = copy.deepcopy(self.fourier_0)
         self.inverse_fourier_1 = copy.deepcopy(self.fourier_1)
@@ -609,10 +665,11 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)
         direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50,1) ).float()
         direct_signal_0 /= direct_signal_0.max()
+        direct_signal_0 = self.super_sample(direct_signal_0)
         direct_signal_1 = fft.irfft(self.direct_fourier_1, n=10000)
         direct_signal_1 = torch.tensor( direct_signal_1.reshape(-1,50,1) ).float()
         direct_signal_1 /= direct_signal_1.max()
-        direct_signal_0, direct_signal_1 = self.super_sample(direct_signal_0, direct_signal_1)
+        direct_signal_1 = self.super_sample(direct_signal_1)
 
         perm_0 = torch.randperm(direct_signal_0.shape[0])
         direct_signal_0 = direct_signal_0[perm_0,:]
@@ -623,10 +680,11 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         inverse_signal_0 = fft.irfft(self.inverse_fourier_0, n=10000)
         inverse_signal_0 = torch.tensor( inverse_signal_0.reshape(-1,50,1) ).float()
         inverse_signal_0 /= inverse_signal_0.max()
+        inverse_signal_0 = self.super_sample(inverse_signal_0)
         inverse_signal_1 = fft.irfft(self.inverse_fourier_1, n=10000)
         inverse_signal_1 = torch.tensor( inverse_signal_1.reshape(-1,50,1) ).float()
         inverse_signal_1 /= inverse_signal_1.max()
-        inverse_signal_0, inverse_signal_1 = self.super_sample(inverse_signal_0, inverse_signal_1)
+        inverse_signal_1 = self.super_sample(inverse_signal_1)
 
         perm_0 = torch.randperm(inverse_signal_0.shape[0])
         inverse_signal_0 = inverse_signal_0[perm_0,:]
@@ -688,27 +746,38 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
-    def super_sample(self, signal_0, signal_1):
-        """ Sample signals frames with a bunch of offsets """
-        all_signal_0 = torch.zeros(0,50,1)
-        all_signal_1 = torch.zeros(0,50,1)
-        for i in range(0, 50, 2):
-            new_signal_0 = copy.deepcopy(signal_0)[i:i-50]
-            new_signal_1 = copy.deepcopy(signal_1)[i:i-50]
-            split_signal_0 = new_signal_0.reshape(-1,50,1).clone().detach().float()
-            split_signal_1 = new_signal_1.reshape(-1,50,1).clone().detach().float()
-            all_signal_0 = torch.cat((all_signal_0, split_signal_0), dim=0)
-            all_signal_1 = torch.cat((all_signal_1, split_signal_1), dim=0)
+    def super_sample(self, signal):
+        """ Sample signals frames with a bunch of offsets 
         
-        return all_signal_0, all_signal_1
+        Args:
+            signal (torch.Tensor): Signal to sample
+        
+        Returns:
+            torch.Tensor: Super sampled signal
+        """
+        all_signal = torch.zeros(0,50,1)
+        for i in range(0, 50, 2):
+            new_signal = copy.deepcopy(signal)[i:i-50]
+            split_signal = new_signal.reshape(-1,50,1).clone().detach().float()
+            all_signal = torch.cat((all_signal, split_signal), dim=0)
+        
+        return all_signal
 
+####################
+## TMNIST dataset ##
+####################
 class TMNIST(Multi_Domain_Dataset):
     """ Temporal MNIST dataset
 
     Each sample is a sequence of 4 MNIST digits.
     The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
+
+
+    This is primarily a sanity check to see whether the underlying task of the Temporal Colored MNIST dataset is feasible under the prescribed conditions.
 
     Args:
         flags (argparse.Namespace): argparse of training arguments
@@ -721,14 +790,18 @@ class TMNIST(Multi_Domain_Dataset):
     N_STEPS = 5001
 
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = 'source'
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 4
     PRED_TIME = [1, 2, 3]
     INPUT_SHAPE = [1,28,28]
     OUTPUT_SIZE = 2
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['grey']
     SWEEP_ENVS = [None]
 
@@ -743,9 +816,7 @@ class TMNIST(Multi_Domain_Dataset):
         self.batch_size = training_hparams['batch_size']
 
         ## Import original MNIST data
-        MNIST_tfrm = transforms.Compose([ 
-            transforms.ToTensor(),
-            ])
+        MNIST_tfrm = transforms.Compose([transforms.ToTensor()])
 
         # Get MNIST data
         train_ds = datasets.MNIST(flags.data_path, train=True, download=True, transform=MNIST_tfrm) 
@@ -790,6 +861,8 @@ class TMNIST(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
 class TCMNIST(Multi_Domain_Dataset):
@@ -799,6 +872,8 @@ class TCMNIST(Multi_Domain_Dataset):
     The task is to predict at each step if the sum of the current digit and the previous one is odd or even.
     Color is added to the digits that is correlated with the label of the current step.
     The formulation of which is defined in the child of this class, either sequences-wise of step-wise
+
+    This is an abstract class, it needs to be inherited by a child class of SETUP 'source' or 'time'.
 
     Args:
         flags (argparse.Namespace): argparse of training arguments
@@ -810,8 +885,12 @@ class TCMNIST(Multi_Domain_Dataset):
     N_STEPS = 5001
 
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = None
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 4
     PRED_TIME = [1, 2, 3]
     INPUT_SHAPE = [2,28,28]
@@ -843,6 +922,9 @@ class TCMNIST(Multi_Domain_Dataset):
         TCMNIST_labels = ( TCMNIST_labels[:,:-1] + TCMNIST_labels[:,1:] ) % 2      # Is the sum of this one and the last one an even number?
         self.TCMNIST_labels = TCMNIST_labels.long()
 
+############################
+## TCMNIST_Source dataset ##
+############################
 class TCMNIST_Source(TCMNIST):
     """ Temporal Colored MNIST with Source-domains
 
@@ -862,7 +944,7 @@ class TCMNIST_Source(TCMNIST):
     ## Dataset parameters
     SETUP = 'source'
     
-    ## Environment parameters
+    ## Domain parameters
     #:float: Level of noise added to the labels
     LABEL_NOISE = 0.25
     #:list: list of different correlation values between the color and the label
@@ -895,8 +977,6 @@ class TCMNIST_Source(TCMNIST):
             # Color subset
             colored_images, colored_labels = self.color_dataset(images, labels, e, self.LABEL_NOISE)
 
-            # self.plot_samples(colored_images, colored_labels, str(e))
-
             # Make Tensor dataset and the split
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)
             in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
@@ -916,10 +996,12 @@ class TCMNIST_Source(TCMNIST):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
     def color_dataset(self, images, labels, p, d):
-        """ Color the dataset
+        """ Color the dataset with strong color correlation with the label
 
         Args:
             images (Tensor): 3 channel images to color
@@ -947,6 +1029,9 @@ class TCMNIST_Source(TCMNIST):
 
         return images, labels
 
+##########################
+## TCMNIST_Time dataset ##
+##########################
 class TCMNIST_Time(TCMNIST):
     """ Temporal Colored MNIST with Time-domains
 
@@ -967,7 +1052,7 @@ class TCMNIST_Time(TCMNIST):
     ## Dataset parameters
     SETUP = 'time'
 
-    ## Environment parameters
+    ## Domain parameters
     #:float: Level of noise added to the labels
     LABEL_NOISE = 0.25
     #:list: list of different correlation values between the color and the label
@@ -1023,11 +1108,6 @@ class TCMNIST_Time(TCMNIST):
         in_eval_dataset = torch.utils.data.TensorDataset(colored_images[in_split,...], colored_labels.long()[in_split,...])
         out_eval_dataset = torch.utils.data.TensorDataset(colored_images[out_split,...], colored_labels.long()[out_split,...])
 
-        # train_dataset = torch.utils.data.TensorDataset(colored_images[:,:3,...], colored_labels.long()[:,:2,...])
-        # eval_dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
-        # in_train_dataset, out_train_dataset = make_split(train_dataset, flags.holdout_fraction, seed=i)
-        # in_eval_dataset, out_eval_dataset = make_split(eval_dataset, flags.holdout_fraction, seed=i)
-
         # Make train dataset
         in_train_loader = InfiniteLoader(in_train_dataset, batch_size=training_hparams['batch_size'])
         self.train_names = [str(e)+'_in' for e in self.ENVS[:-1]]
@@ -1043,6 +1123,8 @@ class TCMNIST_Time(TCMNIST):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
     def color_dataset(self, images, labels, env_id, p, d):
@@ -1082,54 +1164,27 @@ class TCMNIST_Time(TCMNIST):
             Tensor: The reshaped output (n_domains, batch, ...)
         """
         return tensor.transpose(0,1).unsqueeze(2)
-
               
-    def split_output(self, out):
-        """ Group data and prediction by environment
-
+    def get_pred_time(self, input_shape):
+        """ Get the prediction times for the current batch
+        
         Args:
-            labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
-
-        Returns:
-            Tensor: The reshaped data (n_env-1, batch_size, 1, n_classes)
-        """
-        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-        out_split = torch.zeros((n_train_env, self.batch_size, 1, out.shape[-1])).to(out.device)
-        for i in range(n_train_env):
-            # Test env is always the last one
-            out_split[i,...] = out[:,i,...].unsqueeze(1)
+            input_shape (tuple): shape of the input data
             
-        return out_split
-
-    def split_labels(self, labels):
-        """ Group data and prediction by environment
-
-        Args:
-            labels (Tensor): labels of the data (batch_size, len(PRED_TIME))
-
         Returns:
-            Tensor: The reshaped labels (n_env-1, batch_size, 1)
+            int: the prediction times
         """
-        n_train_env = len(self.ENVS)-1 if self.test_env is not None else len(self.ENVS)
-        labels_split = torch.zeros((n_train_env, self.batch_size, 1)).long().to(labels.device)
-        for i in range(n_train_env):
-            # Test env is always the last one
-            labels_split[i,...] = labels[:,i,...].unsqueeze(1)
-
-        return labels_split
-
-    def get_pred_time(self, X):
-        return self.PRED_TIME[self.PRED_TIME < X[1]]
+        return self.PRED_TIME[self.PRED_TIME < input_shape[1]]
 
     def get_nb_correct(self, pred, target):
-        """Time domain correct count
+        """ Time domain correct count
 
         Args:
-            pred (_type_): _description_
-            target (_type_): _description_
+            pred (Tensor): predicted labels (batch_size, len(PRED_TIME), n_classes)
+            target (Tensor): target labels (batch_size, len(PRED_TIME))
 
         Returns:
-            _type_: _description_
+            int: number of correct predictions
         """
 
         pred = pred.argmax(dim=2)
@@ -1166,10 +1221,11 @@ class H5_dataset(Dataset):
         self.split = list(range(self.hdf[env_id]['data'].shape[0])) if split==None else split
 
     def __len__(self):
+        """ Number of samples in the dataset """
         return len(self.split)
 
     def __getitem__(self, idx):
-
+        """ Get a sample from the dataset """
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
@@ -1195,7 +1251,11 @@ class EEG_DB(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 500
 
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = 'source'
+
+    ## Data parameters
     #:str: path to the hdf5 file
     DATA_PATH = None
 
@@ -1233,13 +1293,14 @@ class EEG_DB(Multi_Domain_Dataset):
                 self.train_names.append(e + '_in')
                 self.train_loaders.append(in_loader)
             
-            # Make validation loaders
+            # Make validation loaders 
+            # (You can comment the 256 batch size and uncomment the 64 batch size if you do not have enough GPU RAM, it will not change the results because this is for evaluation purposes)
             fast_in_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_PATH), e, split=in_split)
-            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             fast_out_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_PATH), e, split=out_split)
-            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
             # Append to val containers
             self.val_names.append(e + '_in')
@@ -1250,6 +1311,8 @@ class EEG_DB(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
     def get_class_weight(self):
@@ -1271,6 +1334,9 @@ class EEG_DB(Multi_Domain_Dataset):
 
         return weights
 
+#################
+## CAP dataset ##
+#################
 class CAP(EEG_DB):
     """ CAP Sleep stage dataset
 
@@ -1296,6 +1362,8 @@ class CAP(EEG_DB):
 
     ## Dataset parameters
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 3000
     PRED_TIME = [2999]
     INPUT_SHAPE = [19]
@@ -1304,7 +1372,7 @@ class CAP(EEG_DB):
     ## Dataset paths
     DATA_PATH = 'CAP/CAP.h5'
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['Machine0', 'Machine1', 'Machine2', 'Machine3', 'Machine4']
     SWEEP_ENVS = list(range(len(ENVS)))
 
@@ -1315,6 +1383,9 @@ class CAP(EEG_DB):
 
         super().__init__(flags, training_hparams)
         
+###################
+## SEDFx dataset ##
+###################
 class SEDFx(EEG_DB):
     """ SEDFx Sleep stage dataset
 
@@ -1338,13 +1409,15 @@ class SEDFx(EEG_DB):
     
     ## Dataset parameters
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 3000
     PRED_TIME = [2999]
     INPUT_SHAPE = [4]
     OUTPUT_SIZE = 6
     DATA_PATH = 'SEDFx/SEDFx.h5'
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['Age 20-40', 'Age 40-60', 'Age 60-80','Age 80-100']
     SWEEP_ENVS = list(range(len(ENVS)))
 
@@ -1355,6 +1428,9 @@ class SEDFx(EEG_DB):
 
         super().__init__(flags, training_hparams)
        
+#################
+## PCL dataset ##
+#################
 class PCL(EEG_DB):
     """ PCL datasets
 
@@ -1373,13 +1449,15 @@ class PCL(EEG_DB):
 
     ## Dataset parameters
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 752
     PRED_TIME = [751]
     INPUT_SHAPE = [48]
     OUTPUT_SIZE = 2
     DATA_PATH = 'PCL/PCL.h5'
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = [ 'PhysionetMI', 'Cho2017', 'Lee2019_MI']
     SWEEP_ENVS = list(range(len(ENVS)))
 
@@ -1390,6 +1468,10 @@ class PCL(EEG_DB):
 
         super().__init__(flags, training_hparams)
 
+
+###################
+## LSA64 dataset ##
+###################
 class Video_dataset(Dataset):
     """ Video dataset
 
@@ -1432,7 +1514,7 @@ class Video_dataset(Dataset):
         self.split = list(range(len(self.folders))) if split==None else split
 
     def __len__(self):
-        "Denotes the total number of samples"
+        """ Returns the number of samples in the dataset """
         return len(self.split)
 
     def read_images(self, selected_folder, use_transform):
@@ -1503,8 +1585,12 @@ class LSA64(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 500
 
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = 'source'
     TASK = 'classification'
+
+    ## Data parameters
     #:int: number of frames in each video
     SEQ_LEN = 20
     PRED_TIME = [19]
@@ -1513,7 +1599,7 @@ class LSA64(Multi_Domain_Dataset):
     #:str: path to the folder containing the data
     DATA_PATH = 'LSA64'
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['001-002', '003-004', '005-006', '007-008', '009-010']
     SWEEP_ENVS = list(range(len(ENVS)))
 
@@ -1557,12 +1643,13 @@ class LSA64(Multi_Domain_Dataset):
                 self.train_loaders.append(in_loader)
 
             # Make validation loaders
+            # (You can comment the 64 batch size and uncomment the 16 batch size if you do not have enough GPU RAM, it will not change the results because this is for evaluation purposes)
             fast_in_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=in_split)
-            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=16, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=16, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_in_loader = torch.utils.data.DataLoader(fast_in_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
             fast_out_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize, split=out_split)
-            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=16, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
-            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=256, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            # fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=16, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
+            fast_out_loader = torch.utils.data.DataLoader(fast_out_dataset, batch_size=64, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True)
 
             # Append to val containers
             self.val_names.append(e + '_in')
@@ -1573,6 +1660,8 @@ class LSA64(Multi_Domain_Dataset):
         # Define loss function
         self.log_prob = nn.LogSoftmax(dim=1)
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+
+        # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
     def get_class_weight(self):
@@ -1594,6 +1683,9 @@ class LSA64(Multi_Domain_Dataset):
 
         return weights
 
+##################
+## HHAR dataset ##
+##################
 class HHAR(Multi_Domain_Dataset):
     """ Heterogeneity Acrivity Recognition Dataset (HHAR)
 
@@ -1620,8 +1712,12 @@ class HHAR(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'domain_generalization'
     SETUP = 'source'
     TASK = 'classification'
+
+    ## Data parameters
     SEQ_LEN = 500
     PRED_TIME = [499]
     INPUT_SHAPE = [6]
@@ -1629,7 +1725,7 @@ class HHAR(Multi_Domain_Dataset):
     #:str: Path to the file containing the data
     DATA_PATH = 'HHAR/HHAR.h5'
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['nexus4', 's3', 's3mini', 'lgwatch', 'gear']
     SWEEP_ENVS = list(range(len(ENVS)))
 
@@ -1746,23 +1842,59 @@ from gluonts.torch.util import (
 )
 
 class training_domain_sampler(InstanceSampler):
+    """
+    Training sampler for forecasting dataset.
+
+    Using time series data, this sampler will choose a random time series window to be used for training.
+    The choosing of the time window is done by sampling a random time point from the time series and taking time points prior as context and subsequent time points for prediction.
+    """
 
     axis: int = -1
     min_past: int = 0
     min_future: int = 0
 
     domain_idx: list = []
-    
+    month_idx: dict = {
+        'January': 1,
+        'February': 2,
+        'March': 3,
+        'April': 4,
+        'May': 5,
+        'June': 6,
+        'July': 7,
+        'August': 8,
+        'September': 9,
+        'October': 10,
+        'November': 11,
+        'December': 12
+    }
+
     num_instances: float
     total_length: int = 0
     n: int = 0
 
     def set_attribute(self, domain, set_holidays, start, max_length=0):
+        """ Set the attributes of the sampler.
+
+        This function needs to be called before the sampler can be used.
+        It defines the range of the time series to be used for training.
+        We define the range of the time series according to which domain we are in (e.g. 'January' domain will only sample data points in January)
+
+        Args:
+            domain (str): The domain to be used for training.
+            set_holidays (dict): Dictionary containing the holiday definitions.
+            start (int): The start of the time series.
+            max_length (int): The longuest length of the time series dataset.
+        
+        Returns:
+            None
+        """
         
         min_increment = datetime.timedelta(minutes=30)
         day_increment = datetime.timedelta(days=1)
         running_time = start
 
+        # We can use all time points, disregarding the domains
         if domain == 'All':
             holidays_idx = []
             for idx in range(max_length):
@@ -1771,6 +1903,7 @@ class training_domain_sampler(InstanceSampler):
 
             self.domain_idx = holidays_idx
 
+        # Defining the holidays indexes
         if domain == 'Holidays':
             holidays_idx = []
             for idx in range(max_length):
@@ -1780,22 +1913,40 @@ class training_domain_sampler(InstanceSampler):
 
             self.domain_idx = holidays_idx
         
-        if domain == 'NonHolidays':
+        # Defining the month domain index ranges
+        if domain != 'Holidays':
+            month_ID = self.month_idx[domain]
             non_holidays_idx = []
             for idx in range(max_length):
                 running_time += min_increment
-                if running_time not in set_holidays:# and running_time + day_increment not in set_holidays:
+                if running_time not in set_holidays and running_time.month == month_ID:
                     non_holidays_idx.append(idx)
 
             self.domain_idx = non_holidays_idx
 
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
+        """ Get the bounds of the time series taking into consideration the context length and the future length.
+
+        Args:   
+            ts (np.ndarray): The time series.
+
+        Returns:
+            Tuple[int, int]: The bounds of the time series.
+        """
         return (
             self.min_past,
             ts.shape[self.axis] - self.min_future,
         )
 
     def __call__(self, ts: np.ndarray) -> np.ndarray:
+        """ Randomly sample a time window in a time series.
+
+        Args:   
+            ts (np.ndarray): The time series to sample in.
+
+        Returns:
+            int: the start index of the time window.
+        """
         a, b = self._get_bounds(ts)
         in_range_idx = np.array(self.domain_idx)
         in_range_idx = in_range_idx[in_range_idx > a]
@@ -1831,154 +1982,6 @@ class evaluation_domain_sampler(InstanceSampler):
     start_idx: int
     last_idx: int # This is excluded
 
-    def set_attribute(self, domain, set_holidays, start, max_length=0):
-        
-        min_increment = datetime.timedelta(minutes=30)
-        day_increment = datetime.timedelta(days=1)
-        running_time = start
-
-        if domain == 'Holidays':
-            holidays_idx = []
-            for idx in range(int(max_length / 48)):
-                running_time += day_increment
-                if running_time in set_holidays:# or running_time + day_increment in set_holidays:
-                    holidays_idx.append(idx * 48)
-
-            self.domain_idx = holidays_idx
-        
-        if domain == 'NonHolidays':
-            non_holidays_idx = []
-            for idx in range(int(max_length / 48)):
-                running_time += day_increment
-                if running_time not in set_holidays:# and running_time.month == 7:# and running_time + day_increment not in set_holidays :
-                    non_holidays_idx.append(idx * 48)
-
-            self.domain_idx = non_holidays_idx
-
-        self.domain_idx = np.array(self.domain_idx)
-        self.domain_idx = self.domain_idx[self.domain_idx >= self.start_idx]
-        self.domain_idx = self.domain_idx[self.domain_idx < self.last_idx]
-
-    def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
-        return (
-            self.min_past,
-            ts.shape[self.axis] - self.min_future,
-        )
-
-    def __call__(self, ts: np.ndarray) -> np.ndarray:
-        a, b = self._get_bounds(ts)
-        in_range_idx = self.domain_idx
-        in_range_idx = in_range_idx[in_range_idx > a]
-        in_range_idx = in_range_idx[in_range_idx <= b]
-        window_size = len(in_range_idx)
-
-        if window_size <= 0:
-            return np.array([], dtype=int)
-
-        return in_range_idx + a
-
-
-class monthly_training_domain_sampler(InstanceSampler):
-
-    axis: int = -1
-    min_past: int = 0
-    min_future: int = 0
-
-    domain_idx: list = []
-    month_idx: dict = {
-        'January': 1,
-        'February': 2,
-        'March': 3,
-        'April': 4,
-        'May': 5,
-        'June': 6,
-        'July': 7,
-        'August': 8,
-        'September': 9,
-        'October': 10,
-        'November': 11,
-        'December': 12
-    }
-
-    num_instances: float
-    total_length: int = 0
-    n: int = 0
-
-    def set_attribute(self, domain, set_holidays, start, max_length=0):
-        
-        min_increment = datetime.timedelta(minutes=30)
-        day_increment = datetime.timedelta(days=1)
-        running_time = start
-
-        if domain == 'All':
-            holidays_idx = []
-            for idx in range(max_length):
-                running_time += min_increment
-                holidays_idx.append(idx)
-
-            self.domain_idx = holidays_idx
-
-        if domain == 'Holidays':
-            holidays_idx = []
-            for idx in range(max_length):
-                running_time += min_increment
-                if running_time in set_holidays:# or running_time + day_increment in set_holidays:
-                    holidays_idx.append(idx)
-
-            self.domain_idx = holidays_idx
-        
-        if domain != 'Holidays':
-            month_ID = self.month_idx[domain]
-            non_holidays_idx = []
-            for idx in range(max_length):
-                running_time += min_increment
-                if running_time not in set_holidays and running_time.month == month_ID:
-                    non_holidays_idx.append(idx)
-
-            self.domain_idx = non_holidays_idx
-
-    def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
-        return (
-            self.min_past,
-            ts.shape[self.axis] - self.min_future,
-        )
-
-    def __call__(self, ts: np.ndarray) -> np.ndarray:
-        a, b = self._get_bounds(ts)
-        in_range_idx = np.array(self.domain_idx)
-        in_range_idx = in_range_idx[in_range_idx > a]
-        in_range_idx = in_range_idx[in_range_idx < b]
-        window_size = len(in_range_idx)
-
-        if window_size <= 0:
-            return np.array([], dtype=int)
-
-        self.n += 1
-        self.total_length += window_size
-        avg_length = self.total_length / self.n
-
-        if avg_length <= 0:
-            return np.array([], dtype=int)
-
-        p = self.num_instances / avg_length
-        (indices,) = np.where(np.random.random_sample(window_size) < p)
-        return in_range_idx[indices] + a
-
-class monthly_evaluation_domain_sampler(InstanceSampler):
-
-    axis: int = -1
-    min_past: int = 0
-    min_future: int = 0
-
-    domain_idx: list = []
-    
-    num_instances: float
-    total_length: int = 0
-    n: int = 0
-
-    start_idx: int
-    last_idx: int # This is excluded
-
     month_idx: dict = {
         'January': 1,
         'February': 2,
@@ -1995,11 +1998,26 @@ class monthly_evaluation_domain_sampler(InstanceSampler):
     }
 
     def set_attribute(self, domain, set_holidays, start, max_length=0):
+        """ Set the attributes of the sampler.
+
+        This function needs to be called before the sampler can be used.
+        It defines all indexes to evaluate in the time series for a given domain.
+
+        Args:
+            domain (str): The domain to be evaluated.
+            set_holidays (dict): Dictionary containing the holiday definitions.
+            start (int): The start of the time series.
+            max_length (int): The maximum length of the time series.
+        
+        Returns:
+            None
+        """
         
         min_increment = datetime.timedelta(minutes=30)
         day_increment = datetime.timedelta(days=1)
         running_time = start
 
+        # Get all indexes at the start of the days of a holiday
         if domain == 'Holidays':
             holidays_idx = []
             for idx in range(int(max_length / 48)):
@@ -2009,6 +2027,7 @@ class monthly_evaluation_domain_sampler(InstanceSampler):
 
             self.domain_idx = holidays_idx
         
+        # Get all indexes at the start of the days of a given month
         if domain != 'Holidays':
             domain_idx = self.month_idx[domain]
             non_holidays_idx = []
@@ -2024,12 +2043,28 @@ class monthly_evaluation_domain_sampler(InstanceSampler):
         self.domain_idx = self.domain_idx[self.domain_idx < self.last_idx]
 
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
+        """ Get the bounds of the time series taking into consideration the context length and the future length.
+
+        Args:   
+            ts (np.ndarray): The time series.
+
+        Returns:
+            Tuple[int, int]: The bounds of the time series.
+        """
         return (
             self.min_past,
             ts.shape[self.axis] - self.min_future,
         )
 
     def __call__(self, ts: np.ndarray) -> np.ndarray:
+        """ Returns all window indexes for a domain for evaluation.
+
+        Args:   
+            ts (np.ndarray): The time series to evaluate.
+
+        Returns:
+            int: the start index of the time windows.
+        """
         a, b = self._get_bounds(ts)
         in_range_idx = self.domain_idx
         in_range_idx = in_range_idx[in_range_idx > a]
@@ -2041,38 +2076,6 @@ class monthly_evaluation_domain_sampler(InstanceSampler):
 
         return in_range_idx + a
 
-class ChristmasHolidays(holidays.HolidayBase):
-
-    def _populate(self, year):
-        self[datetime.date(year, 12, 23)] = "Pre-Christmas Eve"
-        self[datetime.date(year, 12, 24)] = "Christmas Eve"
-        self[datetime.date(year, 12, 25)] = "Christmas"
-        # self[datetime.date(year, 12, 26)] = "Post-Christmas"
-        # self[datetime.date(year, 12, 27)] = "Christmas Break 2"
-        # self[datetime.date(year, 12, 28)] = "Christmas Break 3"
-        # self[datetime.date(year, 12, 29)] = "Christmas Break 4"
-        # self[datetime.date(year, 12, 30)] = "Christmas Break 5"
-        self[datetime.date(year, 12, 31)] = "New Years eve"
-        self[datetime.date(year, 1, 1)] = "New Years"
-        # self[datetime.date(year, 1, 2)] = "Post-New Years"
-
-
-class DummyHolidays(holidays.HolidayBase):
-
-    def _populate(self, year):
-        self[datetime.date(year, 5, 19)] = "New Years"
-        self[datetime.date(year, 5, 20)] = "Post-New Years"
-        self[datetime.date(year, 5, 21)] = "Christmas Break 5"
-        self[datetime.date(year, 5, 22)] = "New Years eve"
-        self[datetime.date(year, 5, 23)] = "Pre-Christmas Eve"
-        self[datetime.date(year, 5, 24)] = "Christmas Eve"
-        self[datetime.date(year, 5, 25)] = "Christmas"
-        self[datetime.date(year, 5, 26)] = "Post-Christmas"
-        self[datetime.date(year, 5, 26)] = "Christmas Break 1"
-        self[datetime.date(year, 5, 27)] = "Christmas Break 2"
-        self[datetime.date(year, 5, 28)] = "Christmas Break 3"
-        self[datetime.date(year, 5, 29)] = "Christmas Break 4"
-
 class AusElectricityUnbalanced(Multi_Domain_Dataset):
 
     # Training parameters
@@ -2080,19 +2083,22 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
-    SETUP = 'subpopulation'
+    PERFORMANCE_MEASURE = 'rmse'
+    PARADIGM = 'subpopulation_shift'
+    SETUP = 'time'
     TASK = 'forecasting'
+
+    # Data parameters
     SEQ_LEN = 500
     INPUT_SIZE = 1
     OUTPUT_SIZE = 1
     FREQUENCY = '30T'
     PRED_LENGTH = 48
 
-    ## Environment parameters
-    ENVS = ['Holidays', 'NonHolidays']  # For training, we do not equally sample holidays and non holidays
-    SWEEP_ENVS = [-1] # This is a subpopulation shift problem
-    ENVS_WEIGHTS = [11./365, 354./365.]
-
+    ## Domain parameters
+    ENVS = ['Holidays', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    SWEEP_ENVS = [-1]
+    ENVS_WEIGHTS = [8./365, 28./365, 28./365., 31./365., 27./365., 31./365., 30./365., 31./365., 31./365., 30./365., 31./365., 30./365., 29./365.]
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [
@@ -2112,11 +2118,8 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
-
         # Domain property
-        # self.set_holidays = holidays.country_holidays('AU')
-        self.set_holidays = ChristmasHolidays()
-        # self.set_holidays = DummyHolidays()
+        self.set_holidays = holidays.country_holidays('AU')
 
         # Data property
         self.num_feat_static_cat = 0
@@ -2144,18 +2147,13 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        train_first_idx = 157776 # Only for evaluation
-        train_last_idx = 175296
+        time_pt_per_year = 365 * 24 * 2
+        train_first_idx = 175296 # Only for evaluation
+        train_last_idx = 192864
         val_first_idx = train_last_idx
-        val_last_idx = 192864
+        val_last_idx = 210384
         test_first_idx = val_last_idx
-        test_last_idx = 210384
-        # train_first_idx = 175296 # Only for evaluation
-        # train_last_idx = 192864
-        # val_first_idx = train_last_idx
-        # val_last_idx = 210384
-        # test_first_idx = val_last_idx
-        # test_last_idx = 227904
+        test_last_idx = 227904
 
         # Create ListDatasets
         train_dataset = ListDataset(
@@ -2249,8 +2247,11 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
             self.val_names.append(e+"_test")
             self.val_loaders.append(test_dataloader)
 
-        self.train_loaders_iter = zip(*self.train_loaders)
+        # Define loss function
         self.loss_fn = NegativeLogLikelihood()
+
+        # Define data loaders iterable
+        self.train_loaders_iter = zip(*self.train_loaders)
 
     def create_transformation(self) -> Transformation:
             remove_field_names = []
@@ -2412,21 +2413,23 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
         )
 
     def get_number_of_batches(self):
+        """ Returns total number of batches. """
         return self.num_batches_per_epoch
 
     def get_next_batch(self):
-
+        """ Returns next batch. """
         batch = next(self.train_loaders_iter)
-        # batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
 
         return batch[0]
 
     def split_input(self, batch):
-
+        """ Splits input into input and target. """
         return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
 
     def loss(self, X, Y):
+        """ Returns loss. """
         return self.loss_fn(X,Y)
+
 
 class AusElectricity(Multi_Domain_Dataset):
 
@@ -2443,10 +2446,10 @@ class AusElectricity(Multi_Domain_Dataset):
     FREQUENCY = '30T'
     PRED_LENGTH = 48
 
-    ## Environment parameters
-    ENVS = ['Holidays', 'NonHolidays']
+    ## Domain parameters
+    ENVS = ['Holidays', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     SWEEP_ENVS = [-1] # This is a subpopulation shift problem
-    ENVS_WEIGHTS = [11./365, 354./365.]
+    ENVS_WEIGHTS = [8./365, 28./365, 28./365., 31./365., 27./365., 31./365., 30./365., 31./365., 31./365., 30./365., 31./365., 30./365., 29./365.]
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [
@@ -2467,9 +2470,7 @@ class AusElectricity(Multi_Domain_Dataset):
         super().__init__()
 
         # Domain property
-        # self.set_holidays = holidays.country_holidays('AU')
-        self.set_holidays = ChristmasHolidays()
-        # self.set_holidays = DummyHolidays()
+        self.set_holidays = holidays.country_holidays('AU')
 
         # Data property
         self.num_feat_static_cat = 0
@@ -2497,18 +2498,13 @@ class AusElectricity(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        train_first_idx = 157776 # Only for evaluation
-        train_last_idx = 175296
+        time_pt_per_year = 365 * 24 * 2
+        train_first_idx = 175296 # Only for evaluation
+        train_last_idx = 192864
         val_first_idx = train_last_idx
-        val_last_idx = 192864
+        val_last_idx = 210384
         test_first_idx = val_last_idx
-        test_last_idx = 210384
-        # train_first_idx = 175296 # Only for evaluation
-        # train_last_idx = 192864
-        # val_first_idx = train_last_idx
-        # val_last_idx = 210384
-        # test_first_idx = val_last_idx
-        # test_last_idx = 227904
+        test_last_idx = 227904
 
         # Create ListDatasets
         train_dataset = ListDataset(
@@ -2553,6 +2549,9 @@ class AusElectricity(Multi_Domain_Dataset):
         train_transformed = self.transform.apply(train_dataset, is_train=True)
         validation_transformed = self.transform.apply(validation_dataset, is_train=False)
         test_transformed = self.transform.apply(test_dataset, is_train=False)
+
+        ## Create tensor dataset and dataloader
+        self.train_names, self.train_loaders = [], []
 
         ## Create tensor dataset and dataloader
         self.train_names, self.train_loaders = [], []
@@ -2765,742 +2764,23 @@ class AusElectricity(Multi_Domain_Dataset):
         )
 
     def get_number_of_batches(self):
+        """ Returns the number of batches per epoch. """
         return self.num_batches_per_epoch
 
     def get_next_batch(self):
-
-        batch = next(self.train_loaders_iter)
-        batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
-
-        return batch
-
-    def split_input(self, batch):
-
-        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
-
-    def loss(self, X, Y):
-        return self.loss_fn(X,Y)
-
-
-class AusElectricityMonthly(Multi_Domain_Dataset):
-
-    # Training parameters
-    N_STEPS = 3001
-    CHECKPOINT_FREQ = 100
-
-    ## Dataset parameters
-    SETUP = 'subpopulation'
-    TASK = 'forecasting'
-    SEQ_LEN = 500
-    INPUT_SIZE = 1
-    OUTPUT_SIZE = 1
-    FREQUENCY = '30T'
-    PRED_LENGTH = 48
-
-    ## Environment parameters
-    ENVS = ['Holidays', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    SWEEP_ENVS = [-1] # This is a subpopulation shift problem
-    ENVS_WEIGHTS = [8./365, 28./365, 28./365., 31./365., 27./365., 31./365., 30./365., 31./365., 31./365., 30./365., 31./365., 30./365., 29./365.]
-
-    ## Data field identifiers
-    PREDICTION_INPUT_NAMES = [
-        "feat_static_cat",
-        "feat_static_real",
-        "past_time_feat",
-        "past_target",
-        "past_observed_values",
-        "future_time_feat",
-    ]
-
-    TRAINING_INPUT_NAMES = PREDICTION_INPUT_NAMES + [
-        "future_target",
-        "future_observed_values",
-    ]
-
-    def __init__(self, flags, training_hparams):
-        super().__init__()
-
-        # Domain property
-        self.set_holidays = holidays.country_holidays('AU')
-        # self.set_holidays = ChristmasHolidays()
-        # self.set_holidays = DummyHolidays()
-
-        # Data property
-        self.num_feat_static_cat = 0
-        self.num_feat_dynamic_real = 0
-        self.num_feat_static_real = 0
-        self.start_datetime = datetime.datetime(2002,1,1,0,0)
-        self.max_ts_length = 240000  #Rounded up to the tens of thousand, just cause idk
-
-        ## Task information
-        # Forcasting models output parameters of a distribution
-        self.distr_output = StudentTOutput()
-        # Covariate information given to the model alongside the target time series
-        self.time_features = time_features_from_frequency_str(self.FREQUENCY)   # Transformed time information in the shape of a vector [f(minute), f(hour), f(day), ...]
-        self.lags_seq = get_lags_for_frequency(self.FREQUENCY)  # Past targets from the target time series fed alongside the current time e.g., input_target=[target[0], target[-10], target[-100], ...]
-        # Context info
-        self.context_length = 7*self.PRED_LENGTH
-        self._past_length = self.context_length + max(self.lags_seq)
-
-        # Training parameters
-        self.device = training_hparams['device']
-        self.batch_size = training_hparams['batch_size']
-        self.num_batches_per_epoch = 100
-
-        # Get dataset
-        self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
-
-        # Define training / validation / test split
-        time_pt_per_year = 365 * 24 * 2
-        # train_first_idx = 157776 # Only for evaluation
-        # train_last_idx = 175296
-        # val_first_idx = train_last_idx
-        # val_last_idx = 192864
-        # test_first_idx = val_last_idx
-        # test_last_idx = 210384
-        train_first_idx = 175296 # Only for evaluation
-        train_last_idx = 192864
-        val_first_idx = train_last_idx
-        val_last_idx = 210384
-        test_first_idx = val_last_idx
-        test_last_idx = 227904
-
-        # Create ListDatasets
-        train_dataset = ListDataset(
-            [
-                {  
-                    FieldName.TARGET: tgt[:train_last_idx],
-                    FieldName.START: strt
-                } for (tgt, strt) in zip(
-                    self.raw_data['test']['target'], 
-                    self.raw_data['test']['start'])
-            ],
-            freq=self.FREQUENCY
-        )
-        validation_dataset = ListDataset(
-            [
-                {
-                    FieldName.TARGET: tgt[:val_last_idx],
-                    FieldName.START: strt
-                } for (tgt, strt) in zip(
-                    self.raw_data['test']['target'], 
-                    self.raw_data['test']['start'])
-            ], freq=self.FREQUENCY
-        )
-        test_dataset = ListDataset(
-            [
-                {
-                    FieldName.TARGET: tgt,
-                    FieldName.START: strt
-                } for (tgt, strt) in zip(
-                    self.raw_data['test']['target'], 
-                    self.raw_data['test']['start'])
-            ], freq=self.FREQUENCY
-        )
-
-        # Define embedding (this is kind of useless because this dataset doesn't have categorical covariate features, 
-        # but it might be useful as template for other forecasting datasets)
-        self.cardinality = [5]
-        self.embedding_dimension = [5]
-
-        # Create transformation
-        self.transform = self.create_transformation()
-        train_transformed = self.transform.apply(train_dataset, is_train=True)
-        validation_transformed = self.transform.apply(validation_dataset, is_train=False)
-        test_transformed = self.transform.apply(test_dataset, is_train=False)
-
-        ## Create tensor dataset and dataloader
-        self.train_names, self.train_loaders = [], []
-
-        ## Create tensor dataset and dataloader
-        self.train_names, self.train_loaders = [], []
-        training_dataloader = self.create_training_data_loader(
-            train_transformed,
-            domain='All',
-            training_hparams=training_hparams,
-            shuffle_buffer_length=0,
-            num_workers=self.N_WORKERS
-        )
-        self.train_names.append("All_train")
-        self.train_loaders.append(training_dataloader)
-
-        self.val_names, self.val_loaders = [], []
-        for j, e in enumerate(self.ENVS):
-
-            training_evaluation_dataloader = self.create_evaluation_data_loader(
-                train_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                start_idx=train_first_idx,
-                last_idx=train_last_idx,
-                num_workers=0
-            )
-            self.val_names.append(e+"_train")
-            self.val_loaders.append(training_evaluation_dataloader)
-
-            validation_dataloader = self.create_evaluation_data_loader(
-                validation_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                start_idx=val_first_idx,
-                last_idx=val_last_idx,
-                num_workers=0
-            )
-            self.val_names.append(e+"_val")
-            self.val_loaders.append(validation_dataloader)
-
-            test_dataloader = self.create_evaluation_data_loader(
-                test_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                start_idx=test_first_idx,
-                last_idx=test_last_idx,
-                num_workers=0
-            )
-            self.val_names.append(e+"_test")
-            self.val_loaders.append(test_dataloader)
-
-        self.train_loaders_iter = zip(*self.train_loaders)
-        self.loss_fn = NegativeLogLikelihood()
-
-    def create_transformation(self) -> Transformation:
-            remove_field_names = []
-            if self.num_feat_static_real == 0:
-                remove_field_names.append(FieldName.FEAT_STATIC_REAL)
-            if self.num_feat_dynamic_real == 0:
-                remove_field_names.append(FieldName.FEAT_DYNAMIC_REAL)
-
-            return Chain(
-                [RemoveFields(field_names=remove_field_names)]
-                + (
-                    [SetField(output_field=FieldName.FEAT_STATIC_CAT, value=[0])]
-                    if not self.num_feat_static_cat > 0
-                    else []
-                )
-                + (
-                    [
-                        SetField(
-                            output_field=FieldName.FEAT_STATIC_REAL, value=[0.0]
-                        )
-                    ]
-                    if not self.num_feat_static_real > 0
-                    else []
-                )
-                + [
-                    AsNumpyArray(
-                        field=FieldName.FEAT_STATIC_CAT,
-                        expected_ndim=1,
-                        dtype=int,
-                    ),
-                    AsNumpyArray(
-                        field=FieldName.FEAT_STATIC_REAL,
-                        expected_ndim=1,
-                    ),
-                    AsNumpyArray(
-                        field=FieldName.TARGET,
-                        # in the following line, we add 1 for the time dimension
-                        expected_ndim=1 + len(self.distr_output.event_shape),
-                    ),
-                    AddObservedValuesIndicator(
-                        target_field=FieldName.TARGET,
-                        output_field=FieldName.OBSERVED_VALUES,
-                    ),
-                    AddTimeFeatures(
-                        start_field=FieldName.START,
-                        target_field=FieldName.TARGET,
-                        output_field=FieldName.FEAT_TIME,
-                        time_features=self.time_features,
-                        pred_length=self.PRED_LENGTH,
-                    ),
-                    AddAgeFeature(
-                        target_field=FieldName.TARGET,
-                        output_field=FieldName.FEAT_AGE,
-                        pred_length=self.PRED_LENGTH,
-                        log_scale=True,
-                    ),
-                    VstackFeatures(
-                        output_field=FieldName.FEAT_TIME,
-                        input_fields=[FieldName.FEAT_TIME, FieldName.FEAT_AGE]
-                        + (
-                            [FieldName.FEAT_DYNAMIC_REAL]
-                            if self.num_feat_dynamic_real > 0
-                            else []
-                        ),
-                    ),
-                ]
-            )
-
-    def _create_instance_splitter(
-            self, instance_sampler: InstanceSampler
-        ):
-            return InstanceSplitter(
-                target_field=FieldName.TARGET,
-                is_pad_field=FieldName.IS_PAD,
-                start_field=FieldName.START,
-                forecast_start_field=FieldName.FORECAST_START,
-                instance_sampler=instance_sampler,
-                past_length=self._past_length,
-                future_length=self.PRED_LENGTH,
-                time_series_fields=[
-                    FieldName.FEAT_TIME,
-                    FieldName.OBSERVED_VALUES,
-                ],
-                dummy_value=self.distr_output.value_in_support,
-            )
-
-    def create_training_data_loader(
-        self,
-        data: Dataset,
-        domain: str,
-        training_hparams,
-        shuffle_buffer_length: Optional[int] = None,
-        **kwargs,
-    ) -> Iterable:
-
-        instance_sampler = training_domain_sampler(
-            min_future=self.PRED_LENGTH, 
-            num_instances=1.0
-        )
-        instance_sampler.set_attribute(
-            domain,
-            self.set_holidays, 
-            self.start_datetime, 
-            max_length=self.max_ts_length
-        )
-
-        transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
-
-        training_instances = transformation.apply(
-            Cyclic(data)
-            if shuffle_buffer_length is None
-            else PseudoShuffled(
-                Cyclic(data), shuffle_buffer_length=shuffle_buffer_length
-            )
-        )
-
-        return IterableSlice(
-            iter(
-                DataLoader(
-                    IterableDataset(training_instances),
-                    batch_size=training_hparams['batch_size'],
-                    **kwargs,
-                )
-            ),
-            self.N_STEPS,
-        )
-
-    def create_evaluation_data_loader(
-        self,
-        data: Dataset,
-        domain: str,
-        training_hparams,
-        start_idx: Optional[int]=0,
-        last_idx: Optional[int]=None,
-        **kwargs,
-    ) -> Iterable:
-
-        instance_sampler = monthly_evaluation_domain_sampler(
-            min_future=self.PRED_LENGTH, 
-            num_instances=1.0,
-            start_idx=start_idx,
-            last_idx=last_idx
-        )
-        instance_sampler.set_attribute(
-            domain,
-            self.set_holidays, 
-            self.start_datetime, 
-            max_length=self.max_ts_length
-        )
-
-        transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
-
-        validation_instances = transformation.apply(data)
-
-        return DataLoader(
-            IterableDataset(validation_instances),
-            batch_size=training_hparams['batch_size'],
-            **kwargs,
-        )
-
-    def get_number_of_batches(self):
-        return self.num_batches_per_epoch
-
-    def get_next_batch(self):
-
-        batch = next(self.train_loaders_iter)
-        # batch = {k: torch.cat((batch[0][k], batch[1][k]), dim=0) for k in batch[0]}
-
-        return batch[0]
-
-    def split_input(self, batch):
-
-        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
-
-    def loss(self, X, Y):
-        return self.loss_fn(X,Y)
-
-
-class AusElectricityMonthlyBalanced(Multi_Domain_Dataset):
-
-    # Training parameters
-    N_STEPS = 3001
-    CHECKPOINT_FREQ = 100
-
-    ## Dataset parameters
-    SETUP = 'subpopulation'
-    TASK = 'forecasting'
-    SEQ_LEN = 500
-    INPUT_SIZE = 1
-    OUTPUT_SIZE = 1
-    FREQUENCY = '30T'
-    PRED_LENGTH = 48
-
-    ## Environment parameters
-    ENVS = ['Holidays', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    SWEEP_ENVS = [-1] # This is a subpopulation shift problem
-    ENVS_WEIGHTS = [8./365, 28./365, 28./365., 31./365., 27./365., 31./365., 30./365., 31./365., 31./365., 30./365., 31./365., 30./365., 29./365.]
-
-    ## Data field identifiers
-    PREDICTION_INPUT_NAMES = [
-        "feat_static_cat",
-        "feat_static_real",
-        "past_time_feat",
-        "past_target",
-        "past_observed_values",
-        "future_time_feat",
-    ]
-
-    TRAINING_INPUT_NAMES = PREDICTION_INPUT_NAMES + [
-        "future_target",
-        "future_observed_values",
-    ]
-
-    def __init__(self, flags, training_hparams):
-        super().__init__()
-
-        # Domain property
-        self.set_holidays = holidays.country_holidays('AU')
-        # self.set_holidays = ChristmasHolidays()
-        # self.set_holidays = DummyHolidays()
-
-        # Data property
-        self.num_feat_static_cat = 0
-        self.num_feat_dynamic_real = 0
-        self.num_feat_static_real = 0
-        self.start_datetime = datetime.datetime(2002,1,1,0,0)
-        self.max_ts_length = 240000  #Rounded up to the tens of thousand, just cause idk
-
-        ## Task information
-        # Forcasting models output parameters of a distribution
-        self.distr_output = StudentTOutput()
-        # Covariate information given to the model alongside the target time series
-        self.time_features = time_features_from_frequency_str(self.FREQUENCY)   # Transformed time information in the shape of a vector [f(minute), f(hour), f(day), ...]
-        self.lags_seq = get_lags_for_frequency(self.FREQUENCY)  # Past targets from the target time series fed alongside the current time e.g., input_target=[target[0], target[-10], target[-100], ...]
-        # Context info
-        self.context_length = 7*self.PRED_LENGTH
-        self._past_length = self.context_length + max(self.lags_seq)
-
-        # Training parameters
-        self.device = training_hparams['device']
-        self.batch_size = training_hparams['batch_size']
-        self.num_batches_per_epoch = 100
-
-        # Get dataset
-        self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
-
-        # Define training / validation / test split
-        time_pt_per_year = 365 * 24 * 2
-        # train_first_idx = 157776 # Only for evaluation
-        # train_last_idx = 175296
-        # val_first_idx = train_last_idx
-        # val_last_idx = 192864
-        # test_first_idx = val_last_idx
-        # test_last_idx = 210384
-        train_first_idx = 175296 # Only for evaluation
-        train_last_idx = 192864
-        val_first_idx = train_last_idx
-        val_last_idx = 210384
-        test_first_idx = val_last_idx
-        test_last_idx = 227904
-
-        # Create ListDatasets
-        train_dataset = ListDataset(
-            [
-                {  
-                    FieldName.TARGET: tgt[:train_last_idx],
-                    FieldName.START: strt
-                } for (tgt, strt) in zip(
-                    self.raw_data['test']['target'], 
-                    self.raw_data['test']['start'])
-            ],
-            freq=self.FREQUENCY
-        )
-        validation_dataset = ListDataset(
-            [
-                {
-                    FieldName.TARGET: tgt[:val_last_idx],
-                    FieldName.START: strt
-                } for (tgt, strt) in zip(
-                    self.raw_data['test']['target'], 
-                    self.raw_data['test']['start'])
-            ], freq=self.FREQUENCY
-        )
-        test_dataset = ListDataset(
-            [
-                {
-                    FieldName.TARGET: tgt,
-                    FieldName.START: strt
-                } for (tgt, strt) in zip(
-                    self.raw_data['test']['target'], 
-                    self.raw_data['test']['start'])
-            ], freq=self.FREQUENCY
-        )
-
-        # Define embedding (this is kind of useless because this dataset doesn't have categorical covariate features, 
-        # but it might be useful as template for other forecasting datasets)
-        self.cardinality = [5]
-        self.embedding_dimension = [5]
-
-        # Create transformation
-        self.transform = self.create_transformation()
-        train_transformed = self.transform.apply(train_dataset, is_train=True)
-        validation_transformed = self.transform.apply(validation_dataset, is_train=False)
-        test_transformed = self.transform.apply(test_dataset, is_train=False)
-
-        ## Create tensor dataset and dataloader
-        self.train_names, self.train_loaders = [], []
-
-        ## Create tensor dataset and dataloader
-        self.train_names, self.train_loaders = [], []
-        self.val_names, self.val_loaders = [], []
-        for j, e in enumerate(self.ENVS):
-
-            training_dataloader = self.create_training_data_loader(
-                train_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                shuffle_buffer_length=0,
-                num_workers=self.N_WORKERS
-            )
-            self.train_names.append(e+"_train")
-            self.train_loaders.append(training_dataloader)
-
-            training_evaluation_dataloader = self.create_evaluation_data_loader(
-                train_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                start_idx=train_first_idx,
-                last_idx=train_last_idx,
-                num_workers=0
-            )
-            self.val_names.append(e+"_train")
-            self.val_loaders.append(training_evaluation_dataloader)
-
-            validation_dataloader = self.create_evaluation_data_loader(
-                validation_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                start_idx=val_first_idx,
-                last_idx=val_last_idx,
-                num_workers=0
-            )
-            self.val_names.append(e+"_val")
-            self.val_loaders.append(validation_dataloader)
-
-            test_dataloader = self.create_evaluation_data_loader(
-                test_transformed,
-                domain=e,
-                training_hparams=training_hparams,
-                start_idx=test_first_idx,
-                last_idx=test_last_idx,
-                num_workers=0
-            )
-            self.val_names.append(e+"_test")
-            self.val_loaders.append(test_dataloader)
-
-        self.train_loaders_iter = zip(*self.train_loaders)
-        self.loss_fn = NegativeLogLikelihood()
-
-    def create_transformation(self) -> Transformation:
-            remove_field_names = []
-            if self.num_feat_static_real == 0:
-                remove_field_names.append(FieldName.FEAT_STATIC_REAL)
-            if self.num_feat_dynamic_real == 0:
-                remove_field_names.append(FieldName.FEAT_DYNAMIC_REAL)
-
-            return Chain(
-                [RemoveFields(field_names=remove_field_names)]
-                + (
-                    [SetField(output_field=FieldName.FEAT_STATIC_CAT, value=[0])]
-                    if not self.num_feat_static_cat > 0
-                    else []
-                )
-                + (
-                    [
-                        SetField(
-                            output_field=FieldName.FEAT_STATIC_REAL, value=[0.0]
-                        )
-                    ]
-                    if not self.num_feat_static_real > 0
-                    else []
-                )
-                + [
-                    AsNumpyArray(
-                        field=FieldName.FEAT_STATIC_CAT,
-                        expected_ndim=1,
-                        dtype=int,
-                    ),
-                    AsNumpyArray(
-                        field=FieldName.FEAT_STATIC_REAL,
-                        expected_ndim=1,
-                    ),
-                    AsNumpyArray(
-                        field=FieldName.TARGET,
-                        # in the following line, we add 1 for the time dimension
-                        expected_ndim=1 + len(self.distr_output.event_shape),
-                    ),
-                    AddObservedValuesIndicator(
-                        target_field=FieldName.TARGET,
-                        output_field=FieldName.OBSERVED_VALUES,
-                    ),
-                    AddTimeFeatures(
-                        start_field=FieldName.START,
-                        target_field=FieldName.TARGET,
-                        output_field=FieldName.FEAT_TIME,
-                        time_features=self.time_features,
-                        pred_length=self.PRED_LENGTH,
-                    ),
-                    AddAgeFeature(
-                        target_field=FieldName.TARGET,
-                        output_field=FieldName.FEAT_AGE,
-                        pred_length=self.PRED_LENGTH,
-                        log_scale=True,
-                    ),
-                    VstackFeatures(
-                        output_field=FieldName.FEAT_TIME,
-                        input_fields=[FieldName.FEAT_TIME, FieldName.FEAT_AGE]
-                        + (
-                            [FieldName.FEAT_DYNAMIC_REAL]
-                            if self.num_feat_dynamic_real > 0
-                            else []
-                        ),
-                    ),
-                ]
-            )
-
-    def _create_instance_splitter(
-            self, instance_sampler: InstanceSampler
-        ):
-            return InstanceSplitter(
-                target_field=FieldName.TARGET,
-                is_pad_field=FieldName.IS_PAD,
-                start_field=FieldName.START,
-                forecast_start_field=FieldName.FORECAST_START,
-                instance_sampler=instance_sampler,
-                past_length=self._past_length,
-                future_length=self.PRED_LENGTH,
-                time_series_fields=[
-                    FieldName.FEAT_TIME,
-                    FieldName.OBSERVED_VALUES,
-                ],
-                dummy_value=self.distr_output.value_in_support,
-            )
-
-    def create_training_data_loader(
-        self,
-        data: Dataset,
-        domain: str,
-        training_hparams,
-        shuffle_buffer_length: Optional[int] = None,
-        **kwargs,
-    ) -> Iterable:
-
-        instance_sampler = monthly_training_domain_sampler(
-            min_future=self.PRED_LENGTH, 
-            num_instances=1.0
-        )
-        instance_sampler.set_attribute(
-            domain,
-            self.set_holidays, 
-            self.start_datetime, 
-            max_length=self.max_ts_length
-        )
-
-        transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
-
-        training_instances = transformation.apply(
-            Cyclic(data)
-            if shuffle_buffer_length is None
-            else PseudoShuffled(
-                Cyclic(data), shuffle_buffer_length=shuffle_buffer_length
-            )
-        )
-
-        return IterableSlice(
-            iter(
-                DataLoader(
-                    IterableDataset(training_instances),
-                    batch_size=training_hparams['batch_size'],
-                    **kwargs,
-                )
-            ),
-            self.N_STEPS,
-        )
-
-    def create_evaluation_data_loader(
-        self,
-        data: Dataset,
-        domain: str,
-        training_hparams,
-        start_idx: Optional[int]=0,
-        last_idx: Optional[int]=None,
-        **kwargs,
-    ) -> Iterable:
-
-        instance_sampler = monthly_evaluation_domain_sampler(
-            min_future=self.PRED_LENGTH, 
-            num_instances=1.0,
-            start_idx=start_idx,
-            last_idx=last_idx
-        )
-        instance_sampler.set_attribute(
-            domain,
-            self.set_holidays, 
-            self.start_datetime, 
-            max_length=self.max_ts_length
-        )
-
-        transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
-
-        validation_instances = transformation.apply(data)
-
-        return DataLoader(
-            IterableDataset(validation_instances),
-            batch_size=training_hparams['batch_size'],
-            **kwargs,
-        )
-
-    def get_number_of_batches(self):
-        return self.num_batches_per_epoch
-
-    def get_next_batch(self):
-
+        """ Returns the next batch. """
         batch = next(self.train_loaders_iter)
         batch = {k: torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in batch[0]}
 
         return batch
 
     def split_input(self, batch):
-
+        """ Splits the input batch into the input and target. """
         return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
 
     def loss(self, X, Y):
+        """ Returns the loss for the given input and target. """
         return self.loss_fn(X,Y)
-
-import pickle
-import pandas as pd
-from torch.nn.utils.rnn import pad_sequence
-from woods.utils import MaskedNLLLoss
 
 class IEMOCAPDataset(Dataset):
 
@@ -3548,6 +2828,251 @@ class IEMOCAPDataset(Dataset):
         dat = pd.DataFrame(data)
         return [pad_sequence(dat[i]) if i<4 else pad_sequence(dat[i], True) if i<6 else dat[i].tolist() for i in dat]
 
+class original_IEMOCAPDataset(Dataset):
+
+    def __init__(self, path, split=None, domain=None):
+        allvideoIDs, allvideoSpeakers, allvideoLabels, allvideoText,\
+        allvideoAudio, allvideoVisual, allvideoSentence, alltrainVid,\
+        alltestVid = pickle.load(open(path, 'rb'), encoding='latin1')
+        '''
+        label index mapping = {'hap':0, 'sad':1, 'neu':2, 'ang':3, 'exc':4, 'fru':5}
+        '''
+        if split == "train":
+            self.keys = [x for x in alltrainVid]
+        elif split =='valid':
+            self.keys = [x for x in alltestVid]
+        elif split == 'test':
+            self.keys = [x for x in alltestVid]
+
+        self.videoSpeakers, self.videoLabels, self.videoText, self.videoAudio, self.videoVisual = {}, {}, {}, {}, {}
+        for k in self.keys:
+            self.videoSpeakers[k] = torch.FloatTensor(np.array([[1,0] if x=='M' else [0,1] for x in allvideoSpeakers[k]]))
+            self.videoLabels[k] = torch.LongTensor(allvideoLabels[k])
+            self.videoText[k] = torch.FloatTensor(np.array(allvideoText[k]))
+            self.videoVisual[k] = torch.FloatTensor(np.array(allvideoVisual[k]))
+            self.videoAudio[k] = torch.FloatTensor(np.array(allvideoAudio[k]))
+
+        if domain is not None:
+            # Create list of video which have at least one of the domain sample
+            raise NotImplementedError()
+
+        self.len = len(self.keys)
+
+    def __getitem__(self, index):
+        vid = self.keys[index]
+        return self.videoText[vid],\
+               self.videoVisual[vid],\
+               self.videoAudio[vid],\
+               self.videoSpeakers[vid],\
+               torch.ones_like(self.videoLabels[vid]),\
+               self.videoLabels[vid]
+
+    def __len__(self):
+        return self.len
+
+    def collate_fn(self, data):
+        dat = pd.DataFrame(data)
+        return [pad_sequence(dat[i]) if i<4 else pad_sequence(dat[i], True) if i<6 else dat[i].tolist() for i in dat]
+
+class IEMOCAPOriginal(Multi_Domain_Dataset):
+    """ IEMOCAP
+    """
+    ## Training parameters
+    N_STEPS = 5001
+    CHECKPOINT_FREQ = 100
+
+    ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
+    PARADIGM = 'subpopulation_shift'
+    SETUP = 'time'
+    TASK = 'classification'
+    #:int: number of frames in each video
+    INPUT_SHAPE = None
+    OUTPUT_SIZE = 6
+    #:str: path to the folder containing the data
+    DATA_PATH = 'IEMOCAP/IEMOCAP_features_raw.pkl'
+
+    ## Domain parameters
+    ENVS = ['no-shift', 'shift']
+    SWEEP_ENVS = [-1]
+
+    def __init__(self, flags, training_hparams):
+        super().__init__()
+
+        if flags.test_env is not None:
+            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
+        else:
+            warnings.warn("You don't have any test environment")
+
+        ## Save stuff
+        self.device = training_hparams['device']
+        self.test_env = flags.test_env
+        self.class_balance = training_hparams['class_balance']
+        self.batch_size = training_hparams['batch_size']
+
+        ## Prepare the data (Download if needed)
+        ## Reminder to do later
+
+        ## Create tensor dataset and dataloader
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
+
+        full_data_path = os.path.join(flags.data_path, self.DATA_PATH)
+
+        # Make training dataset/loader and append it to training containers
+        train_dataset = original_IEMOCAPDataset(full_data_path, split='train')
+        train_loader = InfiniteLoader(train_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
+        self.train_names.append('All_train')
+        self.train_loaders.append(train_loader)
+
+        # Make validation loaders
+        fast_train_dataset = original_IEMOCAPDataset(full_data_path, split='train')
+        fast_train_loader = torch.utils.data.DataLoader(fast_train_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_train_dataset.collate_fn)
+        self.val_names.append([str(e)+'_train' for e in self.ENVS])
+        self.val_loaders.append(fast_train_loader)
+        fast_val_dataset = original_IEMOCAPDataset(full_data_path, split='valid')
+        fast_val_loader = torch.utils.data.DataLoader(fast_val_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_val_dataset.collate_fn)
+        self.val_names.append([str(e)+'_val' for e in self.ENVS])
+        self.val_loaders.append(fast_val_loader)
+        fast_test_dataset = original_IEMOCAPDataset(full_data_path, split='test')
+        fast_test_loader = torch.utils.data.DataLoader(fast_test_dataset, batch_size=50, shuffle=False, num_workers=self.N_WORKERS, pin_memory=True, collate_fn=fast_test_dataset.collate_fn)
+        self.val_names.append([str(e)+'_test' for e in self.ENVS])
+        self.val_loaders.append(fast_test_loader)
+
+        # Define loss function
+        self.log_prob = nn.LogSoftmax(dim=1)
+        self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
+        self.train_loaders_iter = zip(*self.train_loaders)
+
+    def loss(self, pred, Y, by_domain=False):
+        """
+        Computes the masked NLL loss for the IEMOCAP dataset
+        Args:
+            pred (torch.tensor): Predictions of the model. Shape (batch, time, n_classes)
+            Y (torch.tensor): Targets. Shape (batch, time)
+        Returns:
+            torch.tensor: loss of each samples. Shape (batch, time)
+        """
+
+        target, mask = Y
+
+        pred = pred.permute(0,2,1)
+        if by_domain:
+            # Get all losses without reduction
+            losses = self.loss_fn(self.log_prob(pred), target)
+
+            # Get mask of which predictions were of which domains
+            domain_mask = self.get_domain_mask(target)
+
+            # Fetch losses - domain wise
+            mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
+            for i in range(len(self.ENVS)):
+                pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+
+                env_losses = torch.masked_select(losses, pad_env_mask.bool())
+
+                if env_losses.numel():
+                    mean_env_losses[i] = env_losses.mean()
+                else:
+                    mean_env_losses[i] = 0
+
+            return mean_env_losses
+        else:
+            # Get all losses without reduction
+            losses = self.loss_fn(self.log_prob(pred), target)
+
+            # Keep only losses that weren't padded
+            masked_losses = torch.masked_select(losses, mask.bool())
+
+            # Return mean
+            return masked_losses.mean()
+    
+    def get_class_weight(self):
+        """ Compute class weight for class balanced training
+
+        Returns:
+            list: list of weights of length OUTPUT_SIZE
+        """
+        _, train_loaders = self.get_train_loaders()
+
+        n_labels = torch.zeros(self.OUTPUT_SIZE)
+
+        for env_loader in train_loaders:
+            labels = torch.cat(list(env_loader.dataset.videoLabels.values()))
+            for i in range(self.OUTPUT_SIZE):
+                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+
+        weights = n_labels.max() / n_labels
+
+        return weights
+
+    def get_next_batch(self):
+
+        batch = next(self.train_loaders_iter)
+        batch = [torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in range(len(batch[0]))]
+        return [batch]
+
+    def split_input(self, batch):
+        """
+        Outputs the split input and labels
+        This dataset has padded sequences, therefore it returns a tuple with the mask that indicate what is padded and what isn't
+        """
+        x = torch.cat([torch.cat([input_item for input_item in env_batch[:-3]], dim=2) for env_batch in batch], dim=0).to(self.device)
+        y = torch.cat([env_batch[-1] for env_batch in batch]).to(self.device)
+        pad_mask = torch.cat([env_batch[-2] for env_batch in batch]).to(self.device)
+        q_mask = torch.cat([env_batch[-3] for env_batch in batch]).to(self.device)
+
+        return (x, q_mask, pad_mask), (y, pad_mask)
+
+    def get_nb_correct(self, out, target):
+        """Time domain correct count
+
+        Args:
+            pred (_type_): _description_
+            target (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        # Get predictions
+        pred = out.argmax(dim=2)
+
+        # Make domain masking
+        domain_mask = self.get_domain_mask(target[0])
+
+        # Get right guesses and stuff
+        pad_mask = target[1]
+        batch_correct = torch.zeros(len(self.ENVS)).to(out.device)
+        batch_numel = torch.zeros(len(self.ENVS)).to(out.device)
+        for i in range(len(self.ENVS)):
+            pad_env_mask = torch.logical_and(pad_mask, domain_mask[i,...])
+
+            domain_pred = torch.masked_select(pred, pad_env_mask.bool())
+            domain_target = torch.masked_select(target[0], pad_env_mask.bool())
+
+            batch_correct[i] = domain_pred.eq(domain_target).sum()
+            batch_numel[i] = domain_target.numel()
+
+        # Remove padded sequences of input / targets
+        return batch_correct, batch_numel
+
+    def get_domain_mask(self, target):
+        """ Creates the domain masks for a batch
+        """
+        domain_mask = torch.zeros(len(self.ENVS), *target.shape).to(target.device)
+        for i, env in enumerate(self.ENVS):
+            for spl in range(target.shape[0]):
+                for j, (l1, l2) in enumerate(zip(target[spl,:-1], target[spl,1:])):
+                    if env == 'no-shift':
+                        if str(l1.item()) == str(l2.item()):
+                            domain_mask[i, spl, j+1] = 1
+                    elif env == 'shift':
+                        if str(l1.item()) != str(l2.item()):
+                            domain_mask[i, spl, j+1] = 1
+        
+        return domain_mask
+
 class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     """ IEMOCAP
     """
@@ -3556,6 +3081,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
+    PERFORMANCE_MEASURE = 'acc'
     PARADIGM = 'subpopulation_shift'
     SETUP = 'time'
     TASK = 'classification'
@@ -3565,7 +3091,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     #:str: path to the folder containing the data
     DATA_PATH = 'IEMOCAP/IEMOCAP_features_raw_OOD.pkl'
 
-    ## Environment parameters
+    ## Domain parameters
     ENVS = ['no-shift', 'rare-shift', 
             '0-1', '1-0',
             '0-2', '2-0', 

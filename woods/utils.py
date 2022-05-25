@@ -224,6 +224,31 @@ def setup_pretty_table(flags):
     
     return t
 
+def update_pretty_table(t, step, dataset, record):
+    
+    ## Get info for table
+    envs = dataset.ENVS
+    train_names = dataset.train_names
+    paradigm = dataset.PARADIGM
+    measure = dataset.PERFORMANCE_MEASURE
+
+    if paradigm == 'subpopulation_shift':
+        t.add_row([step] 
+                + [" :: ".join(["{:.2f}".format(record[str(e)+'_train_'+measure]) for e in envs])] 
+                + [" :: ".join(["{:.2f}".format(record[str(e)+'_val_'+measure]) for e in envs])] 
+                + [" :: ".join(["{:.2f}".format(record[str(e)+'_test_'+measure]) for e in envs])] 
+                + ["{:.1e}".format(np.average([record[str(e)+'_train_loss'] for e in envs]))] 
+                + ["N\A"]
+                + ["{:.2f}".format(record['step_time'])] 
+                + ["{:.2f}".format(record['val_time'])])
+    if paradigm == 'domain_generalization':
+        t.add_row([step] 
+                + ["{:.2f} :: {:.2f}".format(record[str(e)+'_in_acc'], record[str(e)+'_out_acc']) for e in envs] 
+                + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))] 
+                + ["{:.2f}".format(record['epoch'])]
+                + ["{:.2f}".format(record['step_time'])] 
+                + ["{:.2f}".format(record['val_time'])])
+
 def get_latex_table(table, caption=None, label=None):
     """Construct and export a LaTeX table from a PrettyTable.
 
@@ -264,28 +289,3 @@ def get_latex_table(table, caption=None, label=None):
     s += r'\end{center}' + '\n'
 
     return s
-
-import torch
-from torch import nn
-
-class MaskedNLLLoss(nn.Module):
-
-    def __init__(self, weight=None, reduction='None'):
-        super(MaskedNLLLoss, self).__init__()
-        self.weight = weight
-        self.loss = nn.NLLLoss(weight=weight,
-                               reduction=reduction)
-
-    def forward(self, pred, target, mask):
-        """
-        pred -> batch, num_classes, seq_len
-        target -> batch, seq_len
-        mask -> batch, seq_len
-        """
-        mask_ = mask.unsqueeze(1) # batch, 1, seq_len
-        # if type(self.weight)==type(None):
-        loss = self.loss(pred*mask_, target)#/torch.sum(mask)
-        # else:
-        #     loss = self.loss(pred*mask_, target)\
-        #                     /torch.sum(self.weight[target]*mask_.squeeze())
-        return loss

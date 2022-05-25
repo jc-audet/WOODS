@@ -68,42 +68,11 @@ def train(flags, training_hparams, model, objective, dataset, device):
             val_time = time.time() - val_start
 
             record[str(step)] = checkpoint_record
+            record[str(step)]['step_time'] = np.mean(step_times)
+            record[str(step)]['val_time'] = val_time
+            record[str(step)]['epoch'] = step * len(dataset.train_loaders) / n_batches
 
-            if dataset.PARADIGM == 'subpopulation_shift':
-                if dataset.TASK == 'forecasting':
-                    t.add_row([step] 
-                            + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_train_rmse']) for e in dataset.ENVS])] 
-                            + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_val_rmse']) for e in dataset.ENVS])] 
-                            + [" :: ".join(["{:.0f}".format(record[str(step)][str(e)+'_test_rmse']) for e in dataset.ENVS])] 
-                            + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_train_loss'] for e in dataset.ENVS]))] 
-                            + ["0"]
-                            + ["{:.2f}".format(np.mean(step_times))] 
-                            + ["{:.2f}".format(val_time)])
-
-                if dataset.TASK == 'classification':
-                    t.add_row([step] 
-                            + [" :: ".join(["{:.2f}".format(record[str(step)][str(e)+'_train_acc']) for e in dataset.ENVS])] 
-                            + [" :: ".join(["{:.2f}".format(record[str(step)][str(e)+'_val_acc']) for e in dataset.ENVS])] 
-                            + [" :: ".join(["{:.2f}".format(record[str(step)][str(e)+'_test_acc']) for e in dataset.ENVS])] 
-                            + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_train_loss'] for e in dataset.ENVS]))] 
-                            + ["0"]
-                            + ["{:.2f}".format(np.mean(step_times))] 
-                            + ["{:.2f}".format(val_time)])
-            if dataset.PARADIGM == 'domain_generalization':
-                if dataset.TASK == 'regression':
-                    t.add_row([step] 
-                            + ["{:.1e} :: {:.1e}".format(record[str(step)][str(e)+'_in_loss'], record[str(step)][str(e)+'_out_loss']) for e in dataset.ENVS] 
-                            + ["{:.1e}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
-                            + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
-                            + ["{:.2f}".format(np.mean(step_times))] 
-                            + ["{:.2f}".format(val_time)])
-                if dataset.TASK == 'classification':
-                    t.add_row([step] 
-                            + ["{:.2f} :: {:.2f}".format(record[str(step)][str(e)+'_in_acc'], record[str(step)][str(e)+'_out_acc']) for e in dataset.ENVS] 
-                            + ["{:.2f}".format(np.average([record[str(step)][str(e)+'_loss'] for e in dataset.train_names]))] 
-                            + ["{:.2f}".format((step*len(dataset.train_loaders)) / n_batches)]
-                            + ["{:.2f}".format(np.mean(step_times))] 
-                            + ["{:.2f}".format(val_time)])
+            utils.update_pretty_table(t, step, dataset, record[str(step)])
 
             step_times = [] 
             print("\n".join(t.get_string().splitlines()[-2:-1]))
@@ -148,24 +117,6 @@ def get_accuracies(objective, dataset, device):
 
                 record.update({ name+'_rmse': error,
                                 name+'_loss': loss})
-                
-
-    # all_day_losses = np.zeros(365)
-    # all_day_counts = np.zeros(365)
-    # for name, loader in zip(
-    #     [val_names[1], val_names[4]], 
-    #     [val_loaders[1], val_loaders[4]]
-    # ):
-    #     errors, counts = get_split_errors_alt(objective, name, dataset, loader, device)
-    #     all_day_losses += errors
-    #     all_day_counts += counts
-    
-    # plt.figure()
-    # plt.bar(list(range(365)), all_day_losses/all_day_counts)
-    # plt.bar(list(range(365)), all_day_counts)
-    # ax = plt.gca()
-    # ax.axvspan(355, 364, alpha=0.2)
-    # plt.show()
 
     return record
 
@@ -237,7 +188,6 @@ def get_split_accuracy_time(objective, dataset, loader, device):
             nb_correct += batch_correct
             nb_item += batch_numel
 
-    print((nb_correct/ nb_item).tolist())
     # This assumes that there will be at least one sample per domain
     return (nb_correct / nb_item).tolist(), (losses/len(loader)).tolist()
 
