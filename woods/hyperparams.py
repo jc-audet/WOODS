@@ -313,6 +313,22 @@ def IEMOCAPUnbalanced_train(sample):
             'batch_size': lambda r: 30,
         }
 
+def IEMOCAP_train(sample):
+    if sample:
+        return {
+            'class_balance': lambda r: True,
+            'lr': lambda r: 10**r.random(-3, -5),
+            'weight_decay': lambda r: 0.,
+            'batch_size': lambda r: int(2**r.uniform(4, 6)),
+        }
+    else:
+        return {
+            'class_balance': lambda r: True,
+            'lr': lambda r: 1e-4,
+            'weight_decay': lambda r: 1e-5,
+            'batch_size': lambda r: 3,
+        }
+
 def get_model_hparams(dataset_name):
     """ Get the model related hyper parameters
 
@@ -473,6 +489,22 @@ def IEMOCAPOriginal_model():
     }
 
 def IEMOCAPUnbalanced_model():
+    """ IEMOCAP dataset model hparam definition """
+    return {
+        'model': 'BiModel',
+        'D_m': 712, # Uterance representation (text: 100 + video: 512 + audio: 100)
+        'D_g': 500, # Global state size
+        'D_p': 500, # Party state size
+        'D_e': 300, # Emotion encoded output size
+        'D_h': 300, # Intermediate emotion encoded size
+        'D_a': 100,
+        'dropout': 0.1,
+        'dropout_rec': 0.1,
+        'active_listener': False,
+        'context_attention': 'general'
+    }
+
+def IEMOCAP_model():
     """ IEMOCAP dataset model hparam definition """
     return {
         'model': 'BiModel',

@@ -1160,14 +1160,18 @@ class BiModel(nn.Module):
         qmask -> seq_len, batch, party
         """
         U, qmask, umask = input
+        print(U.shape, qmask.shape, umask.shape)
 
         emotions_f, alpha_f = self.dialog_rnn_f(U, qmask) # seq_len, batch, D_e
         emotions_f = self.dropout_rec(emotions_f)
         rev_U = self._reverse_seq(U, umask)
+        print(rev_U.shape)
         rev_qmask = self._reverse_seq(qmask, umask)
+        print(rev_qmask.shape)
         emotions_b, alpha_b = self.dialog_rnn_r(rev_U, rev_qmask)
         emotions_b = self._reverse_seq(emotions_b, umask)
         emotions_b = self.dropout_rec(emotions_b)
+        print(emotions_b.shape, emotions_f.shape)
         emotions = torch.cat([emotions_f,emotions_b],dim=-1)
 
         if self.att2:
