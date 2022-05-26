@@ -83,12 +83,15 @@ class ERM(Objective):
 
         # Split into input / target
         X, Y = self.dataset.split_input(batch)
+        # print("input shape:", X.shape)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
+        # # print("output shape", out.shape)
 
         # Compute mean loss
         domain_losses = self.dataset.loss_by_domain(out, Y, self.nb_training_domains)
+        # # print("domain_losses shape: ", domain_losses.shape)
 
         # Compute objective
         objective = domain_losses.mean()
@@ -116,6 +119,9 @@ class GroupDRO(ERM):
         self.dataset = dataset
         self.optimizer = optimizer
 
+        # Get some other useful info
+        self.nb_training_domains = dataset.get_nb_training_domains()
+
     def predict(self, all_x):
         return self.model(all_x)
 
@@ -125,29 +131,28 @@ class GroupDRO(ERM):
         self.model.train()
 
         # Get next batch
-        env_batches = self.dataset.get_next_batch()
-        nb_domains = self.dataset.get_nb_training_domains()
+        batch = self.dataset.get_next_batch()
 
         if not len(self.q):
-            self.q = torch.ones(nb_domains).to(self.device)
+            print("hello, creating Q")
+            self.q = torch.ones(self.nb_training_domains).to(self.device)
 
         # Split input / target
-        X, Y = self.dataset.split_input(env_batches)
+        X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
 
         # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
-        env_losses = self.dataset.get_domain_losses(nb_domains, batch_losses)
+        domain_losses = self.dataset.loss_by_domain(out, Y, self.nb_training_domains)
 
         # Update weights
-        for env_i, env_loss in enumerate(env_losses):
-            self.q[env_i] *= (self.eta * env_loss.data).exp()
+        for dom_i, dom_loss in enumerate(domain_losses):
+            self.q[dom_i] *= (self.eta * dom_loss.data).exp()
         self.q /= self.q.sum()
 
         # Compute objective
-        objective = torch.dot(env_losses, self.q)
+        objective = torch.dot(domain_losses, self.q)
 
         # Back propagate
         self.optimizer.zero_grad()

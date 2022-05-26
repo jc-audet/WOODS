@@ -112,11 +112,10 @@ def get_accuracies(objective, dataset, device):
 
         elif dataset.TASK == 'forecasting':
 
-            if dataset.SETUP == 'subpopulation':
-                error, loss = get_split_errors(objective, name, dataset, loader, device)
+            error, loss = get_split_errors(objective, name, dataset, loader, device)
 
-                record.update({ name+'_rmse': error,
-                                name+'_loss': loss})
+            record.update({ name+'_rmse': error,
+                            name+'_loss': loss})
 
     return record
 
@@ -142,8 +141,7 @@ def get_split_accuracy_source(objective, dataset, loader, device):
             data, target = dataset.split_input(batch)
 
             all_out, _ = objective.predict(data)
-            loss = dataset.loss(all_out, target)
-            losses += loss.mean()
+            losses += dataset.loss(all_out, target)
 
             # get train accuracy and save it
             pred = all_out.argmax(dim=2)
@@ -204,6 +202,7 @@ def get_split_errors(objective, name, dataset, loader, device):
     losses = 0
     errors = 0
     nb_items = 0
+    nb_batch = 0
     MSE = nn.MSELoss(reduction='none')
     with torch.no_grad():
 
@@ -213,8 +212,7 @@ def get_split_errors(objective, name, dataset, loader, device):
 
             # Get loss
             out, _ = objective.predict(X)
-            loss = dataset.loss(out, Y)
-            losses += torch.mean(loss).item()
+            losses += dataset.loss(out, Y).item()
 
             # Get errors
             out = objective.model.inference(X)
@@ -225,9 +223,10 @@ def get_split_errors(objective, name, dataset, loader, device):
 
             # Count
             nb_items += Y.shape[0]
+            nb_batch += 1
 
         avg_error = errors / nb_items
-        avg_loss = losses / nb_items
+        avg_loss = losses / nb_batch
 
     return avg_error, avg_loss
 

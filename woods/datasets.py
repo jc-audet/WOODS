@@ -1,6 +1,7 @@
 """Defining the benchmarks for OoD generalization in time-series"""
 import os
 import copy
+from re import L
 import h5py
 from PIL import Image
 
@@ -452,7 +453,11 @@ class Multi_Domain_Dataset:
         """
         
         batch_loaders = next(self.train_loaders_iter)
-        return [(x, y) for x, y in batch_loaders]
+        input = [(x, y) for x, y in batch_loaders]
+        return (
+            torch.cat([x for x,y in input]),
+            torch.cat([y for x,y in input])
+        )
 
     def split_input(self, input):
         """ Split the input into the input and target.
@@ -465,10 +470,7 @@ class Multi_Domain_Dataset:
             torch.tensor: Target data with shape (batch, time)
         """
 
-        return (
-            torch.cat([x for x,y in input]).to(self.device),
-            torch.cat([y for x,y in input]).to(self.device)
-        )
+        return input[0].to(self.device), input[1].to(self.device)
 
     def get_nb_training_domains(self):
         """ Get the number of domains in the training set
@@ -1104,9 +1106,9 @@ class TCMNIST_Time(TCMNIST):
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
         in_split, out_split = get_split(dataset, flags.holdout_fraction, seed=i)
 
-        if self.test_env is not None:
+        if self.test_env is not None:   # remove the last time step from the training data
             in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,:-1,...], colored_labels.long()[in_split,:-1,...])
-        else:
+        else:   # Keep the last time step if there is no testing domain
             in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,...], colored_labels.long()[in_split,...])
 
         in_eval_dataset = torch.utils.data.TensorDataset(colored_images[in_split,...], colored_labels.long()[in_split,...])
@@ -1188,13 +1190,12 @@ class TCMNIST_Time(TCMNIST):
             target (Tensor): target labels (batch_size, len(PRED_TIME))
 
         Returns:
-            int: number of correct predictions
+            torch.tensor: number of correct guesses for each domains
+            torch.tensor: number of guesses in each domains
         """
 
         pred = pred.argmax(dim=2)
-        nb_correct += torch.sum(pred.eq(target), dim=0)
-
-        return pred.eq(target).sum(dim=0)
+        return pred.eq(target).sum(dim=0), torch.ones_like(pred).sum(dim=0)
 
 class H5_dataset(Dataset):
     """ HDF5 dataset for EEG data
@@ -1908,7 +1909,7 @@ class training_domain_sampler(InstanceSampler):
             self.domain_idx = holidays_idx
 
         # Defining the holidays indexes
-        if domain == 'Holidays':
+        elif domain == 'Holidays':
             holidays_idx = []
             for idx in range(max_length):
                 running_time += min_increment
@@ -1916,9 +1917,10 @@ class training_domain_sampler(InstanceSampler):
                     holidays_idx.append(idx)
 
             self.domain_idx = holidays_idx
+
         
         # Defining the month domain index ranges
-        if domain != 'Holidays':
+        elif domain != 'Holidays':
             month_ID = self.month_idx[domain]
             non_holidays_idx = []
             for idx in range(max_length):
@@ -1927,6 +1929,9 @@ class training_domain_sampler(InstanceSampler):
                     non_holidays_idx.append(idx)
 
             self.domain_idx = non_holidays_idx
+
+        else:
+            raise ValueError('The domain you provided is not valid')
 
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
         """ Get the bounds of the time series taking into consideration the context length and the future length.
@@ -2416,6 +2421,15 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
             **kwargs,
         )
 
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+
+        return len(self.ENVS)
+
     def get_number_of_batches(self):
         """ Returns total number of batches. """
         return self.num_batches_per_epoch
@@ -2432,8 +2446,13 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
 
     def loss(self, X, Y):
         """ Returns loss. """
-        return self.loss_fn(X,Y)
+        losses = self.loss_fn(X,Y)
+        return losses.mean()
 
+    def loss_by_domain(self, X, Y, n_domains):
+        """ Returns the loss by domain. Because this is an Unbalanced dataset, there is only one during training domain"""
+        losses = self.loss_fn(X,Y)
+        return losses.mean()
 
 class AusElectricity(Multi_Domain_Dataset):
 
@@ -2442,8 +2461,12 @@ class AusElectricity(Multi_Domain_Dataset):
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
-    SETUP = 'subpopulation'
+    PERFORMANCE_MEASURE = 'rmse'
+    PARADIGM = 'subpopulation_shift'
+    SETUP = 'time'
     TASK = 'forecasting'
+
+    ## Data parameters
     SEQ_LEN = 500
     INPUT_SIZE = 1
     OUTPUT_SIZE = 1
@@ -2767,6 +2790,15 @@ class AusElectricity(Multi_Domain_Dataset):
             **kwargs,
         )
 
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+
+        return len(self.ENVS)
+
     def get_number_of_batches(self):
         """ Returns the number of batches per epoch. """
         return self.num_batches_per_epoch
@@ -2784,7 +2816,13 @@ class AusElectricity(Multi_Domain_Dataset):
 
     def loss(self, X, Y):
         """ Returns the loss for the given input and target. """
-        return self.loss_fn(X,Y)
+        return self.loss_fn(X,Y).mean()
+
+    def loss_by_domain(self, X, Y, n_domains):
+        """ Returns the loss by domain. Because this is an Unbalanced dataset, there is only one during training domain"""
+        losses = self.loss_fn(X,Y)
+        domain_losses = self.split_tensor_by_domains(n_domains, losses)
+        return domain_losses.mean(dim=(1,2))
 
 class original_IEMOCAPDataset(Dataset):
 
@@ -2854,6 +2892,8 @@ class original_IEMOCAPDataset(Dataset):
 
 class IEMOCAPOriginal(Multi_Domain_Dataset):
     """ Original splits of the IEMOCAP dataset
+
+    THIS IS AN UNBALANCED DATASET THAT WE EVALUATE ON MULTIPLE DOMAINS
 
     This is primarily a sanity check to confirm the emotion shift problem addressed in the DialogueRNN paper
         https://arxiv.org/pdf/1811.00405.pdf
@@ -2927,7 +2967,7 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
 
-    def loss(self, pred, Y, by_domain=False):
+    def loss(self, pred, Y):
         """
         Computes the masked NLL loss for the IEMOCAP dataset
         Args:
@@ -2940,35 +2980,18 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
         target, mask = Y
 
         pred = pred.permute(0,2,1)
-        if by_domain:
-            # Get all losses without reduction
-            losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Get mask of which predictions were of which domains
-            domain_mask = self.get_domain_mask(target)
+        # Get all losses without reduction
+        losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Fetch losses - domain wise
-            mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
-            for i in range(len(self.ENVS)):
-                pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+        # Keep only losses that weren't padded
+        masked_losses = torch.masked_select(losses, mask.bool())
 
-                env_losses = torch.masked_select(losses, pad_env_mask.bool())
+        # Return mean loss
+        return masked_losses.mean()
 
-                if env_losses.numel():
-                    mean_env_losses[i] = env_losses.mean()
-                else:
-                    mean_env_losses[i] = 0
-
-            return mean_env_losses
-        else:
-            # Get all losses without reduction
-            losses = self.loss_fn(self.log_prob(pred), target)
-
-            # Keep only losses that weren't padded
-            masked_losses = torch.masked_select(losses, mask.bool())
-
-            # Return mean
-            return masked_losses.mean()
+    def loss_by_domain(self, pred, Y, n_domains):
+        return self.loss(pred, Y)
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3132,6 +3155,8 @@ class IEMOCAPDataset(Dataset):
 
 class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     """ IEMOCAP
+
+    THIS IS AN UNBALANCED DATASET THAT WE EVALUATE ON MULTIPLE DOMAINS
     """
     ## Training parameters
     N_STEPS = 5001
@@ -3237,7 +3262,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         return masked_losses.mean()
 
     def loss_by_domain(self, pred, Y, n_domains):
-        return [self.loss(pred, Y)]
+        return self.loss(pred, Y)
     
     def get_class_weight(self):
         """ Compute class weight for class balanced training
