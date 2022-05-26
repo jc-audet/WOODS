@@ -164,24 +164,24 @@ def get_split_accuracy_time(objective, dataset, loader, device):
         device: device on which we are training
     """
 
-    # pred_time = dataset.PRED_TIME
-    domains = dataset.ENVS
+    # During evaluation of time domains, all domains are present
+    nb_domains = len(dataset.ENVS)
 
     # losses = torch.zeros(*pred_time.shape).to(device)
     # nb_correct = torch.zeros(*pred_time.shape).to(device)
     # nb_item = torch.zeros(*pred_time.shape).to(device)
-    losses = torch.zeros(len(domains)).to(device)
-    nb_correct = torch.zeros(len(domains)).to(device)
-    nb_item = torch.zeros(len(domains)).to(device)
+    losses = torch.zeros(nb_domains).to(device)
+    nb_correct = torch.zeros(nb_domains).to(device)
+    nb_item = torch.zeros(nb_domains).to(device)
     with torch.no_grad():
 
         for batch in loader:
 
-            data, target = dataset.split_input([batch])
+            data, target = dataset.split_input(batch)
 
             all_out, _ = objective.predict(data)
 
-            losses += dataset.loss(all_out, target, by_domain=True)
+            losses += dataset.loss_by_domain(all_out, target, nb_domains)
 
             batch_correct, batch_numel = dataset.get_nb_correct(all_out, target)
 

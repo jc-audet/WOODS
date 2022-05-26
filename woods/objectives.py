@@ -67,6 +67,9 @@ class ERM(Objective):
         self.dataset = dataset
         self.optimizer = optimizer
 
+        # Get some other useful info
+        self.nb_training_domains = dataset.get_nb_training_domains()
+
     def predict(self, all_x):
         return self.model(all_x)
 
@@ -76,19 +79,19 @@ class ERM(Objective):
         self.model.train()
 
         # Get next batch
-        minibatches_device = self.dataset.get_next_batch()
+        batch = self.dataset.get_next_batch()
 
         # Split into input / target
-        X, Y = self.dataset.split_input(minibatches_device)
+        X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
 
-        # Compute unreduced losses
-        env_losses = self.dataset.loss(out, Y)
+        # Compute mean loss
+        domain_losses = self.dataset.loss_by_domain(out, Y, self.nb_training_domains)
 
         # Compute objective
-        objective = env_losses.mean()
+        objective = domain_losses.mean()
         
         # Back propagate
         self.optimizer.zero_grad()

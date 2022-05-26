@@ -368,7 +368,7 @@ class Multi_Domain_Dataset:
         X = X.permute(0,2,1)
 
         # Get log probability and compute loss 
-        return self.loss_fn(self.log_prob(X), Y)
+        return self.loss_fn(self.log_prob(X), Y).mean()
 
     def loss_by_domain(self, X, Y, n_domains):
         """ Computes the loss for each domain and returns them in a tensor
@@ -382,8 +382,11 @@ class Multi_Domain_Dataset:
             torch.tensor: tensor containing domain-wise losses. Shape (n_domains)
         """
 
+        # Make the predictions of shape (batch, n_classes, time) such that pytorch will get losses for all time steps
+        X = X.permute(0,2,1)
+
         # Compute all losses
-        all_losses = self.loss(X, Y)
+        all_losses = self.loss_fn(self.log_prob(X), Y)
 
         # Split them by domains
         env_losses = self.split_tensor_by_domains(n_domains, all_losses)
@@ -2783,21 +2786,21 @@ class AusElectricity(Multi_Domain_Dataset):
         """ Returns the loss for the given input and target. """
         return self.loss_fn(X,Y)
 
-class IEMOCAPDataset(Dataset):
+class original_IEMOCAPDataset(Dataset):
 
-    def __init__(self, path, split=None, domain=None, all_domains = None):
+    def __init__(self, path, split=None, domain=None, all_domains=None):
         allvideoIDs, allvideoSpeakers, allvideoLabels, allvideoText,\
         allvideoAudio, allvideoVisual, allvideoSentence, alltrainVid,\
-        allvalidVid, alltestVid = pickle.load(open(path, 'rb'), encoding='latin1')
+        alltestVid = pickle.load(open(path, 'rb'), encoding='latin1')
         '''
         label index mapping = {'hap':0, 'sad':1, 'neu':2, 'ang':3, 'exc':4, 'fru':5}
         '''
         if split == "train":
-            split_keys = alltrainVid
+            split_keys = [x for x in alltrainVid]
         elif split =='valid':
-            split_keys = allvalidVid
+            split_keys = [x for x in alltestVid]
         elif split == 'test':
-            split_keys = alltestVid
+            split_keys = [x for x in alltestVid]
 
         # Create the set of keys that will be used: 
         #   -If a domain is given, only keys with at least one emotion shift of that domain within it
@@ -2810,17 +2813,14 @@ class IEMOCAPDataset(Dataset):
                     dom = str(l1.item())+'-'+str(l2.item())
                     if domain == 'no-shift' and dom == dom[::-1]:
                         self.keys.append(k)
-                        # print("no-shift", dom)
                         break
                     elif domain == 'rare-shift' and dom != dom[::-1]:
                         if dom not in all_domains or dom[::-1] not in all_domains:
                             self.keys.append(k)
-                            # print("rare-shift", dom)
                             break
                     else:
                         if dom == domain or dom[::-1] == domain:
                             self.keys.append(k)
-                            # print("domain", dom)
                             break
         else:
             self.keys = split_keys
@@ -2851,55 +2851,6 @@ class IEMOCAPDataset(Dataset):
 
     def collate_fn(self, data):
         return [pad_sequence([dat[i] for dat in data]) for i in range(6)]
-    #     dat = pd.DataFrame(data)
-    #     return [pad_sequence(dat[i]) if i<4 else pad_sequence(dat[i], True) if i<6 else dat[i].tolist() for i in dat]
-
-class original_IEMOCAPDataset(Dataset):
-
-    def __init__(self, path, split=None, domain=None):
-        allvideoIDs, allvideoSpeakers, allvideoLabels, allvideoText,\
-        allvideoAudio, allvideoVisual, allvideoSentence, alltrainVid,\
-        alltestVid = pickle.load(open(path, 'rb'), encoding='latin1')
-        '''
-        label index mapping = {'hap':0, 'sad':1, 'neu':2, 'ang':3, 'exc':4, 'fru':5}
-        '''
-        if split == "train":
-            split_keys = [x for x in alltrainVid]
-        elif split =='valid':
-            split_keys = [x for x in alltestVid]
-        elif split == 'test':
-            split_keys = [x for x in alltestVid]
-
-        if domain is not None:
-            raise NotImplementedError()
-        else:
-            self.keys = split_keys
-
-        self.videoSpeakers, self.videoLabels, self.videoText, self.videoAudio, self.videoVisual = {}, {}, {}, {}, {}
-        for k in self.keys:
-            self.videoSpeakers[k] = torch.FloatTensor(np.array([[1,0] if x=='M' else [0,1] for x in allvideoSpeakers[k]]))
-            self.videoLabels[k] = torch.LongTensor(allvideoLabels[k])
-            self.videoText[k] = torch.FloatTensor(np.array(allvideoText[k]))
-            self.videoVisual[k] = torch.FloatTensor(np.array(allvideoVisual[k]))
-            self.videoAudio[k] = torch.FloatTensor(np.array(allvideoAudio[k]))
-
-        self.len = len(self.keys)
-
-    def __getitem__(self, index):
-        vid = self.keys[index]
-        return self.videoText[vid],\
-               self.videoVisual[vid],\
-               self.videoAudio[vid],\
-               self.videoSpeakers[vid],\
-               torch.ones_like(self.videoLabels[vid]),\
-               self.videoLabels[vid]
-
-    def __len__(self):
-        return self.len
-
-    def collate_fn(self, data):
-        dat = pd.DataFrame(data)
-        return [pad_sequence(dat[i]) if i<4 else pad_sequence(dat[i], True) if i<6 else dat[i].tolist() for i in dat]
 
 class IEMOCAPOriginal(Multi_Domain_Dataset):
     """ Original splits of the IEMOCAP dataset
@@ -3018,7 +2969,7 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
 
             # Return mean
             return masked_losses.mean()
-    
+
     def get_class_weight(self):
         """ Compute class weight for class balanced training
 
@@ -3030,9 +2981,10 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
         n_labels = torch.zeros(self.OUTPUT_SIZE)
 
         for env_loader in train_loaders:
-            labels = torch.cat(list(env_loader.dataset.videoLabels.values()))
+            labels = pad_sequence(env_loader.dataset.labels)
+            pad_mask = pad_sequence(env_loader.dataset.pad_mask).bool()
             for i in range(self.OUTPUT_SIZE):
-                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+                n_labels[i] += torch.eq(torch.masked_select(labels, pad_mask), i).sum()
 
         weights = n_labels.max() / n_labels
 
@@ -3041,20 +2993,27 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
     def get_next_batch(self):
 
         batch = next(self.train_loaders_iter)
-        batch = [torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in range(len(batch[0]))]
-        return [batch]
+
+        output = []
+        for data_idx in range(6):
+            out = pad_sequence([batch[dom_idx][data_idx] for dom_idx in range(len(batch))])
+            out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
+            output.append(out)
+
+        return output
 
     def split_input(self, batch):
         """
         Outputs the split input and labels
         This dataset has padded sequences, therefore it returns a tuple with the mask that indicate what is padded and what isn't
         """
-        x = torch.cat([torch.cat([input_item for input_item in env_batch[:-3]], dim=2) for env_batch in batch], dim=0).to(self.device)
-        y = torch.cat([env_batch[-1] for env_batch in batch]).to(self.device)
-        pad_mask = torch.cat([env_batch[-2] for env_batch in batch]).to(self.device)
-        q_mask = torch.cat([env_batch[-3] for env_batch in batch]).to(self.device)
 
-        return (x, q_mask, pad_mask), (y, pad_mask)
+        X = torch.cat([batch[0], batch[1], batch[2]], dim=2).to(self.device)
+        Y = batch[-1].transpose(0,1).to(self.device)
+        pad_mask = batch[-2].transpose(0,1).to(self.device)
+        q_mask = batch[-3].to(self.device)
+
+        return (X, q_mask, pad_mask), (Y, pad_mask)
 
     def get_nb_correct(self, out, target):
         """Time domain correct count
@@ -3104,6 +3063,72 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
                             domain_mask[i, spl, j+1] = 1
         
         return domain_mask
+
+class IEMOCAPDataset(Dataset):
+
+    def __init__(self, path, split=None, domain=None, all_domains = None):
+        allvideoIDs, allvideoSpeakers, allvideoLabels, allvideoText,\
+        allvideoAudio, allvideoVisual, allvideoSentence, alltrainVid,\
+        allvalidVid, alltestVid = pickle.load(open(path, 'rb'), encoding='latin1')
+        '''
+        label index mapping = {'hap':0, 'sad':1, 'neu':2, 'ang':3, 'exc':4, 'fru':5}
+        '''
+        if split == "train":
+            split_keys = alltrainVid
+        elif split =='valid':
+            split_keys = allvalidVid
+        elif split == 'test':
+            split_keys = alltestVid
+
+        # Create the set of keys that will be used: 
+        #   -If a domain is given, only keys with at least one emotion shift of that domain within it
+        #   -If no domain is given, keep all keys of the split
+        if domain is not None:
+            self.keys = []
+            for k in split_keys:
+                labels = torch.LongTensor(allvideoLabels[k])
+                for l1, l2 in zip(labels[:-1], labels[1:]):
+                    dom = str(l1.item())+'-'+str(l2.item())
+                    if domain == 'no-shift' and dom == dom[::-1]:
+                        self.keys.append(k)
+                        break
+                    elif domain == 'rare-shift' and dom != dom[::-1]:
+                        if dom not in all_domains or dom[::-1] not in all_domains:
+                            self.keys.append(k)
+                            break
+                    else:
+                        if dom == domain or dom[::-1] == domain:
+                            self.keys.append(k)
+                            break
+        else:
+            self.keys = split_keys
+
+        self.speakers_info, self.labels, self.text_features, self.audio_features, self.visual_features = [], [], [], [], []
+        for i, key in enumerate(self.keys):
+            self.speakers_info.append(torch.FloatTensor(np.array([[1,0] if x=='M' else [0,1] for x in allvideoSpeakers[key]])))
+            self.labels.append(torch.LongTensor(allvideoLabels[key]))
+            self.text_features.append(torch.FloatTensor(np.array(allvideoText[key])))
+            self.visual_features.append(torch.FloatTensor(np.array(allvideoVisual[key])))
+            self.audio_features.append(torch.FloatTensor(np.array(allvideoAudio[key])))
+        
+        self.pad_mask = [torch.ones(len(label_arr)) for label_arr in self.labels]
+        
+        self.len = len(self.keys)
+
+    def __getitem__(self, index):
+        # vid = self.keys[index]
+        return self.text_features[index],\
+               self.visual_features[index],\
+               self.audio_features[index],\
+               self.speakers_info[index],\
+               self.pad_mask[index],\
+               self.labels[index]
+
+    def __len__(self):
+        return self.len
+
+    def collate_fn(self, data):
+        return [pad_sequence([dat[i] for dat in data]) for i in range(6)]
 
 class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     """ IEMOCAP
@@ -3188,7 +3213,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         self.loss_fn = nn.NLLLoss(weight=self.get_class_weight().to(training_hparams['device']), reduction='none')
         self.train_loaders_iter = zip(*self.train_loaders)
 
-    def loss(self, pred, Y, by_domain=False):
+    def loss(self, pred, Y):
         """
         Computes the masked NLL loss for the IEMOCAP dataset
         Args:
@@ -3201,35 +3226,18 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         target, mask = Y
 
         pred = pred.permute(0,2,1)
-        if by_domain:
-            # Get all losses without reduction
-            losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Get mask of which predictions were of which domains
-            domain_mask = self.get_domain_mask(target)
+        # Get all losses without reduction
+        losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Fetch losses - domain wise
-            mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
-            for i in range(len(self.ENVS)):
-                pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+        # Keep only losses that weren't padded
+        masked_losses = torch.masked_select(losses, mask.bool())
 
-                env_losses = torch.masked_select(losses, pad_env_mask.bool())
+        # Return mean loss
+        return masked_losses.mean()
 
-                if env_losses.numel():
-                    mean_env_losses[i] = env_losses.mean()
-                else:
-                    mean_env_losses[i] = 0
-
-            return mean_env_losses
-        else:
-            # Get all losses without reduction
-            losses = self.loss_fn(self.log_prob(pred), target)
-
-            # Keep only losses that weren't padded
-            masked_losses = torch.masked_select(losses, mask.bool())
-
-            # Return mean
-            return masked_losses.mean()
+    def loss_by_domain(self, pred, Y, n_domains):
+        return [self.loss(pred, Y)]
     
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3242,9 +3250,10 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         n_labels = torch.zeros(self.OUTPUT_SIZE)
 
         for env_loader in train_loaders:
-            labels = torch.cat(list(env_loader.dataset.videoLabels.values()))
+            labels = pad_sequence(env_loader.dataset.labels)
+            pad_mask = pad_sequence(env_loader.dataset.pad_mask).bool()
             for i in range(self.OUTPUT_SIZE):
-                n_labels[i] += torch.eq(torch.as_tensor(labels), i).sum()
+                n_labels[i] += torch.eq(torch.masked_select(labels, pad_mask), i).sum()
 
         weights = n_labels.max() / n_labels
 
@@ -3253,20 +3262,27 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     def get_next_batch(self):
 
         batch = next(self.train_loaders_iter)
-        batch = [torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in range(len(batch[0]))]
-        return [batch]
+
+        output = []
+        for data_idx in range(6):
+            out = pad_sequence([batch[dom_idx][data_idx] for dom_idx in range(len(batch))])
+            out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
+            output.append(out)
+
+        return output
 
     def split_input(self, batch):
         """
         Outputs the split input and labels
         This dataset has padded sequences, therefore it returns a tuple with the mask that indicate what is padded and what isn't
         """
-        x = torch.cat([torch.cat([input_item for input_item in env_batch[:-3]], dim=2) for env_batch in batch], dim=0).to(self.device)
-        y = torch.cat([env_batch[-1] for env_batch in batch]).to(self.device)
-        pad_mask = torch.cat([env_batch[-2] for env_batch in batch]).to(self.device)
-        q_mask = torch.cat([env_batch[-3] for env_batch in batch]).to(self.device)
 
-        return (x, q_mask, pad_mask), (y, pad_mask)
+        X = torch.cat([batch[0], batch[1], batch[2]], dim=2).to(self.device)
+        Y = batch[-1].transpose(0,1).to(self.device)
+        pad_mask = batch[-2].transpose(0,1).to(self.device)
+        q_mask = batch[-3].to(self.device)
+
+        return (X, q_mask, pad_mask), (Y, pad_mask)
 
     def get_nb_correct(self, out, target):
         """Time domain correct count
@@ -3381,7 +3397,7 @@ class IEMOCAP(Multi_Domain_Dataset):
         # Make training dataset/loader and append it to training containers
         for domain in self.ENVS:
             train_dataset = IEMOCAPDataset(full_data_path, split='train', domain=domain, all_domains=self.ENVS)
-            train_loader = InfiniteLoader(train_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS)
+            train_loader = InfiniteLoader(train_dataset, batch_size=training_hparams['batch_size'], num_workers=self.N_WORKERS, pin_memory=True)
             self.train_names.append(domain+'_train')
             self.train_loaders.append(train_loader)
 
@@ -3406,7 +3422,7 @@ class IEMOCAP(Multi_Domain_Dataset):
         # Define train loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
 
-    def loss(self, pred, Y, by_domain=False):
+    def loss(self, pred, Y):
         """
         Computes the masked NLL loss for the IEMOCAP dataset
         Args:
@@ -3419,35 +3435,40 @@ class IEMOCAP(Multi_Domain_Dataset):
         target, mask = Y
 
         pred = pred.permute(0,2,1)
-        if by_domain:
-            # Get all losses without reduction
-            losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Get mask of which predictions were of which domains
-            domain_mask = self.get_domain_mask(target)
+        # Get all losses without reduction
+        losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Fetch losses - domain wise
-            mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
-            for i in range(len(self.ENVS)):
-                pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+        # Keep only losses that weren't padded
+        masked_losses = torch.masked_select(losses, mask.bool())
 
-                env_losses = torch.masked_select(losses, pad_env_mask.bool())
+        # Return mean loss
+        return masked_losses.mean()
 
-                if env_losses.numel():
-                    mean_env_losses[i] = env_losses.mean()
-                else:
-                    mean_env_losses[i] = 0
+    def loss_by_domain(self, pred, Y, n_domains):
 
-            return mean_env_losses
-        else:
-            # Get all losses without reduction
-            losses = self.loss_fn(self.log_prob(pred), target)
+        target, mask = Y
+        pred = pred.permute(0,2,1)
 
-            # Keep only losses that weren't padded
-            masked_losses = torch.masked_select(losses, mask.bool())
+        # Get all losses without reduction
+        losses = self.loss_fn(self.log_prob(pred), target)
 
-            # Return mean
-            return masked_losses.mean()
+        # Get mask of which predictions were of which domains
+        domain_mask = self.get_domain_mask(target)
+
+        # Fetch losses - domain wise
+        mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
+        for i in range(len(self.ENVS)):
+            pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+
+            env_losses = torch.masked_select(losses, pad_env_mask.bool())
+
+            if env_losses.numel():
+                mean_env_losses[i] = env_losses.mean()
+            else:
+                mean_env_losses[i] = 0
+
+        return mean_env_losses
     
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3475,12 +3496,10 @@ class IEMOCAP(Multi_Domain_Dataset):
 
         output = []
         for data_idx in range(6):
-            for dom_idx in range(11):
-                print(data_idx, dom_idx, batch[dom_idx][data_idx].shape)
             out = pad_sequence([batch[dom_idx][data_idx] for dom_idx in range(len(batch))])
-            out = out.view(out.shape[1] * out.shape[2], out.shape[0], *out.shape[3:])
+            out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
             output.append(out)
-        print([out.shape for out in output])
+
         return output
 
     def split_input(self, batch):
@@ -3490,7 +3509,7 @@ class IEMOCAP(Multi_Domain_Dataset):
         """
 
         X = torch.cat([batch[0], batch[1], batch[2]], dim=2).to(self.device)
-        Y = batch[-1].to(self.device)
+        Y = batch[-1].transpose(0,1).to(self.device)
         pad_mask = batch[-2].transpose(0,1).to(self.device)
         q_mask = batch[-3].to(self.device)
 
