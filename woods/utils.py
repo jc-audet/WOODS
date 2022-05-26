@@ -4,6 +4,7 @@ import os
 import json
 import tqdm
 import glob
+import hashlib
 import numpy as np
 from argparse import Namespace
 from prettytable import PrettyTable
@@ -11,6 +12,16 @@ import matplotlib.pyplot as plt
 
 from woods.scripts import hparams_sweep
 from woods import datasets
+
+def seed_hash(*args):
+    """
+    Derive an integer hash from all args, for use as a random seed.
+
+    This is took from DomainBed repository:
+        https://github.com/facebookresearch/DomainBed
+    """
+    args_str = str(args)
+    return int(hashlib.md5(args_str.encode("utf-8")).hexdigest(), 16) % (2**31)
 
 def get_cmap(n, name='hsv'):
     """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 

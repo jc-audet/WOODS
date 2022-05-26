@@ -21,6 +21,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 ## Local Import
+import woods.utils as utils
 import woods.download as download
 
 DATASETS = [
@@ -581,7 +582,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
         self.val_names, self.val_loaders = [], []
         for i, e in enumerate(self.ENVS):
             dataset = torch.utils.data.TensorDataset(signal, labels)
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=utils.seed_hash(i, flags.trial_seed))
 
             in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
             self.train_names.append(e+'_in')
@@ -736,7 +737,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
             # Make Tensor dataset
             dataset = torch.utils.data.TensorDataset(env_signal, env_labels)
 
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=utils.seed_hash(i, flags.trial_seed))
             if i != self.test_env:
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
                 self.train_names.append(str(e) + '_in')
@@ -849,7 +850,7 @@ class TMNIST(Multi_Domain_Dataset):
         for i, e in enumerate(self.ENVS):
             # Make whole dataset and get splits
             dataset = torch.utils.data.TensorDataset(TMNIST_images, TMNIST_labels)
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=utils.seed_hash(i, flags.trial_seed))
 
             # Make the training loaders (No testing environment)
             in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
@@ -985,7 +986,7 @@ class TCMNIST_Source(TCMNIST):
 
             # Make Tensor dataset and the split
             dataset = torch.utils.data.TensorDataset(colored_images, colored_labels)
-            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=i)
+            in_dataset, out_dataset = make_split(dataset, flags.holdout_fraction, seed=utils.seed_hash(i, flags.trial_seed))
 
             if i != self.test_env:
                 in_loader = InfiniteLoader(in_dataset, batch_size=training_hparams['batch_size'])
@@ -1104,7 +1105,7 @@ class TCMNIST_Time(TCMNIST):
 
         # Make Tensor dataset and dataloader
         dataset = torch.utils.data.TensorDataset(colored_images, colored_labels.long())
-        in_split, out_split = get_split(dataset, flags.holdout_fraction, seed=i)
+        in_split, out_split = get_split(dataset, flags.holdout_fraction, seed=utils.seed_hash(0, flags.trial_seed))
 
         if self.test_env is not None:   # remove the last time step from the training data
             in_train_dataset = torch.utils.data.TensorDataset(colored_images[in_split,:-1,...], colored_labels.long()[in_split,:-1,...])
@@ -1288,7 +1289,7 @@ class EEG_DB(Multi_Domain_Dataset):
 
             # Get full environment dataset and define in/out split
             full_dataset = H5_dataset(os.path.join(flags.data_path, self.DATA_PATH), e)
-            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j)
+            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=utils.seed_hash(j, flags.trial_seed))
             full_dataset.close()
 
             # Make training dataset/loader and append it to training containers
@@ -1638,7 +1639,7 @@ class LSA64(Multi_Domain_Dataset):
             for speaker in e.split('-'):
                 env_paths.append(os.path.join(flags.data_path, self.DATA_PATH, speaker))
             full_dataset = Video_dataset(env_paths, self.SEQ_LEN, transform=self.normalize)
-            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=j)
+            in_split, out_split = get_split(full_dataset, flags.holdout_fraction, seed=utils.seed_hash(j, flags.trial_seed))
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
@@ -1777,7 +1778,7 @@ class HHAR(Multi_Domain_Dataset):
 
             # Get full environment dataset and define in/out split
             full_dataset = torch.utils.data.TensorDataset(data, labels)
-            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction, seed=j)
+            in_dataset, out_dataset = make_split(full_dataset, flags.holdout_fraction, seed=utils.seed_hash(j, flags.trial_seed))
 
             # Make training dataset/loader and append it to training containers
             if j != flags.test_env:
@@ -2525,7 +2526,6 @@ class AusElectricity(Multi_Domain_Dataset):
         self.raw_data = load_dataset('monash_tsf','australian_electricity_demand')
 
         # Define training / validation / test split
-        time_pt_per_year = 365 * 24 * 2
         train_first_idx = 175296 # Only for evaluation
         train_last_idx = 192864
         val_first_idx = train_last_idx

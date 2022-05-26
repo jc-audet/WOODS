@@ -39,8 +39,9 @@ if __name__ == '__main__':
     parser.add_argument('--objective', type=str, choices=objectives.OBJECTIVES)
     # Hyperparameters arguments
     parser.add_argument('--sample_hparams', action='store_true')
-    parser.add_argument('--hparams_seed', type=int, default=0)
-    parser.add_argument('--trial_seed', type=int, default=0)
+    parser.add_argument('--hparams_seed', type=int, default=0, help='Seed for random hparams (Is not used if sample_hparams is not true')
+    parser.add_argument('--trial_seed', type=int, default=0, help='Trial number for seeding split_dataset and random_hparams.')
+    parser.add_argument('--seed', type=int, default=0, help='Seed for everything else')
     # Directory arguments
     parser.add_argument('--data_path', type=str, default='~/Documents/Data/')
     parser.add_argument('--save_path', type=str, default='./results/')
@@ -71,9 +72,10 @@ if __name__ == '__main__':
         assert not os.path.isfile(os.path.join(flags.save_path, 'logs', job_name+'.json')), "\n*********************************\n*** Job Already ran and saved ***\n*********************************\n"
     
     ## Getting hparams
-    training_hparams = hyperparams.get_training_hparams(flags.dataset, flags.hparams_seed, flags.sample_hparams)
+    hparam_sampling_seed = utils.seed_hash(flags.hparams_seed, flags.trial_seed)
+    training_hparams = hyperparams.get_training_hparams(flags.dataset, hparam_sampling_seed, flags.sample_hparams)
     training_hparams['device'] = device
-    objective_hparams = hyperparams.get_objective_hparams(flags.objective, flags.hparams_seed, flags.sample_hparams)
+    objective_hparams = hyperparams.get_objective_hparams(flags.objective, hparam_sampling_seed, flags.sample_hparams)
     objective_hparams['device'] = device
     model_hparams = hyperparams.get_model_hparams(flags.dataset)
     model_hparams['device'] = device
@@ -86,13 +88,6 @@ if __name__ == '__main__':
     for k, v in sorted(objective_hparams.items()):
         print('\t{}: {}'.format(k, v))
 
-    ## Setting dataset seed
-    random.seed(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
     ## Make dataset
     dataset_class = datasets.get_dataset_class(flags.dataset)
     dataset = dataset_class(flags, training_hparams)
@@ -102,10 +97,12 @@ if __name__ == '__main__':
     if datasets.num_environments(flags.dataset) == 1:
         assert flags.objective == 'ERM', "Dataset has only one environment, cannot compute multi-environment penalties"
 
-    ## Setting trial seed
-    random.seed(flags.trial_seed)
-    np.random.seed(flags.trial_seed)
-    torch.manual_seed(flags.trial_seed)
+    ## Setting global seed
+    random.seed(flags.seed)
+    np.random.seed(flags.seed)
+    torch.manual_seed(flags.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     ## Initialize a model to train
     model = models.get_model(dataset, model_hparams)

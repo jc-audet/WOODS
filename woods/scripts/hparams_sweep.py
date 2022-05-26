@@ -10,6 +10,8 @@ import glob
 import shlex
 import argparse
 
+## Local imports
+from woods import utils
 from woods import command_launchers
 from woods import objectives
 from woods import datasets
@@ -47,6 +49,7 @@ def make_args_list(flags):
                         train_args['save_path'] = flags['save_path']
                         train_args['hparams_seed'] = i_hparam
                         train_args['trial_seed'] = j_trial
+                        train_args['seed'] = utils.seed_hash(obj, dataset, test_env, i_hparam, j_trial)
                         train_args_list.append(train_args)
 
     command_list = []
