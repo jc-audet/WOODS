@@ -2922,14 +2922,8 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
-        if flags.test_env is not None:
-            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
-        else:
-            warnings.warn("You don't have any test environment")
-
         ## Save stuff
         self.device = training_hparams['device']
-        self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
 
@@ -3193,14 +3187,8 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
-        if flags.test_env is not None:
-            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
-        else:
-            warnings.warn("You don't have any test environment")
-
         ## Save stuff
         self.device = training_hparams['device']
-        self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
 
@@ -3399,14 +3387,8 @@ class IEMOCAP(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
-        if flags.test_env is not None:
-            assert flags.test_env < len(self.ENVS), "Test environment chosen is not valid"
-        else:
-            warnings.warn("You don't have any test environment")
-
         ## Save stuff
         self.device = training_hparams['device']
-        self.test_env = flags.test_env
         self.class_balance = training_hparams['class_balance']
         self.batch_size = training_hparams['batch_size']
 

@@ -196,24 +196,24 @@ class IRM(ERM):
         self.model.train()
 
         # Get next batch
-        env_batches = self.dataset.get_next_batch()
+        batch = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(env_batches)
+        X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
 
         # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
+        n_domains = self.dataset.get_nb_training_domains() 
+        domain_losses = self.dataset.loss_by_domain(out, Y, n_domains)
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
-        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
-        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
-        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
-        
+        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...)
+        env_out = self.dataset.split_tensor_by_domains(n_domains, out)
+        env_labels = self.dataset.split_tensor_by_domains(n_domains, Y)
+
         # Compute loss and penalty for each domains
         irm_penalty = torch.zeros(env_out.shape[0]).to(self.device)
         for i in range(env_out.shape[0]):
@@ -222,7 +222,7 @@ class IRM(ERM):
 
         # Compute objective
         irm_penalty = irm_penalty.mean()
-        objective = env_losses.mean() + (penalty_weight * irm_penalty)
+        objective = domain_losses.mean() + (penalty_weight * irm_penalty)
 
         # Reset Adam, because it doesn't like the sharp jump in gradient
         # magnitudes that happens at this step.
@@ -264,28 +264,21 @@ class VREx(ERM):
         self.model.train()
 
         # Get next batch
-        env_batches = self.dataset.get_next_batch()
+        batch = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(env_batches)
+        X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
 
         # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
-
-        # Create domain dimension in tensors. 
-        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...)
-        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
-        env_labels = self.dataset.split_tensor_by_domains(len(env_batches), Y)
-        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+        n_domains = self.dataset.get_nb_training_domains()
+        domain_losses = self.dataset.loss_by_domain(out, Y, n_domains)
 
         # Compute objective
-        mean = env_losses.mean()
-        print(mean.shape, env_losses.shape)
-        penalty = ((env_losses - mean) ** 2).mean()
+        mean = domain_losses.mean()
+        penalty = ((domain_losses - mean).pow(2)).mean()
         objective = mean + penalty_weight * penalty
 
         # Reset Adam, because it doesn't like the sharp jump in gradient
