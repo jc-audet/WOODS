@@ -1411,7 +1411,7 @@ class SEDFx(EEG_DB):
         This dataset need to be downloaded and preprocessed. This can be done with the download.py script
     """
     ## Training parameters
-    N_STEPS = 10001
+    N_STEPS = 5001
     
     ## Dataset parameters
     TASK = 'classification'
