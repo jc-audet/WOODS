@@ -405,10 +405,25 @@ def TCMNIST_Time_model():
         'state_size': 128
     }
 
+# def CAP_model():
+#     """ CAP model hparam definition """
+#     return {
+#         'model': 'deep4'
+#     }
 def CAP_model():
     """ CAP model hparam definition """
     return {
-        'model': 'deep4'
+        'model': 'BENDR',
+        'encoder_h': 512,
+        'projection_head': False,
+        'enc_do': 0.1,
+        'feat_do': 0.4,
+        'pool_length': 4,
+        'mask_p_t': 0.01,
+        'mask_p_c': 0.005,
+        'mask_t_span': 0.05,
+        'mask_c_span': 0.1,
+        'classifier_layers': 1
     }
 
 def SEDFx_model():

@@ -79,6 +79,7 @@ if __name__ == '__main__':
     objective_hparams['device'] = device
     model_hparams = hyperparams.get_model_hparams(flags.dataset)
     model_hparams['device'] = device
+    model_hparams['model_path'] = flags.model_path
 
     print('HParams:')
     for k, v in sorted(training_hparams.items()):

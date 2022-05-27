@@ -1,7 +1,4 @@
-"""Set of functions used to launch lists of python scripts
-
-TODO:
-    Check Joblib library for parallel compute?"""
+""" Set of functions used to launch lists of python scripts """
 import os
 import time
 import math
@@ -61,8 +58,6 @@ def multi_gpu_launcher(commands):
         if p is not None:
             p.wait()
 
-
-        
 def slurm_launcher(commands):
     """Parallel job launcher for computationnal cluster using the SLURM workload manager. 
 
