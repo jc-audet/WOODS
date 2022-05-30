@@ -110,7 +110,8 @@ if __name__ == '__main__':
     print("Number of parameters = ", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     # Define training aid
-    optimizer = optim.Adam(model.parameters(), lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
+    parameters = [p for p in model.parameters() if p.requires_grad]
+    optimizer = optim.Adam(parameters, lr=training_hparams['lr'], weight_decay=training_hparams['weight_decay'])
 
     ## Initialize some Objective
     objective_class = objectives.get_objective_class(flags.objective)

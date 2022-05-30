@@ -145,7 +145,7 @@ def get_job_name(flags):
     Returns:
         str: name of the output json file of the training run 
     """
-
+    
     job_id = flags['objective'] + '_' + flags['dataset'] + '_' + str(flags['test_env']) + '_H' + str(flags['hparams_seed']) + '_T' + str(flags['trial_seed'])
 
     return job_id

@@ -410,7 +410,6 @@ class _BENDREncoder(nn.Module):
 class ConvEncoderBENDR(_BENDREncoder):
     def __init__(self, in_features, encoder_h=256, enc_width=(3, 2, 2, 2, 2, 2),
                  dropout=0., projection_head=False, enc_downsample=(3, 2, 2, 2, 2, 2)):
-        print("IN FEATURES: ", in_features)
         super().__init__(in_features, encoder_h)
         self.encoder_h = encoder_h
         if not isinstance(enc_width, (list, tuple)):
@@ -674,7 +673,19 @@ class BENDRContextualizer(nn.Module):
 
 class ChannelEmbedding(nn.Module):
     def __init__(self, in_channels, out_channels):
-        pass
+        super().__init__()
+        
+        self.embedding = nn.Sequential(
+            nn.Conv2d(1, out_channels, (1, in_channels))
+        )
+    
+    def forward(self, x):
+        
+        x = x.unsqueeze(1)
+        print("before", x.max())
+        x = self.embedding(x)
+        print("after", x.max())
+        return x.squeeze()
 
 class BENDR(nn.Module):
 
@@ -700,7 +711,8 @@ class BENDR(nn.Module):
         self.targets = dataset.OUTPUT_SIZE
 
         self.samples = dataset.SEQ_LEN
-        self.channels = dataset.INPUT_SHAPE[0]
+        self.original_channel_size = dataset.INPUT_SHAPE[0]
+        self.embedded_channel_size = 20
 
         if self.classifier_layers < 1:
             self.pool_length = self.pool_length
@@ -710,10 +722,10 @@ class BENDR(nn.Module):
             self.encoder_h = self.encoder_h
 
         ## Create learned embedding for channels
-        self.channel_embedding = ChannelEmbedding(self.channels, 20)
+        self.channel_embedding = ChannelEmbedding(self.original_channel_size, self.embedded_channel_size)
 
         ## Create encoder
-        self.encoder = ConvEncoderBENDR(self.channels, encoder_h=self.encoder_h, projection_head=self.projection_head, dropout=self.enc_do)
+        self.encoder = ConvEncoderBENDR(self.embedded_channel_size, encoder_h=self.encoder_h, projection_head=self.projection_head, dropout=self.enc_do)
         encoded_samples = self.encoder.downsampling_factor(self.samples)
 
         # Create masks
@@ -754,7 +766,10 @@ class BENDR(nn.Module):
 
     def forward(self, x):
 
-        x = x.transpose(1,2)
+        print(list(self.named_parameters())[0][1].sum())
+        x = self.channel_embedding(x)
+
+        # x = x.transpose(1,2)
         
         # Get representation
         x = self.encoder(x)
