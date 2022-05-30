@@ -104,7 +104,13 @@ if __name__ == '__main__':
     if os.path.exists(os.path.join(flags.save_path, 'sweep_config.json')):
         with open(os.path.join(flags.save_path, 'sweep_config.json')) as f:
             existing_config = json.load(f)
-        assert existing_config == flags_to_save, 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'
+        for key in flags_to_save:
+            if isinstance(flags_to_save[key], list):
+                for flag in flags_to_save[key]:
+                    print(flag, existing_config[key])
+                    assert flag in existing_config[key], 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'
+            else:
+                assert flags_to_save[key] == existing_config[key], 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'
     else:
         # Create folders
         os.makedirs(flags.save_path, exist_ok=True)
