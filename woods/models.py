@@ -672,8 +672,8 @@ class BENDRContextualizer(nn.Module):
     def save(self, filename):
         torch.save(self.state_dict(), filename)
 
-class EEG_channel_embedding(nn.Module):
-    def __init__(self):
+class ChannelEmbedding(nn.Module):
+    def __init__(self, in_channels, out_channels):
         pass
 
 class BENDR(nn.Module):
@@ -710,7 +710,7 @@ class BENDR(nn.Module):
             self.encoder_h = self.encoder_h
 
         ## Create learned embedding for channels
-        # self.channel_embedding = 
+        self.channel_embedding = ChannelEmbedding(self.channels, 20)
 
         ## Create encoder
         self.encoder = ConvEncoderBENDR(self.channels, encoder_h=self.encoder_h, projection_head=self.projection_head, dropout=self.enc_do)
