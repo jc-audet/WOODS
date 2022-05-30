@@ -159,26 +159,26 @@ def CAP_train(sample):
             'batch_size': lambda r: 8
         }
 
-def PCL_train(sample):
-    """ CAP model hparam definition 
+# def bendr_train(sample):
+#     """ CAP model hparam definition 
     
-    Args:
-        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
-    """
-    if sample:
-        return {
-            'class_balance': lambda r: True,
-            'weight_decay': lambda r: 0.,
-            'lr': lambda r: 10**r.uniform(-5, -3),
-            'batch_size': lambda r: int(2**r.uniform(3, 4))
-        }
-    else:
-        return {
-            'class_balance': lambda r: True,
-            'weight_decay': lambda r: 0,
-            'lr': lambda r: 5*10**-5,
-            'batch_size': lambda r: 8
-        }
+#     Args:
+#         sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+#     """
+#     if sample:
+#         return {
+#             'class_balance': lambda r: True,
+#             'weight_decay': lambda r: 0.,
+#             'lr': lambda r: 10**r.uniform(-5, -3),
+#             'batch_size': lambda r: int(2**r.uniform(3, 4))
+#         }
+#     else:
+#         return {
+#             'class_balance': lambda r: True,
+#             'weight_decay': lambda r: 0,
+#             'lr': lambda r: 5*10**-5,
+#             'batch_size': lambda r: 8
+#         }
 
 def SEDFx_train(sample):
     """ SEDFx model hparam definition 
@@ -201,22 +201,22 @@ def SEDFx_train(sample):
             'batch_size': lambda r: 8
         }
 
-# def PCL_train(sample):
-#     """ PCL model hparam definition """
-#     if sample:
-#         return {
-#             'class_balance': lambda r: True,
-#             'weight_decay': lambda r: 0.,
-#             'lr': lambda r: 10**r.uniform(-5, -3),
-#             'batch_size': lambda r: int(2**r.uniform(3, 5))
-#         }
-#     else:
-#         return {
-#             'class_balance': lambda r: True,
-#             'weight_decay': lambda r: 0.,
-#             'lr': lambda r: 10**-3,
-#             'batch_size': lambda r: 32
-#         }
+def PCL_train(sample):
+    """ PCL model hparam definition """
+    if sample:
+        return {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 5))
+        }
+    else:
+        return {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**-3,
+            'batch_size': lambda r: 32
+        }
 
 def HHAR_train(sample):
     """ HHAR model hparam definition 
@@ -431,21 +431,21 @@ def CAP_model():
     return {
         'model': 'deep4'
     }
-def PCL_model():
-    """ CAP model hparam definition """
-    return {
-        'model': 'BENDR',
-        'encoder_h': 512,
-        'projection_head': False,
-        'enc_do': 0.1,
-        'feat_do': 0.4,
-        'pool_length': 4,
-        'mask_p_t': 0.01,
-        'mask_p_c': 0.005,
-        'mask_t_span': 0.05,
-        'mask_c_span': 0.1,
-        'classifier_layers': 1
-    }
+# def bendr_model():
+#     """ CAP model hparam definition """
+#     return {
+#         'model': 'BENDR',
+#         'encoder_h': 512,
+#         'projection_head': False,
+#         'enc_do': 0.1,
+#         'feat_do': 0.4,
+#         'pool_length': 4,
+#         'mask_p_t': 0.01,
+#         'mask_p_c': 0.005,
+#         'mask_t_span': 0.05,
+#         'mask_c_span': 0.1,
+#         'classifier_layers': 1
+#     }
 
 def SEDFx_model():
     """ SEDFx model hparam definition """
@@ -453,11 +453,11 @@ def SEDFx_model():
         'model': 'deep4'
     }
 
-# def PCL_model():
-#     """ PCL model hparam definition"""
-#     return {
-#         'model': 'EEGNet'
-#     }
+def PCL_model():
+    """ PCL model hparam definition"""
+    return {
+        'model': 'EEGNet'
+    }
 
 def HHAR_model():
     """ HHAR model hparam definition """
