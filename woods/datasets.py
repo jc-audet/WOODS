@@ -3471,7 +3471,7 @@ class IEMOCAP(Multi_Domain_Dataset):
             env_losses = torch.masked_select(losses, pad_env_mask.bool())
 
             if env_losses.numel():
-                mean_env_losses[i] = env_losses.mean()
+                mean_env_losses[i] = env_losses.mesn()
             else:
                 mean_env_losses[i] = 0
 

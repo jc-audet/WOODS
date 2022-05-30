@@ -54,16 +54,23 @@ def make_args_list(flags):
 
     command_list = []
     for train_args in train_args_list:  
-        command = ['python3', '-m woods.scripts.main train', '--sample_hparams', '--save']
-        for k, v in sorted(train_args.items()):
-            if k == 'test_env' and v == 'None':
-                continue
-            if isinstance(v, list):
-                v = ' '.join([str(v_) for v_ in v])
-            elif isinstance(v, str):
-                v = shlex.quote(v)
-            command.append(f'--{k} {v}')
-        command_list.append(' '.join(command))
+
+        # Check if the job is already ran
+        job_name = utils.get_job_name(train_args)
+        if os.path.isfile(os.path.join(train_args['save_path'], 'logs', job_name+'.json')):
+            print("Job: ", job_name + ' already ran, skipping')
+        # If the job is not already ran, add it to the list of jobs
+        else:
+            command = ['python3', '-m woods.scripts.main train', '--sample_hparams', '--save']
+            for k, v in sorted(train_args.items()):
+                if k == 'test_env' and v == 'None':
+                    continue
+                if isinstance(v, list):
+                    v = ' '.join([str(v_) for v_ in v])
+                elif isinstance(v, str):
+                    v = shlex.quote(v)
+                command.append(f'--{k} {v}')
+            command_list.append(' '.join(command))
     
     return command_list, train_args_list
 
