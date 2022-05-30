@@ -107,7 +107,6 @@ if __name__ == '__main__':
         for key in flags_to_save:
             if isinstance(flags_to_save[key], list):
                 for flag in flags_to_save[key]:
-                    print(flag, existing_config[key])
                     assert flag in existing_config[key], 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'
             else:
                 assert flags_to_save[key] == existing_config[key], 'There is an already existing sweep_config.json file at the save_path and it is a different sweep. Please take another folder'

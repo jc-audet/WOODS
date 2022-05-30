@@ -322,7 +322,7 @@ def IEMOCAPUnbalanced_train(sample):
     if sample:
         return {
             'class_balance': lambda r: True,
-            'lr': lambda r: 10**r.random(-3, -5),
+            'lr': lambda r: 10**r.uniform(-3, -5),
             'weight_decay': lambda r: 0.,
             'batch_size': lambda r: int(2**r.uniform(4, 6)),
         }
@@ -338,7 +338,7 @@ def IEMOCAP_train(sample):
     if sample:
         return {
             'class_balance': lambda r: True,
-            'lr': lambda r: 10**r.random(-3, -5),
+            'lr': lambda r: 10**r.uniform(-3, -5),
             'weight_decay': lambda r: 0.,
             'batch_size': lambda r: int(2**r.uniform(4, 6)),
         }
