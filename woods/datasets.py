@@ -386,9 +386,7 @@ class Multi_Domain_Dataset:
             torch.tensor: tensor containing domain-wise losses. Shape (n_domains)
         """
 
-        # Make the predictions of shape (batch, n_classes, time) such that pytorch will get losses for all time steps
-        # X = X.permute(0,2,1)
-
+        # Make the tensors of shape (batch, time, n_classes)
         X, Y = self.split_tensor_by_domains(X, Y, n_domains)
 
         # Compute all losses
@@ -1183,6 +1181,7 @@ class TCMNIST_Time(TCMNIST):
         Returns:
             Tensor: The reshaped output (n_domains, batch, ...)
         """
+        print(X.shape, Y.shape)
         return X.transpose(0,1), Y.transpose(0,1)
               
     def get_pred_time(self, input_shape):
@@ -2103,7 +2102,7 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
 
     # Training parameters
     N_STEPS = 3001
-    CHECKPOINT_FREQ = 100
+    CHECKPOINT_FREQ = 250
 
     ## Dataset parameters
     PERFORMANCE_MEASURE = 'rmse'
@@ -2465,7 +2464,7 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
         """ Returns next batch. """
         batch = next(self.train_loaders_iter)[0]
 
-        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
+        return self.split_input(batch)
 
     def split_input(self, batch):
         """ Splits input into input and target. """
@@ -2485,7 +2484,7 @@ class AusElectricity(Multi_Domain_Dataset):
 
     # Training parameters
     N_STEPS = 3001
-    CHECKPOINT_FREQ = 100
+    CHECKPOINT_FREQ = 250
 
     ## Dataset parameters
     PERFORMANCE_MEASURE = 'rmse'
@@ -2843,11 +2842,11 @@ class AusElectricity(Multi_Domain_Dataset):
         batch = next(self.train_loaders_iter)
         batch = {k: torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in batch[0]}
 
-        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
+        return self.split_input(batch)
 
-    # def split_input(self, batch):
-    #     """ Splits the input batch into the input and target. """
-    #     return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
+    def split_input(self, batch):
+        """ Splits the input batch into the input and target. """
+        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
 
     def loss(self, X, Y):
         """ Returns the loss for the given input and target. """
@@ -2946,7 +2945,7 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
 
     """
     ## Training parameters
-    N_STEPS = 5001
+    N_STEPS = 2001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -3067,12 +3066,7 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
             out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
             output.append(out)
 
-        X = torch.cat([output[0], output[1], output[2]], dim=2).to(self.device)
-        Y = output[-1].transpose(0,1).to(self.device)
-        pad_mask = output[-2].transpose(0,1).to(self.device)
-        q_mask = output[-3].to(self.device)
-
-        return (X, q_mask, pad_mask), (Y, pad_mask)
+        return self.split_input(output)
 
     def split_input(self, batch):
         """
@@ -3217,7 +3211,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     THIS IS AN UNBALANCED DATASET THAT WE EVALUATE ON MULTIPLE DOMAINS
     """
     ## Training parameters
-    N_STEPS = 5001
+    N_STEPS = 2001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -3350,7 +3344,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
             out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
             output.append(out)
 
-        return output
+        return self.split_input(output)
 
     def split_input(self, batch):
         """
@@ -3425,11 +3419,12 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         """
 
         return 1
+        
 class IEMOCAP(Multi_Domain_Dataset):
     """ IEMOCAP
     """
     ## Training parameters
-    N_STEPS = 5001
+    N_STEPS = 2001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -3597,12 +3592,7 @@ class IEMOCAP(Multi_Domain_Dataset):
             out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
             output.append(out)
 
-        X = torch.cat([output[0], output[1], output[2]], dim=2).to(self.device)
-        Y = output[-1].transpose(0,1).to(self.device)
-        pad_mask = output[-2].transpose(0,1).to(self.device)
-        q_mask = output[-3].to(self.device)
-
-        return (X, q_mask, pad_mask), (Y, pad_mask)
+        return self.split_input(output)
 
     def split_input(self, batch):
         """

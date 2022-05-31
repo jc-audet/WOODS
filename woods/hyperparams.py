@@ -380,7 +380,7 @@ def Basic_Fourier_model():
     """ Spurious Fourier model hparam definition """
     return {
         'model': 'LSTM',
-        'hidden_depth': 2, 
+        'hidden_depth': 3, 
         'hidden_width': 20,
         'recurrent_layers': 2,
         'state_size': 32
@@ -390,7 +390,7 @@ def Spurious_Fourier_model():
     """ Spurious Fourier model hparam definition """
     return {
         'model': 'LSTM',
-        'hidden_depth': 1, 
+        'hidden_depth': 3,
         'hidden_width': 20,
         'recurrent_layers': 2,
         'state_size': 32
@@ -622,7 +622,7 @@ def IRM_hyper(sample):
         }
     else:
         return {
-            'penalty_weight': lambda r: 5e2,
+            'penalty_weight': lambda r: 1e3,
             'anneal_iters': lambda r: 500
         }
 
@@ -639,7 +639,7 @@ def VREx_hyper(sample):
         }
     else:
         return {
-            'penalty_weight': lambda r: 1e3,
+            'penalty_weight': lambda r: 1e4,
             'anneal_iters': lambda r: 500
         }
 

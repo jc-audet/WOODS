@@ -129,8 +129,6 @@ def get_split_accuracy_source(objective, dataset, loader, device):
         device: device on which we are training
     """
 
-    ts = torch.tensor(dataset.PRED_TIME).to(device)
-
     losses = 0
     nb_correct = 0
     nb_item = 0
@@ -138,15 +136,15 @@ def get_split_accuracy_source(objective, dataset, loader, device):
 
         for batch in loader:
 
-            data, target = dataset.split_input(batch)
+            X, Y = dataset.split_input(batch)
 
-            all_out, _ = objective.predict(data)
-            losses += dataset.loss(all_out, target)
+            all_out, _ = objective.predict(X)
+            losses += dataset.loss(all_out, Y)
 
             # get train accuracy and save it
             pred = all_out.argmax(dim=2)
-            nb_correct += pred.eq(target).cpu().sum()
-            nb_item += target.numel()
+            nb_correct += pred.eq(Y).cpu().sum()
+            nb_item += Y.numel()
 
         show_value = nb_correct.item() / nb_item
 
