@@ -16,7 +16,7 @@ OBJECTIVES = [
     'VREx',
     'SD',
     # 'ANDMask', # Requires update
-    'IGA',
+    # 'IGA', # Requires update
     # 'Fish', # Requires update
     'IB_ERM',
     # 'IB_IRM' # Requires update
@@ -79,10 +79,10 @@ class ERM(Objective):
         self.model.train()
 
         # Get next batch
-        batch = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         # Split into input / target
-        X, Y = self.dataset.split_input(batch)
+        # X, Y = self.dataset.split_input(batch)
         # print("input shape:", X.shape)
 
         # Get predict and get (logit, features)
@@ -131,14 +131,14 @@ class GroupDRO(ERM):
         self.model.train()
 
         # Get next batch
-        batch = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         if not len(self.q):
             print("hello, creating Q")
             self.q = torch.ones(self.nb_training_domains).to(self.device)
 
         # Split input / target
-        X, Y = self.dataset.split_input(batch)
+        # X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
@@ -196,10 +196,10 @@ class IRM(ERM):
         self.model.train()
 
         # Get next batch
-        batch = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(batch)
+        # X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
@@ -211,17 +211,17 @@ class IRM(ERM):
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
         #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...)
-        env_out = self.dataset.split_tensor_by_domains(n_domains, out)
-        env_labels = self.dataset.split_tensor_by_domains(n_domains, Y)
+        out, labels = self.dataset.split_tensor_by_domains(out, Y, n_domains)
+        # env_labels = self.dataset.split_tensor_by_domains(n_domains, Y)
 
         # Compute loss and penalty for each domains
-        irm_penalty = torch.zeros(env_out.shape[0]).to(self.device)
-        for i in range(env_out.shape[0]):
-            for t_idx in range(env_out.shape[2]):     # Number of time steps
-                irm_penalty[i] += self._irm_penalty(env_out[i,:,t_idx,:], env_labels[i,:,t_idx])
+        irm_penalty = torch.zeros(n_domains).to(self.device)
+        for i, (env_out, env_labels) in enumerate(zip(out, labels)):
+            irm_penalty[i] += self._irm_penalty(env_out, env_labels)
 
         # Compute objective
         irm_penalty = irm_penalty.mean()
+        # print(domain_losses.mean(), irm_penalty)
         objective = domain_losses.mean() + (penalty_weight * irm_penalty)
 
         # Reset Adam, because it doesn't like the sharp jump in gradient
@@ -264,10 +264,10 @@ class VREx(ERM):
         self.model.train()
 
         # Get next batch
-        batch = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(batch)
+        # X, Y = self.dataset.split_input(batch)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
@@ -314,10 +314,10 @@ class SD(ERM):
         self.model.train()
 
         # Get next batch
-        env_batches = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(env_batches)
+        # X, Y = self.dataset.split_input(env_batches)
 
         # Get predict and get (logit, features)
         out, _ = self.predict(X)
@@ -423,10 +423,10 @@ class IGA(ERM):
         self.model.train()
 
         # Get next batch
-        env_batches = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(env_batches)
+        # X, Y = self.dataset.split_input(env_batches)
 
         # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
         # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
@@ -632,10 +632,10 @@ class IB_ERM(ERM):
         self.model.train()
 
         # Get next batch
-        env_batches = self.dataset.get_next_batch()
+        X, Y = self.dataset.get_next_batch()
 
         # Split input / target
-        X, Y = self.dataset.split_input(env_batches)
+        # X, Y = self.dataset.split_input(env_batches)
 
         # Get predict and get (logit, features)
         out, out_features = self.predict(X)

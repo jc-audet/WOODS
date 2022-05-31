@@ -1,7 +1,9 @@
 """Defining the benchmarks for OoD generalization in time-series"""
+from aifc import Error
 import os
 import copy
 from re import L
+import re
 import h5py
 from PIL import Image
 
@@ -385,18 +387,19 @@ class Multi_Domain_Dataset:
         """
 
         # Make the predictions of shape (batch, n_classes, time) such that pytorch will get losses for all time steps
-        X = X.permute(0,2,1)
+        # X = X.permute(0,2,1)
+
+        X, Y = self.split_tensor_by_domains(X, Y, n_domains)
 
         # Compute all losses
-        all_losses = self.loss_fn(self.log_prob(X), Y)
-
-        # Split them by domains
-        env_losses = self.split_tensor_by_domains(n_domains, all_losses)
+        env_losses = torch.zeros(X.shape[0]).to(X.device)
+        for i, (env_x, env_y) in enumerate(zip(X, Y)):
+            env_losses[i] = self.loss_fn(self.log_prob(env_x), env_y).mean()
 
         # Return average accross time steps and batch
-        return env_losses.mean(dim=(1,2))
+        return env_losses
 
-    def split_tensor_by_domains(self, n_domains, tensor):
+    def split_tensor_by_domains(self, X, Y, n_domains):
         """ Group tensor by domain for source domains datasets
 
         Args:
@@ -404,10 +407,19 @@ class Multi_Domain_Dataset:
             tensor (torch.tensor): tensor to be split. Shape (n_domains*batch, ...)
 
         Returns:
-            Tensor: The reshaped output (n_domains, batch, ...)
+            Tensor: The reshaped output (n_domains, len(all predictions), ...)
         """
-        tensor_shape = tensor.shape
-        return torch.reshape(tensor, (n_domains, tensor_shape[0]//n_domains, *tensor_shape[1:]))
+        new_shape_x = (
+            n_domains,
+            (X.shape[0]//n_domains)*X.shape[1],
+            *X.shape[2:]
+        )
+        new_shape_y = (
+            n_domains,
+            (Y.shape[0]//n_domains)*Y.shape[1],
+            *Y.shape[2:]
+        )
+        return torch.reshape(X, new_shape_x), torch.reshape(Y, new_shape_y)
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -456,8 +468,8 @@ class Multi_Domain_Dataset:
         batch_loaders = next(self.train_loaders_iter)
         input = [(x, y) for x, y in batch_loaders]
         return (
-            torch.cat([x for x,y in input]),
-            torch.cat([y for x,y in input])
+            torch.cat([x for x,y in input]).to(self.device),
+            torch.cat([y for x,y in input]).to(self.device)
         )
 
     def split_input(self, input):
@@ -541,6 +553,7 @@ class Basic_Fourier(Multi_Domain_Dataset):
 
         # Make important checks
         assert flags.test_env == None, "You are using a dataset with only a single environment, there cannot be a test environment"
+        assert flags.objective == 'ERM', "You are using a dataset with only one domain"
 
         # Save stuff
         self.device = training_hparams['device']
@@ -1160,7 +1173,7 @@ class TCMNIST_Time(TCMNIST):
 
         return images, labels
 
-    def split_tensor_by_domains(self, n_domains, tensor):
+    def split_tensor_by_domains(self, X, Y, n_domains):
         """ Group tensor by domain for source domains datasets
 
         Args:
@@ -1170,7 +1183,7 @@ class TCMNIST_Time(TCMNIST):
         Returns:
             Tensor: The reshaped output (n_domains, batch, ...)
         """
-        return tensor.transpose(0,1).unsqueeze(2)
+        return X.transpose(0,1), Y.transpose(0,1)
               
     def get_pred_time(self, input_shape):
         """ Get the prediction times for the current batch
@@ -2128,6 +2141,10 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
+        # Check if the objective is ERM: This is a single domain dataset, therefore invariance penalty cannot be applied
+        # Eventually we could investigate the use of penalties that doesn't use domain definitions such as SD
+        assert flags.objective == 'ERM', "You are using a dataset with only one domain"
+
         # Domain property
         self.set_holidays = holidays.country_holidays('AU')
 
@@ -2262,6 +2279,15 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
 
         # Define data loaders iterable
         self.train_loaders_iter = zip(*self.train_loaders)
+
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+
+        return 1
 
     def create_transformation(self) -> Transformation:
             remove_field_names = []
@@ -2437,9 +2463,9 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
 
     def get_next_batch(self):
         """ Returns next batch. """
-        batch = next(self.train_loaders_iter)
+        batch = next(self.train_loaders_iter)[0]
 
-        return batch[0]
+        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
 
     def split_input(self, batch):
         """ Splits input into input and target. """
@@ -2452,8 +2478,8 @@ class AusElectricityUnbalanced(Multi_Domain_Dataset):
 
     def loss_by_domain(self, X, Y, n_domains):
         """ Returns the loss by domain. Because this is an Unbalanced dataset, there is only one during training domain"""
-        losses = self.loss_fn(X,Y)
-        return losses.mean()
+        losses = self.loss(X,Y)
+        return losses.unsqueeze(0)
 
 class AusElectricity(Multi_Domain_Dataset):
 
@@ -2630,6 +2656,15 @@ class AusElectricity(Multi_Domain_Dataset):
 
         self.train_loaders_iter = zip(*self.train_loaders)
         self.loss_fn = NegativeLogLikelihood()
+
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+
+        return len(self.ENVS)
 
     def create_transformation(self) -> Transformation:
             remove_field_names = []
@@ -2808,11 +2843,11 @@ class AusElectricity(Multi_Domain_Dataset):
         batch = next(self.train_loaders_iter)
         batch = {k: torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in batch[0]}
 
-        return batch
-
-    def split_input(self, batch):
-        """ Splits the input batch into the input and target. """
         return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
+
+    # def split_input(self, batch):
+    #     """ Splits the input batch into the input and target. """
+    #     return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
 
     def loss(self, X, Y):
         """ Returns the loss for the given input and target. """
@@ -2821,8 +2856,19 @@ class AusElectricity(Multi_Domain_Dataset):
     def loss_by_domain(self, X, Y, n_domains):
         """ Returns the loss by domain. Because this is an Unbalanced dataset, there is only one during training domain"""
         losses = self.loss_fn(X,Y)
-        domain_losses = self.split_tensor_by_domains(n_domains, losses)
+
+        new_shape = (
+            n_domains,
+            losses.shape[0] // n_domains,
+            *losses.shape[1:]
+        )
+        domain_losses = torch.reshape(losses, new_shape)
+        
         return domain_losses.mean(dim=(1,2))
+
+    def split_tensor_by_domains(self, X, Y, n_domains):
+        raise NotImplementedError("Not clear how to apply this to this dataset, to be determined")
+        return super().split_tensor_by_domains(X, Y, n_domains)
 
 class original_IEMOCAPDataset(Dataset):
 
@@ -2922,6 +2968,10 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
+        # Check if the objective is ERM: This is a single domain dataset, therefore invariance penalty cannot be applied
+        # Eventually we could investigate the use of penalties that doesn't use domain definitions such as SD
+        assert flags.objective == 'ERM', "You are using a dataset with only one domain"
+
         ## Save stuff
         self.device = training_hparams['device']
         self.class_balance = training_hparams['class_balance']
@@ -2985,7 +3035,7 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
         return masked_losses.mean()
 
     def loss_by_domain(self, pred, Y, n_domains):
-        return self.loss(pred, Y)
+        return self.loss(pred, Y).unsqueeze(0)
 
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3017,7 +3067,12 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
             out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
             output.append(out)
 
-        return output
+        X = torch.cat([output[0], output[1], output[2]], dim=2).to(self.device)
+        Y = output[-1].transpose(0,1).to(self.device)
+        pad_mask = output[-2].transpose(0,1).to(self.device)
+        q_mask = output[-3].to(self.device)
+
+        return (X, q_mask, pad_mask), (Y, pad_mask)
 
     def split_input(self, batch):
         """
@@ -3080,6 +3135,15 @@ class IEMOCAPOriginal(Multi_Domain_Dataset):
                             domain_mask[i, spl, j+1] = 1
         
         return domain_mask
+
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+
+        return 1
 
 class IEMOCAPDataset(Dataset):
 
@@ -3187,6 +3251,10 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     def __init__(self, flags, training_hparams):
         super().__init__()
 
+        # Check if the objective is ERM: This is a single domain dataset, therefore invariance penalty cannot be applied
+        # Eventually we could investigate the use of penalties that doesn't use domain definitions such as SD
+        assert flags.objective == 'ERM', "You are using a dataset with only one domain"
+
         ## Save stuff
         self.device = training_hparams['device']
         self.class_balance = training_hparams['class_balance']
@@ -3250,7 +3318,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         return masked_losses.mean()
 
     def loss_by_domain(self, pred, Y, n_domains):
-        return self.loss(pred, Y)
+        return self.loss(pred, Y).unsqueeze(0)
     
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3349,6 +3417,14 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
         
         return domain_mask
 
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+
+        return 1
 class IEMOCAP(Multi_Domain_Dataset):
     """ IEMOCAP
     """
@@ -3452,30 +3528,44 @@ class IEMOCAP(Multi_Domain_Dataset):
         # Return mean loss
         return masked_losses.mean()
 
-    def loss_by_domain(self, pred, Y, n_domains):
+    def loss_by_domain(self, X, Y, n_domains):
 
-        target, mask = Y
-        pred = pred.permute(0,2,1)
+        # Split tensors by domains (n_domains, n_predictions, ...)
+        pred, target = self.split_tensor_by_domains(X, Y, len(self.ENVS))
 
         # Get all losses without reduction
-        losses = self.loss_fn(self.log_prob(pred), target)
+        losses = torch.zeros(len(self.ENVS)).to(X.device)
+        for i, (env_pred, env_target) in enumerate(zip(pred, target)):
+            losses[i] = self.loss_fn(self.log_prob(env_pred), env_target).mean()
+
+        return losses
+
+    def split_tensor_by_domains(self, X, Y, n_domains):
+        """ Group tensor by domain for source domains datasets
+
+        Args:
+            n_domains (int): Number of domains in the batch
+            tensor (torch.tensor): tensor to be split. Shape (n_domains*batch, ...)
+
+        Returns:
+            Tensor: The reshaped output (n_domains, len(all predictions), ...)
+        """
+
+        # Unpack
+        targets, pad_mask = Y
 
         # Get mask of which predictions were of which domains
-        domain_mask = self.get_domain_mask(target)
+        domain_mask = self.get_domain_mask(targets)
 
-        # Fetch losses - domain wise
-        mean_env_losses = torch.zeros(len(self.ENVS)).to(pred.device)
+        domain_pred = [0] * len(self.ENVS)
+        domain_target = [0] * len(self.ENVS)
         for i in range(len(self.ENVS)):
-            pad_env_mask = torch.logical_and(mask, domain_mask[i,...])
+            pad_env_mask = torch.logical_and(pad_mask, domain_mask[i,...])
 
-            env_losses = torch.masked_select(losses, pad_env_mask.bool())
-
-            if env_losses.numel():
-                mean_env_losses[i] = env_losses.mesn()
-            else:
-                mean_env_losses[i] = 0
-
-        return mean_env_losses
+            domain_pred[i] = X[pad_env_mask, :]
+            domain_target[i] = targets[pad_env_mask]
+        
+        return domain_pred, domain_target
     
     def get_class_weight(self):
         """ Compute class weight for class balanced training
@@ -3507,7 +3597,12 @@ class IEMOCAP(Multi_Domain_Dataset):
             out = out.view(out.shape[0], out.shape[1] * out.shape[2], *out.shape[3:])
             output.append(out)
 
-        return output
+        X = torch.cat([output[0], output[1], output[2]], dim=2).to(self.device)
+        Y = output[-1].transpose(0,1).to(self.device)
+        pad_mask = output[-2].transpose(0,1).to(self.device)
+        q_mask = output[-3].to(self.device)
+
+        return (X, q_mask, pad_mask), (Y, pad_mask)
 
     def split_input(self, batch):
         """
@@ -3522,7 +3617,7 @@ class IEMOCAP(Multi_Domain_Dataset):
 
         return (X, q_mask, pad_mask), (Y, pad_mask)
 
-    def get_nb_correct(self, out, target):
+    def get_nb_correct(self, out, Y):
         """Time domain correct count
 
         Args:
@@ -3535,19 +3630,19 @@ class IEMOCAP(Multi_Domain_Dataset):
 
         # Get predictions
         pred = out.argmax(dim=2)
+        target, pad_mask = Y
 
         # Make domain masking
-        domain_mask = self.get_domain_mask(target[0])
+        domain_mask = self.get_domain_mask(target)
 
         # Get right guesses and stuff
-        pad_mask = target[1]
         batch_correct = torch.zeros(len(self.ENVS)).to(out.device)
         batch_numel = torch.zeros(len(self.ENVS)).to(out.device)
         for i in range(len(self.ENVS)):
             pad_env_mask = torch.logical_and(pad_mask, domain_mask[i,...])
 
-            domain_pred = torch.masked_select(pred, pad_env_mask.bool())
-            domain_target = torch.masked_select(target[0], pad_env_mask.bool())
+            domain_pred = pred[pad_env_mask]
+            domain_target = target[pad_env_mask]
 
             batch_correct[i] = domain_pred.eq(domain_target).sum()
             batch_numel[i] = domain_target.numel()
@@ -3573,3 +3668,11 @@ class IEMOCAP(Multi_Domain_Dataset):
                             domain_mask[i, spl, j+1] = 1
         
         return domain_mask
+
+    def get_nb_training_domains(self):
+        """ Get the number of domains in the training set
+        
+        Returns:
+            int: Number of domains in the training set
+        """
+        return len(self.ENVS)

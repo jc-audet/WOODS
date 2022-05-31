@@ -1592,8 +1592,9 @@ class BiModel(nn.Module):
         hidden = self.dropout(hidden)
 
         # Need to remove this
-        log_prob = F.log_softmax(self.smax_fc(hidden), 2) # seq_len, batch, n_classes
-        return log_prob.transpose(0,1), []
+        output = self.smax_fc(hidden) # seq_len, batch, n_classes
+        output = output.transpose(0,1)
+        return output , []
         # if self.att2:
         #     return log_prob, alpha, alpha_f, alpha_b
         # else:
