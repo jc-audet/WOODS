@@ -3211,7 +3211,7 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     THIS IS AN UNBALANCED DATASET THAT WE EVALUATE ON MULTIPLE DOMAINS
     """
     ## Training parameters
-    N_STEPS = 2001
+    N_STEPS = 1001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters
@@ -3424,7 +3424,7 @@ class IEMOCAP(Multi_Domain_Dataset):
     """ IEMOCAP
     """
     ## Training parameters
-    N_STEPS = 2001
+    N_STEPS = 1001
     CHECKPOINT_FREQ = 100
 
     ## Dataset parameters

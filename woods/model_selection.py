@@ -120,8 +120,8 @@ def choose_model_domain_generalization(records, selection_method):
             val_acc_dict[h_seed] = val_acc
             test_acc_dict[h_seed] = test_acc
 
-        # best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
-        best_seed = [k for k,v in val_acc_dict.items() if v==min(val_acc_dict.values())][0]
+        best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
+        # best_seed = [k for k,v in val_acc_dict.items() if v==min(val_acc_dict.values())][0]
 
         val_acc_arr.append(val_acc_dict[best_seed])
         test_acc_arr.append(test_acc_dict[best_seed])
