@@ -323,16 +323,16 @@ class SD(ERM):
         out, _ = self.predict(X)
 
         # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
+        n_domains = self.dataset.get_nb_training_domains()
+        domain_losses = self.dataset.loss_by_domain(out, Y, n_domains)
 
         # Create domain dimension in tensors:
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
         #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
-        env_out = self.dataset.split_tensor_by_domains(len(env_batches), out)
-        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+        domain_out, _ = self.dataset.split_tensor_by_domains(out, Y, n_domains)
 
         # Compute loss for each environment 
-        sd_penalty = torch.pow(env_out, 2).sum(dim=-1)
+        sd_penalty = torch.pow(domain_out, 2).sum(dim=-1)
 
         # sd_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
         # for i in range(env_out.shape[0]):
@@ -340,7 +340,7 @@ class SD(ERM):
         #         sd_penalty[i] += (env_out[i, :, t_idx, :] ** 2).mean()
 
         sd_penalty = sd_penalty.mean()
-        objective = env_losses.mean() + self.penalty_weight * sd_penalty
+        objective = domain_losses.mean() + self.penalty_weight * sd_penalty
 
         # Back propagate
         self.optimizer.zero_grad()
@@ -405,66 +405,66 @@ class SD(ERM):
 #         self.mask_grads(self.tau, param_gradients, self.model.parameters())
 #         self.optimizer.step()
 
-class IGA(ERM):
-    """
-    Inter-environmental Gradient Alignment
-    From https://arxiv.org/abs/2008.01883v2
-    """
+# class IGA(ERM):
+#     """
+#     Inter-environmental Gradient Alignment
+#     From https://arxiv.org/abs/2008.01883v2
+#     """
 
-    def __init__(self, model, dataset, optimizer, hparams):
-        super(IGA, self).__init__(model, dataset, optimizer, hparams)
+#     def __init__(self, model, dataset, optimizer, hparams):
+#         super(IGA, self).__init__(model, dataset, optimizer, hparams)
 
-        # Hyper parameters
-        self.penalty_weight = self.hparams['penalty_weight']
+#         # Hyper parameters
+#         self.penalty_weight = self.hparams['penalty_weight']
 
-    def update(self):
+#     def update(self):
 
-        # Put model into training mode
-        self.model.train()
+#         # Put model into training mode
+#         self.model.train()
 
-        # Get next batch
-        X, Y = self.dataset.get_next_batch()
+#         # Get next batch
+#         X, Y = self.dataset.get_next_batch()
 
-        # Split input / target
-        # X, Y = self.dataset.split_input(env_batches)
+#         # Split input / target
+#         # X, Y = self.dataset.split_input(env_batches)
 
-        # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
-        # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
-        with torch.backends.cudnn.flags(enabled=False):
-            out, _ = self.predict(X)
+#         # There is an unimplemented feature of cudnn that makes it impossible to perform double backwards pass on the network
+#         # This is a workaround to make it work proposed by pytorch, but I'm not sure if it's the right way to do it
+#         with torch.backends.cudnn.flags(enabled=False):
+#             out, _ = self.predict(X)
 
-        # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
+#         # Compute losses
+#         batch_losses = self.dataset.loss(out, Y)
 
-        # Create domain dimension in tensors. 
-        #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+#         # Create domain dimension in tensors. 
+#         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
+#         env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
 
-        # Get the gradients
-        grads = []
-        for env_loss in env_losses:
+#         # Get the gradients
+#         grads = []
+#         for env_loss in env_losses:
 
-            env_grad = autograd.grad(env_loss.mean(), [p for p in self.model.parameters() if p.requires_grad], 
-                                        create_graph=True)
-            grads.append(env_grad)
+#             env_grad = autograd.grad(env_loss.mean(), [p for p in self.model.parameters() if p.requires_grad], 
+#                                         create_graph=True)
+#             grads.append(env_grad)
 
-        # Compute the mean loss and mean loss gradient
-        mean_loss = env_losses.mean()
-        mean_grad = autograd.grad(mean_loss, [p for p in self.model.parameters() if p.requires_grad], 
-                                        create_graph=True)
+#         # Compute the mean loss and mean loss gradient
+#         mean_loss = env_losses.mean()
+#         mean_grad = autograd.grad(mean_loss, [p for p in self.model.parameters() if p.requires_grad], 
+#                                         create_graph=True)
 
-        # compute trace penalty
-        penalty_value = 0
-        for grad in grads:
-            for g, mean_g in zip(grad, mean_grad):
-                penalty_value += (g - mean_g).pow(2).sum()
+#         # compute trace penalty
+#         penalty_value = 0
+#         for grad in grads:
+#             for g, mean_g in zip(grad, mean_grad):
+#                 penalty_value += (g - mean_g).pow(2).sum()
 
-        objective = mean_loss + self.penalty_weight * penalty_value
+#         objective = mean_loss + self.penalty_weight * penalty_value
 
-        # Back propagate
-        self.optimizer.zero_grad()
-        objective.backward()
-        self.optimizer.step()
+#         # Back propagate
+#         self.optimizer.zero_grad()
+#         objective.backward()
+#         self.optimizer.step()
         
 # class Fish(ERM):
 #     """
@@ -641,21 +641,19 @@ class IB_ERM(ERM):
         out, out_features = self.predict(X)
 
         # Compute losses
-        batch_losses = self.dataset.loss(out, Y)
+        n_domains = self.dataset.get_nb_training_domains()
+        domain_losses = self.dataset.loss_by_domain(out, Y, n_domains)
 
         # Create domain dimension in tensors. 
         #   e.g. for source domains: (ENVS * batch_size, ...) -> (ENVS, batch_size, ...)
-        env_features = self.dataset.split_tensor_by_domains(len(env_batches), out_features)
-        env_losses = self.dataset.split_tensor_by_domains(len(env_batches), batch_losses)
+        domain_features, _ = self.dataset.split_tensor_by_domains(out_features, Y, n_domains)
 
-        # For each environment, accumulate loss for all time steps
-        ib_penalty = torch.zeros(env_features.shape[0]).to(env_features.device)
-        for i in range(env_features.shape[0]):
-            for t_idx in range(env_features.shape[2]):     # Number of time steps
-                # Compute the information bottleneck
-                ib_penalty[i] += env_features[i, :, t_idx, :].var(dim=0).mean()
-
-        objective = env_losses.mean() + (self.ib_weight * ib_penalty.mean())
+        # For each environment, compute penalty
+        ib_penalty = torch.zeros(n_domains).to(domain_losses.device)
+        for i, d_feat in enumerate(domain_features):
+            ib_penalty[i] = d_feat.var(dim=0).mean()
+        
+        objective = domain_losses.mean() + (self.ib_weight * ib_penalty.mean())
 
         # Back propagate
         self.optimizer.zero_grad()

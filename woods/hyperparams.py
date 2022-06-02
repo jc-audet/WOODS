@@ -340,7 +340,7 @@ def IEMOCAP_train(sample):
             'class_balance': lambda r: True,
             'lr': lambda r: 10**r.uniform(-3, -5),
             'weight_decay': lambda r: 0.,
-            'batch_size': lambda r: int(2**r.uniform(4, 6)),
+            'batch_size': lambda r: int(2**r.uniform(1, 4)),
         }
     else:
         return {

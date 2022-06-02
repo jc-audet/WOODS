@@ -1188,7 +1188,7 @@ class ForecastingTransformer(nn.Module):
             tgt_mask=self.tgt_mask
         )
 
-        return self.param_proj(dec_output)
+        return self.param_proj(dec_output), dec_output
 
     @torch.jit.ignore
     def output_distribution(
@@ -1223,10 +1223,10 @@ class ForecastingTransformer(nn.Module):
             future_target,
         )
 
-        params = self.output_params(transformer_inputs)
+        params, features = self.output_params(transformer_inputs)
         distr = self.output_distribution(params, scale)
 
-        return distr, future_target
+        return distr, features
 
     # for prediction
     def inference(
@@ -1325,8 +1325,6 @@ class ForecastingTransformer(nn.Module):
             (-1, self.num_parallel_samples, self.prediction_length)
             + self.target_shape,
         )
-
-        from torch.nn.utils.rnn import pad_sequence
 
 ################################
 ## Emotion recognition models ##
@@ -1589,12 +1587,13 @@ class BiModel(nn.Module):
         else:
             hidden = F.relu(self.linear(emotions))
         #hidden = F.relu(self.linear(emotions))
-        hidden = self.dropout(hidden)
+        do_hidden = self.dropout(hidden)
 
         # Need to remove this
-        output = self.smax_fc(hidden) # seq_len, batch, n_classes
+        output = self.smax_fc(do_hidden) # seq_len, batch, n_classes
         output = output.transpose(0,1)
-        return output , []
+        features = hidden.transpose(0,1)
+        return output, features
         # if self.att2:
         #     return log_prob, alpha, alpha_f, alpha_b
         # else:

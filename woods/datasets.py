@@ -260,9 +260,7 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
         self.dataset = dataset
 
         sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
-
         batch_sampler = torch.utils.data.BatchSampler(sampler, batch_size, drop_last=True)
-
         if hasattr(self.dataset, 'collate_fn'):
             self.infinite_iterator = iter(
                 torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=pin_memory, collate_fn=self.dataset.collate_fn)
@@ -271,7 +269,6 @@ class InfiniteLoader(torch.utils.data.IterableDataset):
             self.infinite_iterator = iter(
                 torch.utils.data.DataLoader(dataset, batch_sampler=InfiniteSampler(batch_sampler), num_workers=num_workers, pin_memory=pin_memory)
             )
-
 
     def __iter__(self):
         while True:
@@ -1181,7 +1178,6 @@ class TCMNIST_Time(TCMNIST):
         Returns:
             Tensor: The reshaped output (n_domains, batch, ...)
         """
-        print(X.shape, Y.shape)
         return X.transpose(0,1), Y.transpose(0,1)
               
     def get_pred_time(self, input_shape):
@@ -2865,9 +2861,11 @@ class AusElectricity(Multi_Domain_Dataset):
         
         return domain_losses.mean(dim=(1,2))
 
-    def split_tensor_by_domains(self, X, Y, n_domains):
-        raise NotImplementedError("Not clear how to apply this to this dataset, to be determined")
-        return super().split_tensor_by_domains(X, Y, n_domains)
+    def split_tensor_by_domains(self, features, Y, n_domains):
+        """ This can only be applied to features tensors fo IB-ERM, because we don't currently know how to split gluonts transformed distributions outputs
+        """
+        assert isinstance(features, torch.Tensor), "Input not tensor"
+        return super().split_tensor_by_domains(features, Y, n_domains)
 
 class original_IEMOCAPDataset(Dataset):
 
