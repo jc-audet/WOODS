@@ -149,7 +149,7 @@ def get_domain_weights(dataset_name):
         list: list of weights
     """
 
-    assert get_setup(dataset_name) == 'subpopulation', "Only subpopulation shift have domain weights"
+    assert get_paradigm(dataset_name) == 'subpopulation_shift', "Only subpopulation shift have domain weights"
 
     return get_dataset_class(dataset_name).ENVS_WEIGHTS
 
@@ -3175,7 +3175,7 @@ class IEMOCAPDataset(Dataset):
                             break
         else:
             self.keys = split_keys
-
+        
         self.speakers_info, self.labels, self.text_features, self.audio_features, self.visual_features = [], [], [], [], []
         for i, key in enumerate(self.keys):
             self.speakers_info.append(torch.FloatTensor(np.array([[1,0] if x=='M' else [0,1] for x in allvideoSpeakers[key]])))

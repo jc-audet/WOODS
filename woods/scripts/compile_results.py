@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
             for ms_method in model_selection_methods:
 
-                if datasets.get_setup(dataset_name) in ['source', 'time']:
+                if datasets.get_paradigm(dataset_name) == 'domain_generalization':
                     t = PrettyTable()
                     sweep_envs = datasets.get_sweep_envs(dataset_name)
                     all_envs = datasets.get_environments(dataset_name)
@@ -117,7 +117,8 @@ if __name__ == "__main__":
                         obj_results.append(" {acc:.2f} ".format(acc=avg_test))
                         t.add_row(obj_results)
 
-                if datasets.get_setup(dataset_name) in ['subpopulation']:
+                if datasets.get_paradigm(dataset_name) == 'subpopulation_shift':
+                    print(dataset_name)
                     
                     t = PrettyTable()
                     all_envs = datasets.get_environments(dataset_name)
