@@ -20,7 +20,7 @@ def get_model_selection(dataset_name):
         return ['train_domain_validation', 'test_domain_validation']
     if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR']:
         return ['train_domain_validation', 'oracle_train_domain_validation']
-    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced', 'AusElectricityMonthly', 'AusElectricityMonthlyBalanced']:
+    if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced', 'IEMOCAPUnbalanced', 'IEMOCAP']:
         return ['average_validation', 'weighted_average_validation', 'worse_domain_validation']
 
 def ensure_dict_path(dict, key):
@@ -105,7 +105,7 @@ def choose_model_domain_generalization(records, selection_method):
     """
 
     if selection_method not in globals():
-        raise NotImplementedError("Dataset not found: {}".format(selection_method))
+        raise NotImplementedError("Model selection not found: {}".format(selection_method))
     selection_method = globals()[selection_method]
 
     val_acc_arr = []

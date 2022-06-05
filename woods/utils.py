@@ -174,13 +174,15 @@ def check_file_integrity(results_dir):
 
     # Check for sweep output files
     missing_files = 0
+    missing_names = []
     for args in tqdm.tqdm(train_args, desc="Checking file integrity for folder "+results_dir):
         name = get_job_name(args) + '.json'
         
         if not os.path.exists(os.path.join(results_dir, 'logs', name)):
             missing_files += 1
+            missing_names.append(name)
 
-    assert missing_files == 0, str(missing_files) + " sweep results are missing from the results directory"
+    assert missing_files == 0, str(missing_files) + " sweep results are missing from the results directory:" + str(missing_names)
     assert len(train_args) == len(os.listdir(os.path.join(results_dir, 'logs'))), "There are extra files in the logs directory"
 
 def setup_pretty_table(flags):
