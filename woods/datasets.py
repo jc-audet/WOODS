@@ -3238,10 +3238,12 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
             '2-5',#, '5-2',
             '3-5']#, '5-3',
             #'3-1']
+    ENVS_WEIGHTS = [2892/7463, 2329/7463, 34/7463, 130/7463, 224/7463, 177/7463, 94/7463, 298/7463, 190/7463, 615/7463, 480/7463]
     SWEEP_ENVS = [-1]
 
     def __init__(self, flags, training_hparams):
         super().__init__()
+
 
         # Check if the objective is ERM: This is a single domain dataset, therefore invariance penalty cannot be applied
         # Eventually we could investigate the use of penalties that doesn't use domain definitions such as SD
@@ -3451,6 +3453,7 @@ class IEMOCAP(Multi_Domain_Dataset):
             '2-5',#, '5-2',
             '3-5']#, '5-3',
             #'3-1']
+    ENVS_WEIGHTS = [2892/7463, 2329/7463, 34/7463, 130/7463, 224/7463, 177/7463, 94/7463, 298/7463, 190/7463, 615/7463, 480/7463]
     SWEEP_ENVS = [-1]
 
     def __init__(self, flags, training_hparams):
