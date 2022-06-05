@@ -56,6 +56,7 @@ if __name__ == '__main__':
     # Device definition
     if torch.cuda.is_available():
         device = torch.device("cuda")
+        print("Using CUDA device ", torch.cuda.current_device())
     else:
         device = torch.device("cpu")
 
