@@ -3172,6 +3172,9 @@ class IEMOCAPUnbalanced(Multi_Domain_Dataset):
     #:int: number of frames in each video
     INPUT_SHAPE = None
     OUTPUT_SIZE = 6
+    '''
+    label index mapping = {'hap':0, 'sad':1, 'neu':2, 'ang':3, 'exc':4, 'fru':5}
+    '''
     #:str: path to the folder containing the data
     DATA_PATH = 'IEMOCAP/IEMOCAP_features_raw_OOD.pkl'
 
