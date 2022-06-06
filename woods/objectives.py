@@ -331,8 +331,8 @@ class SD(ERM):
         #        for time domains: (batch_size, ENVS, ...) -> (ENVS, batch_size, ...) 
         domain_out, _ = self.dataset.split_tensor_by_domains(out, Y, n_domains)
 
-        # Compute loss for each environment 
-        sd_penalty = torch.pow(domain_out, 2).sum(dim=-1)
+        # Compute loss for each environment
+        sd_penalty = torch.pow(out, 2).sum(dim=-1)
 
         # sd_penalty = torch.zeros(env_out.shape[0]).to(env_out.device)
         # for i in range(env_out.shape[0]):
