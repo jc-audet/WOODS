@@ -675,7 +675,7 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         self.fourier_0 = np.zeros(1000)
         self.fourier_0[900] = 1
         self.fourier_1 = np.zeros(1000)
-        self.fourier_1[850] = 1
+        self.fourier_1[700] = 1
 
         ## Define the spurious Fourier spectrum (one direct and the inverse correlation)
         self.direct_fourier_0 = copy.deepcopy(self.fourier_0)
@@ -690,12 +690,9 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
         ## Create the sequences for direct and inverse
         direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)
-        # direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50,1) ).float()
         direct_signal_0 = torch.tensor( direct_signal_0 ).float()
         direct_signal_0 /= direct_signal_0.max()
-        print(np.shape(direct_signal_0))
         direct_signal_0 = self.super_sample(direct_signal_0)
-        print(np.shape(direct_signal_0))
         direct_signal_1 = fft.irfft(self.direct_fourier_1, n=10000)
         direct_signal_1 = torch.tensor( direct_signal_1 ).float()
         direct_signal_1 /= direct_signal_1.max()
@@ -792,15 +789,8 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         import matplotlib.pyplot as plt
         all_signal = torch.zeros(0,50,1)
         for i in range(0, 50, 2):
-            print("signal", signal.shape)
             new_signal = copy.deepcopy(signal)[i:i-50]
-            print("New signal", new_signal.shape)
             split_signal = new_signal.reshape(-1,50,1).clone().detach().float()
-            print("split signal", split_signal.shape)
-            # for j in range(split_signal.shape[0]):
-            #     plt.figure()
-            #     plt.plot(split_signal[j,:,0])
-            #     plt.show()
             all_signal = torch.cat((all_signal, split_signal), dim=0)
         
         return all_signal
