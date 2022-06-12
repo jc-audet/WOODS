@@ -2,6 +2,7 @@
 from aifc import Error
 import os
 import copy
+from pkgutil import get_data
 from re import L
 import re
 import h5py
@@ -103,6 +104,17 @@ def get_environments(dataset_name):
         list: list of environments of the dataset
     """
     return get_dataset_class(dataset_name).ENVS
+
+def get_performance_measure(dataset_name):
+    """Returns the environments of a dataset 
+    
+    Args:
+        dataset_name (str): Name of the dataset to get the number of environments of. (Must be a part of the DATASETS list)
+
+    Returns:
+        str: performance measure string ('acc' or 'rmse')
+    """
+    return get_dataset_class(dataset_name).PERFORMANCE_MEASURE
 
 def get_setup(dataset_name):
     """ Returns the setup of a dataset ('source' or 'time')
@@ -678,11 +690,14 @@ class Spurious_Fourier(Multi_Domain_Dataset):
 
         ## Create the sequences for direct and inverse
         direct_signal_0 = fft.irfft(self.direct_fourier_0, n=10000)
-        direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50,1) ).float()
+        # direct_signal_0 = torch.tensor( direct_signal_0.reshape(-1,50,1) ).float()
+        direct_signal_0 = torch.tensor( direct_signal_0 ).float()
         direct_signal_0 /= direct_signal_0.max()
+        print(np.shape(direct_signal_0))
         direct_signal_0 = self.super_sample(direct_signal_0)
+        print(np.shape(direct_signal_0))
         direct_signal_1 = fft.irfft(self.direct_fourier_1, n=10000)
-        direct_signal_1 = torch.tensor( direct_signal_1.reshape(-1,50,1) ).float()
+        direct_signal_1 = torch.tensor( direct_signal_1 ).float()
         direct_signal_1 /= direct_signal_1.max()
         direct_signal_1 = self.super_sample(direct_signal_1)
 
@@ -693,11 +708,11 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         direct_signal = [direct_signal_0, direct_signal_1]
 
         inverse_signal_0 = fft.irfft(self.inverse_fourier_0, n=10000)
-        inverse_signal_0 = torch.tensor( inverse_signal_0.reshape(-1,50,1) ).float()
+        inverse_signal_0 = torch.tensor( inverse_signal_0 ).float()
         inverse_signal_0 /= inverse_signal_0.max()
         inverse_signal_0 = self.super_sample(inverse_signal_0)
         inverse_signal_1 = fft.irfft(self.inverse_fourier_1, n=10000)
-        inverse_signal_1 = torch.tensor( inverse_signal_1.reshape(-1,50,1) ).float()
+        inverse_signal_1 = torch.tensor( inverse_signal_1 ).float()
         inverse_signal_1 /= inverse_signal_1.max()
         inverse_signal_1 = self.super_sample(inverse_signal_1)
 
@@ -774,10 +789,18 @@ class Spurious_Fourier(Multi_Domain_Dataset):
         Returns:
             torch.Tensor: Super sampled signal
         """
+        import matplotlib.pyplot as plt
         all_signal = torch.zeros(0,50,1)
         for i in range(0, 50, 2):
+            print("signal", signal.shape)
             new_signal = copy.deepcopy(signal)[i:i-50]
+            print("New signal", new_signal.shape)
             split_signal = new_signal.reshape(-1,50,1).clone().detach().float()
+            print("split signal", split_signal.shape)
+            # for j in range(split_signal.shape[0]):
+            #     plt.figure()
+            #     plt.plot(split_signal[j,:,0])
+            #     plt.show()
             all_signal = torch.cat((all_signal, split_signal), dim=0)
         
         return all_signal

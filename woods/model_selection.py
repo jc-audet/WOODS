@@ -6,6 +6,14 @@ import numpy as np
 from woods import datasets
 from woods import utils
 
+model_selection_methods = [
+    'train_domain_validation', 
+    'test_domain_validation',
+    'oracle_train_domain_validation',
+    'average_validation',
+    'worse_domain_validation'
+]
+
 def get_model_selection(dataset_name):
     """ Returns the model selection for a dataset
 
@@ -59,8 +67,17 @@ def get_best_hparams(records, selection_method):
     """
 
     if selection_method not in globals():
-        raise NotImplementedError("Dataset not found: {}".format(selection_method))
+        raise NotImplementedError("Model selection method not found: {}".format(selection_method))
     selection_method = globals()[selection_method]
+
+    # Determine if we need to min or maximize
+    meas = datasets.get_performance_measure(records[0][0]['flags']['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
 
     flags_dict = {}
     hparams_dict = {}
@@ -77,7 +94,7 @@ def get_best_hparams(records, selection_method):
             val_acc_dict[h_seed] = val_acc
             test_acc_dict[h_seed] = test_acc
 
-        best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
+        best_seed = [k for k,v in val_acc_dict.items() if v==min_or_max(val_acc_dict.values())][0]
 
         flags_dict[t_seed] = records[t_seed][best_seed]['flags']
         hparams_dict[t_seed] = records[t_seed][best_seed]['hparams']
@@ -108,6 +125,14 @@ def choose_model_domain_generalization(records, selection_method):
         raise NotImplementedError("Model selection not found: {}".format(selection_method))
     selection_method = globals()[selection_method]
 
+    meas = datasets.get_performance_measure(records[0][0]['flags']['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
+
     val_acc_arr = []
     test_acc_arr = []
     best_seeds = []
@@ -120,7 +145,7 @@ def choose_model_domain_generalization(records, selection_method):
             val_acc_dict[h_seed] = val_acc
             test_acc_dict[h_seed] = test_acc
 
-        best_seed = [k for k,v in val_acc_dict.items() if v==max(val_acc_dict.values())][0]
+        best_seed = [k for k,v in val_acc_dict.items() if v==min_or_max(val_acc_dict.values())][0]
         # best_seed = [k for k,v in val_acc_dict.items() if v==min(val_acc_dict.values())][0]
 
         val_acc_arr.append(val_acc_dict[best_seed])
@@ -159,8 +184,9 @@ def IID_validation(records):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
 
-    val_keys = [str(e)+'_out_acc' for e in env_name]
+    val_keys = [str(e)+'_out_'+meas for e in env_name]
 
     val_dict = {}
     val_arr_dict = {}
@@ -198,8 +224,9 @@ def train_domain_validation(records):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
 
-    val_keys = [str(e)+'_out_acc' for i,e in enumerate(env_name) if i != flags['test_env']]
+    val_keys = [str(e)+'_out_'+meas for i,e in enumerate(env_name) if i != flags['test_env']]
     test_key = str(env_name[flags['test_env']]) + '_in_acc'
 
     val_dict = {}
@@ -239,9 +266,10 @@ def test_domain_validation(records):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
 
-    val_keys = str(env_name[flags['test_env']])+'_out_acc'
-    test_keys = str(env_name[flags['test_env']])+'_in_acc'
+    val_keys = str(env_name[flags['test_env']])+'_out_'+meas
+    test_keys = str(env_name[flags['test_env']])+'_in_'+meas
 
     last_step = max([int(step) for step in records.keys()])
 
@@ -267,10 +295,11 @@ def oracle_train_domain_validation(records):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
 
-    val_keys = [str(e)+'_out_acc' for i,e in enumerate(env_name) if i != flags['test_env']]
-    test_key = str(env_name[flags['test_env']]) + '_in_acc'
-    validation_test_key = str(env_name[flags['test_env']]) + '_out_acc'
+    val_keys = [str(e)+'_out_'+meas for i,e in enumerate(env_name) if i != flags['test_env']]
+    test_key = str(env_name[flags['test_env']]) + '_in_'+meas
+    validation_test_key = str(env_name[flags['test_env']]) + '_out_'+meas
 
     val_dict = {}
     test_dict = {}
@@ -315,6 +344,14 @@ def choose_model_subpopulation(records, selection_method, weights=None):
         raise NotImplementedError("Dataset not found: {}".format(selection_method))
     selection_method = globals()[selection_method]
 
+    meas = datasets.get_performance_measure(records[0][0]['flags']['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
+
     chosen_avg_performance = []
     chosen_worse_performance = []
     chosen_seeds = []
@@ -330,13 +367,11 @@ def choose_model_subpopulation(records, selection_method, weights=None):
             avg_test_acc_dict[h_seed] = avg_test_acc
             worse_test_acc_dict[h_seed] = worse_test_acc
 
-        best_seed = min(val_acc_dict, key=val_acc_dict.get)
+        best_seed = min_or_max(val_acc_dict, key=val_acc_dict.get)
 
         chosen_avg_performance.append(avg_test_acc_dict[best_seed])
         chosen_worse_performance.append(worse_test_acc_dict[best_seed])
         chosen_seeds.append((t_seed, best_seed))
-
-    print(chosen_seeds, chosen_avg_performance, chosen_worse_performance)
 
     return (
         np.mean(chosen_avg_performance),
@@ -365,9 +400,18 @@ def average_validation(records, weights):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+        worse_min_or_max = min
+    elif meas == 'rmse':
+        min_or_max = min
+        worse_min_or_max = max
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
 
-    val_keys = [str(e)+'_val_rmse' for i,e in enumerate(env_name)]
-    test_keys = [str(e)+'_test_rmse' for i,e in enumerate(env_name)]
+    val_keys = [str(e)+'_val_'+meas for i,e in enumerate(env_name)]
+    test_keys = [str(e)+'_test_'+meas for i,e in enumerate(env_name)]
 
     avg_val_dict = {}
     avg_test_dict = {}
@@ -379,10 +423,10 @@ def average_validation(records, weights):
         
         test_values = [step_dict[k] for k in test_keys]
         avg_test_dict[step] = np.average(test_values, weights=weights)
-        worse_test_dict[step] = max(test_values)
+        worse_test_dict[step] = worse_min_or_max(test_values)
 
     ## Picking the max value from a dict
-    best_step = min(avg_val_dict, key=avg_val_dict.get)
+    best_step = min_or_max(avg_val_dict, key=avg_val_dict.get)
     
     return avg_val_dict[best_step], avg_test_dict[best_step], worse_test_dict[best_step]
 
@@ -404,9 +448,18 @@ def weighted_average_validation(records, weights):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+        worse_min_or_max = min
+    elif meas == 'rmse':
+        min_or_max = min
+        worse_min_or_max = max
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
 
-    val_keys = [str(e)+'_val_rmse' for i,e in enumerate(env_name)]
-    test_keys = [str(e)+'_test_rmse' for i,e in enumerate(env_name)]
+    val_keys = [str(e)+'_val_'+meas for i,e in enumerate(env_name)]
+    test_keys = [str(e)+'_test_'+meas for i,e in enumerate(env_name)]
 
     avg_val_dict = {}
     avg_test_dict = {}
@@ -418,10 +471,10 @@ def weighted_average_validation(records, weights):
         
         test_values = [step_dict[k] for k in test_keys]
         avg_test_dict[step] = np.average(test_values, weights=weights)
-        worse_test_dict[step] = max(test_values)
+        worse_test_dict[step] = worse_min_or_max(test_values)
 
     ## Picking the max value from a dict
-    best_step = min(avg_val_dict, key=avg_val_dict.get)
+    best_step = min_or_max(avg_val_dict, key=avg_val_dict.get)
     
     return avg_val_dict[best_step], avg_test_dict[best_step], worse_test_dict[best_step]
 
@@ -444,9 +497,18 @@ def worse_domain_validation(records, weights):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    meas = datasets.get_performance_measure(flags['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+        worse_min_or_max = min
+    elif meas == 'rmse':
+        min_or_max = min
+        worse_min_or_max = max
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
 
-    val_keys = [str(e)+'_val_rmse' for i,e in enumerate(env_name)]
-    test_keys = [str(e)+'_test_rmse' for i,e in enumerate(env_name)]
+    val_keys = [str(e)+'_val_'+meas for i,e in enumerate(env_name)]
+    test_keys = [str(e)+'_test_'+meas for i,e in enumerate(env_name)]
 
     avg_val_dict = {}
     avg_test_dict = {}
@@ -454,13 +516,13 @@ def worse_domain_validation(records, weights):
     for step, step_dict in records.items():
 
         val_values = [step_dict[k] for k in val_keys]
-        avg_val_dict[step] = max(val_values)
+        avg_val_dict[step] = worse_min_or_max(val_values)
         
         test_values = [step_dict[k] for k in test_keys]
         avg_test_dict[step] = np.average(test_values, weights=weights)
-        worse_test_dict[step] = max(test_values)
+        worse_test_dict[step] = worse_min_or_max(test_values)
 
     ## Picking the max value from a dict
-    best_step = min(avg_val_dict, key=avg_val_dict.get)
+    best_step = min_or_max(avg_val_dict, key=avg_val_dict.get)
     
     return avg_val_dict[best_step], avg_test_dict[best_step], worse_test_dict[best_step]

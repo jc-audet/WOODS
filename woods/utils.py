@@ -277,28 +277,35 @@ def get_latex_table(table, caption=None, label=None):
     """
     s = ''
 
-    s += r'\usepackage{adjustbox}' + '\n'
-    s += r'\usepackage{multirow}' + '\n'
-    s += r'\usepackage{booktabs}' + '\n'
-    s += r'\begin{center}' + '\n'
-    s += r'\adjustbox{max width=\textwidth}{%' + '\n'
-    s += r'\begin{tabular}{l'
+    s += r'\begin{table*}[h]' + '\n'
+    s += '\t' + r'\centering' + '\n'
+    s += '\t' + r'\caption{' + caption.replace('_', ' ') + '}' + '\n'
+    s += '\t' + r'\begin{minipage}{\linewidth}' + '\n'
+    # s += r'\usepackage{adjustbox}' + '\n'
+    # s += r'\usepackage{multirow}' + '\n'
+    # s += r'\usepackage{booktabs}' + '\n'
+    s += '\t'*2 + r'\begin{center}' + '\n'
+    s += '\t'*2 + r'\adjustbox{max width=\textwidth}{%' + '\n'
+    s += '\t'*3 + r'\begin{tabular}{l'
     s += ''.join(['c',]*(len(table.field_names)-1)) + '}' + '\n'
-    s += r'\toprule' + '\n'
-    s += r'\multicolumn{' + str(len(table.field_names)) + r'}{c}{\textbf{' + caption.replace('_', ' ') + r'}} \\' + '\n'
-    s += r'\midrule' + '\n'
+    s += '\t'*4 + r'\toprule' + '\n'
+    s += '\t'*4 + r'\multicolumn{' + str(len(table.field_names)) + r'}{c}{\textbf{' + caption.replace('_', ' ') + r'}} \\' + '\n'
+    s += '\t'*4 + r'\midrule' + '\n'
     env_name = [env.replace('_', ' ') for env in table.field_names[1:-1]]
-    s += r'\textbf{'+ table.field_names[0] +'} & ' + ' & '.join(env_name) + r' & \textbf{'+ table.field_names[-1] +'}' + r'\\' + '\n'
-    s += r'\midrule' + '\n'
+    s += '\t'*4 + r'\textbf{'+ table.field_names[0] +'} & ' + ' & '.join(env_name) + r' & \textbf{'+ table.field_names[-1] +'}' + r'\\' + '\n'
+    s += '\t'*4 + r'\midrule' + '\n'
     rows = table._format_rows(table._rows, [])
     for i in range(len(rows)):
-        row = [str(itm) for itm in rows[i]]
-        s = s + ' & '.join(row)
+        row = [str(itm).replace('_', '-') for itm in rows[i]]
+        s = s + '\t'*4 + ' & '.join(row)
         if i != len(table._rows):
             s = s + r'\\'
         s = s + '\n'
-    s += r'\bottomrule' + '\n'
-    s += r'\end{tabular}}' + '\n'
-    s += r'\end{center}' + '\n'
+    s += '\t'*4 + r'\bottomrule' + '\n'
+    s += '\t'*3 + r'\end{tabular}}' + '\n'
+    s += '\t'*2 + r'\end{center}' + '\n'
+    s += '\t' + r'\end{minipage}' + '\n'
+    s += '\t' + r'\label{table:something}' + '\n'
+    s += r'\end{table*}' + '\n'
 
     return s

@@ -159,18 +159,37 @@ if __name__ == "__main__":
 
     elif 'summary' in flags.mode:
 
-        raise NotImplementedError('Quarantined due to changes in the repo')
-
+        all_model_selection_methods = model_selection.model_selection_methods
         # Perform model selection onto the checkpoints from results
-        for ms_method in model_selection_methods:
+        for ms_method in all_model_selection_methods:
+
+            dataset_to_evaluate = []
+            for dataset in records.keys():
+                if ms_method in model_selection.get_model_selection(dataset):
+                    dataset_to_evaluate.append(dataset)
+
+            dataset_to_evaluate_ordered = []
+            for dataset in datasets.DATASETS:
+                if dataset in dataset_to_evaluate and 'Unbalanced' not in dataset:
+                    dataset_to_evaluate_ordered.append(dataset)
 
             t = PrettyTable()
-            t.field_names = ['Objective'] + list(records.keys()) + ["Average"]
+            t.field_names = ['Objective'] + list(dataset_to_evaluate_ordered) + ["Average"]
 
             acc_dict = {}
             var_dict = {}
-            for dataset_name, dataset_dict in records.items():
-                
+            for dataset_name in dataset_to_evaluate_ordered:
+
+                dataset_dict = records[dataset_name]
+
+                dataset_paradigm = datasets.get_paradigm(dataset_name)
+                dataset_measure = datasets.get_performance_measure(dataset_name)
+                dataset_model_selection = model_selection.get_model_selection(dataset_name)
+
+                performance_multiplier = 100
+                if dataset_measure == 'rmse':
+                    performance_multiplier = 1
+
                 acc_dict[dataset_name] = {}
                 var_dict[dataset_name] = {}
                 sweep_envs = datasets.get_sweep_envs(dataset_name)
@@ -183,22 +202,48 @@ if __name__ == "__main__":
                     acc_var = []
                     all_sweep_env = True
 
-                    for env_id in sweep_envs:
-                        # If the environment wasn't part of the sweep, that's NOT fine, we need all test environment for the average
-                        if env_id not in objective_dict.keys():
-                            all_sweep_env = False
+                    if dataset_paradigm == 'domain_generalization':
+
+                        for env_id in sweep_envs:
+                            # If the environment wasn't part of the sweep, that's NOT fine, we need all test environment for the average
+                            if env_id not in objective_dict.keys():
+                                all_sweep_env = False
+                            else:
+                                val_acc, val_var, test_acc, test_var, _ = model_selection.choose_model_domain_generalization(objective_dict[env_id], ms_method)
+                                acc_arr.append(test_acc*performance_multiplier)
+                                acc_var.append(test_var*performance_multiplier)
+                                
+                        if all_sweep_env:
+                            avg_test = np.mean(acc_arr)
+                            var_test = np.mean(acc_var)
+                            acc_dict[dataset_name][objective_name] =  avg_test
+                            var_dict[dataset_name][objective_name] =  var_test
                         else:
-                            val_acc, val_var, test_acc, test_var = model_selection.get_chosen_test_acc(objective_dict[env_id], ms_method)
-                            acc_arr.append(test_acc*100)
-                            acc_var.append(test_var*100)
-                            
-                    if all_sweep_env:
-                        avg_test = np.mean(acc_arr)
-                        var_test = np.mean(acc_var)
-                        acc_dict[dataset_name][objective_name] =  avg_test
-                        var_dict[dataset_name][objective_name] =  var_test
+                            acc_dict[dataset_name][objective_name] = None
+
+                    elif dataset_paradigm == 'subpopulation_shift':
+
+                        domain_weights = datasets.get_domain_weights(dataset_name)
+
+                        for env_id in sweep_envs:
+                            if env_id not in objective_dict.keys():
+                                all_sweep_env = False
+                            else:
+                                # If the environment wasn't part of the sweep, that's fine, we just can't report those results
+                                avg_performance, avg_performance_var, worse_performance, worse_performance_var, _ = model_selection.choose_model_subpopulation(objective_dict[env_id], ms_method, domain_weights)
+
+                                acc_arr.append(worse_performance*performance_multiplier)
+                                acc_var.append(worse_performance_var*performance_multiplier)
+                                
+                        if all_sweep_env:
+                            avg_test = np.mean(acc_arr)
+                            var_test = np.mean(acc_var)
+                            acc_dict[dataset_name][objective_name] =  avg_test
+                            var_dict[dataset_name][objective_name] =  var_test
+                        else:
+                            acc_dict[dataset_name][objective_name] = None
                     else:
-                        acc_dict[dataset_name][objective_name] = None
+                        raise ValueError("There is a problem here")
 
             # Flip the nested dict so the order is objective -> dataset
             flipped_acc = {}
@@ -229,14 +274,14 @@ if __name__ == "__main__":
                     # else:
                     try:
                         if flags.latex:
-                            obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
+                            obj_results.append(" ${acc:.1f} \pm {var:.1f}$ ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
                         else:
-                            obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
+                            obj_results.append(" {acc:.1f} +/- {var:.1f} ".format(acc=flipped_acc[objective_name][dataset_name], var=flipped_var[objective_name][dataset_name]))
                     except KeyError:
                         obj_results.append(" X ")
 
-                obj_results.append(" {acc:.2f} ".format(acc=np.mean(list(flipped_acc[objective_name].values()))))
-                print(t.field_names, obj_results)
+                obj_results.append(" {acc:.1f} ".format(acc=np.mean(list(flipped_acc[objective_name].values()))))
+                # print(t.field_names, obj_results)
                 t.add_row(obj_results)
 
             max_width = {}
