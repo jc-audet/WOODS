@@ -14,21 +14,7 @@ ArXiv Paper: [WOODS: Benchmarks for Out-of-Distribution Generalization in Time S
 Authors: [Jean-Christophe Gagnon-Audet](https://github.com/jc-audet), [Kartik Ahuja](https://ahujak.github.io/), [Mohammad-Javad Darvishi-Bayazi](https://github.com/MohammadJavadD), [Guillaume Dumas](https://www.extrospection.eu/), [Irina Rish](https://sites.google.com/site/irinarish/)
 
 ## Abstract
-Machine learning models often fail to generalize well under
-distributional shifts. Understanding and overcoming these
-failures have led to a research field of Out-of-Distribution
-(OOD) generalization. Despite being extensively studied for
-static computer vision tasks, OOD generalization has been
-underexplored for time series tasks. To shine light on this
-gap, we present WOODS: eight challenging open-source time
-series benchmarks covering a diverse range of data
-modalities, such as videos, brain recordings, and sensor
-signals. We revise the existing OOD generalization
-algorithms for time series tasks and evaluate them using our
-systematic framework. Our experiments show a large room for
-improvement for empirical risk minimization and OOD
-generalization algorithms on our datasets, thus underscoring
-the new challenges posed by time series tasks.
+Deep learning models often fail to generalize well under distribution shifts. Understanding and overcoming these failures have led to a new research field on Out-of-Distribution (OOD) generalization. Despite being extensively studied for static computer vision tasks, OOD generalization has been severely underexplored for time series tasks. To shine a light on this gap, we present WOODS: ten challenging time series benchmarks covering a diverse range of data modalities, such as videos, brain recordings, and smart device sensory signals. We revise the existing OOD generalization algorithms for time series tasks and evaluate them using our systematic framework. Our experiments show a large room for improvement for empirical risk minimization and OOD generalization algorithms on our datasets, thus underscoring the new challenges posed by time series tasks.
 
 ---
 
@@ -41,6 +27,7 @@ Some datasets require downloads in order to be used. We provide the download scr
 python3 -m woods.scripts.download_datasets {dataset} \
         --data_path /path/to/data/directory
 ```
+***Important*** The IEMOCAP dataset can only be obtained through their [website](https://sail.usc.edu/iemocap/iemocap_release.htm) after agreeing to their license agreement. Once the dataset is downloaded, you will need to preprocess it with the fetch `fetch_and_preprocess.py` script. More details on the [documentation](https://woods.readthedocs.io/en/latest/downloading_datasets.html#datasets-info) page.
 
 ### Train a model
 Train a model using one objective on one dataset with one test environment. For data that requires a download, you need to provide the path to the data directory with `--data_path`.
@@ -74,22 +61,10 @@ python3 -m woods.scripts.compile_results \
         --latex
 ```
 
-### Evaluate a model
-
-Evaluate a single model using one objective on one dataset with one test environment.
-
-```sh
-python3 -m woods.main eval \
-        --model_path /path/to/model\
-        --dataset Spurious_Fourier \
-        --objective ERM \
-        --test_env 0
-```
-
 ## Citation
 
 ```bibtex
-@misc{2203.09978,
+@misc{WOODS,
 Author = {Jean-Christophe Gagnon-Audet and Kartik Ahuja and Mohammad-Javad Darvishi-Bayazi and Guillaume Dumas and Irina Rish},
 Title = {WOODS: Benchmarks for Out-of-Distribution Generalization in Time Series Tasks},
 Year = {2022},
