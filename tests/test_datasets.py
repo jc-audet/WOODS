@@ -7,23 +7,23 @@ from woods.hyperparams import get_training_hparams
 from woods.datasets import get_dataset_class, num_environments
 from woods.datasets import DATASETS, InfiniteLoader
 
-def test_dataset_attributes():
+# def test_dataset_attributes():
 
-    for dataset in DATASETS:
+#     for dataset in DATASETS:
 
-        dataset_class = get_dataset_class(dataset)
+#         dataset_class = get_dataset_class(dataset)
 
-        assert dataset_class.ENVS is not None
-        assert dataset_class.N_STEPS is not None
-        assert dataset_class.CHECKPOINT_FREQ is not None
-        assert dataset_class.N_WORKERS is not None
-        assert dataset_class.SETUP is not None
-        assert dataset_class.TASK is not None
-        assert dataset_class.SEQ_LEN is not None
-        assert dataset_class.PRED_TIME is not None
-        assert dataset_class.INPUT_SHAPE is not None
-        assert dataset_class.OUTPUT_SIZE is not None
-        assert dataset_class.SWEEP_ENVS is not None
+#         assert dataset_class.ENVS is not None
+#         assert dataset_class.N_STEPS is not None
+#         assert dataset_class.CHECKPOINT_FREQ is not None
+#         assert dataset_class.N_WORKERS is not None
+#         assert dataset_class.SETUP is not None
+#         assert dataset_class.TASK is not None
+#         assert dataset_class.SEQ_LEN is not None
+#         assert dataset_class.PRED_TIME is not None
+#         assert dataset_class.INPUT_SHAPE is not None
+#         assert dataset_class.OUTPUT_SIZE is not None
+#         assert dataset_class.SWEEP_ENVS is not None
 
 # def test_dataset_loaders():
 
