@@ -45,7 +45,7 @@ To launch a hyper parameter sweep, use the following script. Define a collection
 
 ```sh
 python3 -m woods.scripts.hparams_sweep \
-        --dataset Spurious_Fourier TCMNIST_seq\
+        --dataset Spurious_Fourier CAP\
         --objective ERM IRM \
         --save_path ./results \
         --launcher local \
