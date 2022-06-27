@@ -1008,6 +1008,85 @@ class PCL():
         elif l == 'right_hand': return 1
         else: return 2
 
+import opensmile
+import os
+from os import walk
+from torch import nn,tensor
+from sentence_transformers import SentenceTransformer
+
+
+class IEMOCAP():
+    """ Fetch the data using moabb and preprocess it
+
+    Source of MOABB:
+        http://moabb.neurotechx.com/docs/index.html
+
+    Args:
+        flags (argparse.Namespace): The flags of the script
+
+    Note:
+        This is hell to run. It takes a while to download and requires a lot of RAM.
+    """
+
+    def __init__(self, flags):
+        self.path = flags.data_path
+        self.videoIDs = self.get_turns()
+        self.videoAudio=self.extract_audio_features()
+        self.videoVisual = self.extract_video_features()
+        self.videoSentence,self.videoText=self.extract_text_features()
+
+    def get_turns(self):
+        videoIDs = {}
+        for i in range(1, 6):
+            rootdir = f"{self.path}/IEMOCAP_full_release/Session{i}/dialog/transcriptions/S*.txt"
+            for filepath in glob.iglob(rootdir):
+                with open(filepath) as f:
+                    lines = f.readlines()
+            turns = [line.partition(" ")[0] for line in lines]
+            session_id = filepath.partition("\\")[2].partition(".")[0]
+            videoIDs[session_id] = turns
+        return  videoIDs
+    def extract_text_features(self ):
+        """ extract Bert text features from raw audio file """
+        videoSentence = {}
+        videoText = {}
+        model = SentenceTransformer('sentence-transformers/bert-base-nli-mean-tokens')
+        for i in range(1, 6):
+            rootdir = f"{self.path}/IEMOCAP_full_release/Session{i}/dialog/transcriptions/S*.txt"
+            for filepath in glob.iglob(rootdir):
+                with open(filepath) as f:
+                    lines = f.readlines()
+                sentences = [line.partition(":")[2].partition("\n")[0].strip() for line in lines]
+                session_id = filepath.partition("\\")[2].partition(".")[0]
+                videoSentence[session_id] = sentences
+                embeddings = model.encode(sentences)
+                videoText[session_id] = embeddings
+
+        return videoSentence,videoText
+
+    def extract_video_features(self):
+        """ extract video features from raw audio file """
+        videoVisual={}
+        for session_id, turn in self.videoIDs:
+            rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/wav/{session_id}/{turn}.wav"
+            features=[]
+            videoVisual[session_id] = features
+        return videoVisual
+
+    def extract_audio_features(self):
+        """ extract audio features from raw audio file """
+        smile = opensmile.Smile(
+            feature_set=opensmile.FeatureSet.ComParE_2016,
+            feature_level=opensmile.FeatureLevel.Functionals,
+        )
+        videoAudio = {}
+        for session_id, turn in self.videoIDs:
+            rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/wav/{session_id}/{turn}.wav"
+            features = smile.process_file(rootdir)
+            videoAudio[session_id] = features.values[0]
+        return videoAudio
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Download datasets')
@@ -1033,3 +1112,6 @@ if __name__ == '__main__':
 
     if 'LSA64' in flags.dataset:
         LSA64(flags)
+
+    if 'IEMOCAP' in flags.dataset:
+        IEMOCAP(flags)
