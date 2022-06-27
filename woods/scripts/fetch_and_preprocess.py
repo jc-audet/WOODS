@@ -1018,14 +1018,15 @@ from sentence_transformers import SentenceTransformer
 class IEMOCAP():
     """ Fetch the data using moabb and preprocess it
 
-    Source of MOABB:
-        http://moabb.neurotechx.com/docs/index.html
+    Source of IEMOCAP:
+       https://sail.usc.edu/iemocap/
 
     Args:
         flags (argparse.Namespace): The flags of the script
 
     Note:
-        This is hell to run. It takes a while to download and requires a lot of RAM.
+        First, You need to get licence to access the dataset.
+        Then, Put the dataset in its original format in the desired path.
     """
 
     def __init__(self, flags):
