@@ -11,6 +11,9 @@ Note:
 
 import os
 import csv
+import pickle
+import re
+
 import mne
 import copy
 import json
@@ -43,6 +46,15 @@ from pytorchvideo.transforms import UniformTemporalSubsample
 from moabb.datasets import BNCI2014001, PhysionetMI, Lee2019_MI, Cho2017
 from moabb.paradigms import MotorImagery
 from moabb import utils
+
+#for IEMOCAP dataset
+import opensmile
+import os
+from sentence_transformers import SentenceTransformer
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+from pathlib import Path
+
+
 
 import matplotlib.pyplot as plt
 
@@ -1008,15 +1020,10 @@ class PCL():
         elif l == 'right_hand': return 1
         else: return 2
 
-import opensmile
-import os
-from os import walk
-from torch import nn,tensor
-from sentence_transformers import SentenceTransformer
 
 
 class IEMOCAP():
-    """ Fetch the data using moabb and preprocess it
+    """ Put the dataset in its original format in the desired path and preprocess it
 
     Source of IEMOCAP:
        https://sail.usc.edu/iemocap/
@@ -1031,10 +1038,63 @@ class IEMOCAP():
 
     def __init__(self, flags):
         self.path = flags.data_path
-        self.videoIDs = self.get_turns()
-        self.videoAudio=self.extract_audio_features()
+
+        self.videoIDs,self.videoSpeakers, self.videoLabels, self.startEnd =self.get_meta_data()
+        self.trainVid,self.validVid,self.testVid=self.get_splits()
+        self.videoSentence, self.videoText = self.extract_text_features()
+        self.videoAudio = self.extract_audio_features()
         self.videoVisual = self.extract_video_features()
-        self.videoSentence,self.videoText=self.extract_text_features()
+        self.save_features()
+
+
+
+    def get_splits(self):
+        splits = ["train", "valid", "test"]
+        result=[]
+        for split in splits:
+            with open(f"{self.path}/IEMOCAP_full_release/{split}Vid", "rb") as fp:  # Unpickling
+               result.append(pickle.load(fp))
+
+        return tuple(result)
+
+    def get_meta_data(self):
+        videoIDs=self.get_turns()
+        videoSpeakers={}
+        videoLabels={}
+        startEnd={}
+        for i in range(1, 6):
+            rootdir = f"{self.path}/IEMOCAP_full_release/Session{i}/dialog/EmoEvaluation/S*.txt"
+            for filepath in glob.iglob(rootdir):
+                with open(filepath) as f:
+                    lines = f.readlines()
+                session_id = filepath.partition("\\")[2].partition(".")[0]
+                lines=[re.split(r'\t', line) for line in lines if line.startswith("[")]
+                data={line[1]: (line[0], line[1].split("_")[-1][0],line[2]) for line in lines}
+                videoIDs[session_id]=[id for id in videoIDs[session_id] if id in data]
+                videoSpeakers[session_id]=[data[video][1] for video in videoIDs[session_id]]
+                videoLabels[session_id] = [self.get_emotion(data[video][2]) for video in videoIDs[session_id]]
+                startEnd[session_id] = [data[video][0] for video in videoIDs[session_id]]
+
+
+                deleted_index=[]
+                for i in range(0,len(videoLabels[session_id])):
+                    if videoLabels[session_id][i] == 6:
+                        deleted_index.append(i)
+                s=0
+                for index in deleted_index:
+                    index=index-s
+                    videoLabels[session_id].pop(index)
+                    videoSpeakers[session_id].pop(index)
+                    startEnd[session_id].pop(index)
+                    videoIDs[session_id].pop(index)
+                    s+=1
+
+        return videoIDs,videoSpeakers,videoLabels,startEnd
+
+    def get_emotion(self, label):
+        emotions={'hap': 0, 'sad': 1, 'neu': 2, 'ang': 3, 'exc': 4, 'fru': 5}
+        return emotions[label] if label in emotions else 6
+
 
     def get_turns(self):
         videoIDs = {}
@@ -1043,12 +1103,16 @@ class IEMOCAP():
             for filepath in glob.iglob(rootdir):
                 with open(filepath) as f:
                     lines = f.readlines()
-            turns = [line.partition(" ")[0] for line in lines]
-            session_id = filepath.partition("\\")[2].partition(".")[0]
-            videoIDs[session_id] = turns
-        return  videoIDs
-    def extract_text_features(self ):
-        """ extract Bert text features from raw audio file """
+                session_id = filepath.partition("\\")[2].partition(".")[0]
+                turns = [line.partition(" ")[0] for line in lines]
+                turns=[turn for turn in turns if turn.startswith(session_id)]
+
+                videoIDs[session_id] = turns
+        return videoIDs
+
+    def extract_text_features(self):
+        """ extract Bert text features from  transcriptions file """
+        # TODO: reduce the dimension to 100 to be compatible to DialougeRNN
         videoSentence = {}
         videoText = {}
         model = SentenceTransformer('sentence-transformers/bert-base-nli-mean-tokens')
@@ -1057,35 +1121,63 @@ class IEMOCAP():
             for filepath in glob.iglob(rootdir):
                 with open(filepath) as f:
                     lines = f.readlines()
-                sentences = [line.partition(":")[2].partition("\n")[0].strip() for line in lines]
+                sentences_dic = {line.partition(" ")[0]:line.partition(":")[2].partition("\n")[0].strip() for line in lines}
                 session_id = filepath.partition("\\")[2].partition(".")[0]
+                sentences=[sentences_dic[id] for id in self.videoIDs[session_id]]
                 videoSentence[session_id] = sentences
                 embeddings = model.encode(sentences)
                 videoText[session_id] = embeddings
 
-        return videoSentence,videoText
+        return videoSentence, videoText
 
-    def extract_video_features(self):
+    def extract_video_clip(self):
         """ extract video features from raw audio file """
-        videoVisual={}
-        for session_id, turn in self.videoIDs:
-            rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/wav/{session_id}/{turn}.wav"
-            features=[]
-            videoVisual[session_id] = features
+        """ Using the subclip generated from this function and   Follow Instruction on  
+        https://github.com/soujanyaporia/MUStARD/tree/master/visual 
+        to extract video feature for each utterance """
+
+
+
+        videoVisual = {}
+        for session_id,utterences in self.videoIDs.items():
+            rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/dialog/avi/DivX/{session_id}.avi"
+            path=f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/avi/Session{int(session_id[3:5])}/"
+
+            Path(path).mkdir(parents=True, exist_ok=True)
+            for i in range(0,len(utterences)):
+                time= self.startEnd[session_id][i].split('[', 1)[1].split(']')[0].strip()
+                starttime = float(time.split("-")[0])
+                endtime = float(time.split("-")[1])
+
+                ffmpeg_extract_subclip(rootdir, starttime, endtime,
+                                       targetname=f"{path}{self.videoIDs[session_id][i]}.avi")
+
+
         return videoVisual
 
     def extract_audio_features(self):
         """ extract audio features from raw audio file """
+        # TODO: reduce the dimension to 100 to be compatible to DialougeRNN
         smile = opensmile.Smile(
             feature_set=opensmile.FeatureSet.ComParE_2016,
             feature_level=opensmile.FeatureLevel.Functionals,
         )
         videoAudio = {}
-        for session_id, turn in self.videoIDs:
-            rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/wav/{session_id}/{turn}.wav"
-            features = smile.process_file(rootdir)
-            videoAudio[session_id] = features.values[0]
+
+        for session_id in self.videoIDs.keys():
+            audio_features = []
+            for utterance in self.videoIDs[session_id]:
+                rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/wav/{session_id}/{utterance}.wav"
+                audio_features.append(list(smile.process_file(rootdir).values[0]))
+            videoAudio[session_id] = audio_features
+
         return videoAudio
+
+    def save_features(self):
+        file = open(f"{self.path}/IEMOCAP_full_release/IEMOCAP_features_raw_OOD.pkl", 'wb')
+        pickle.dump((self.videoIDs, self.videoSpeakers, self.videoLabels, self.videoText, self.videoAudio,
+                     self.videoSentence, self.trainVid,
+                     self.validVid, self.testVid), file)
 
 
 if __name__ == '__main__':
