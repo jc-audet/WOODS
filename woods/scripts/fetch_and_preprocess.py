@@ -24,7 +24,6 @@ import argparse
 import datetime
 import numpy as np
 import subprocess
-import pyedflib
 
 # Local import
 from woods.datasets import DATASETS
@@ -53,10 +52,22 @@ import os
 from sentence_transformers import SentenceTransformer
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from pathlib import Path
+import pyedflib
+import torch
+from woods.scripts.C3D_model import C3D
+import cv2
+from os.path import join
+import skimage.io as io
+from skimage.transform import resize
+from torch.autograd import Variable
+
 
 
 
 import matplotlib.pyplot as plt
+
+
+
 
 class CAP():
     """ Fetch the data from the PhysioNet website and preprocess it 
@@ -1023,7 +1034,7 @@ class PCL():
 
 
 class IEMOCAP():
-    """ Put the dataset in its original format in the desired path and preprocess it
+    """ Put the IEMOCAP_full_release in its original format in the desired path and run this code to extract multimodal features
 
     Source of IEMOCAP:
        https://sail.usc.edu/iemocap/
@@ -1033,7 +1044,8 @@ class IEMOCAP():
 
     Note:
         First, You need to get licence to access the dataset.
-        Then, Put the dataset in its original format in the desired path.
+        Put the IEMOCAP_full_release in its original format in the desired path.
+        Download c3d.pickle and put in the main root of desired path to extract video features.
     """
 
     def __init__(self, flags):
@@ -1041,9 +1053,10 @@ class IEMOCAP():
 
         self.videoIDs,self.videoSpeakers, self.videoLabels, self.startEnd =self.get_meta_data()
         self.trainVid,self.validVid,self.testVid=self.get_splits()
+        self.videoVisual = self.extract_video_features()
         self.videoSentence, self.videoText = self.extract_text_features()
         self.videoAudio = self.extract_audio_features()
-        self.videoVisual = self.extract_video_features()
+
         self.save_features()
 
 
@@ -1112,7 +1125,7 @@ class IEMOCAP():
 
     def extract_text_features(self):
         """ extract Bert text features from  transcriptions file """
-        # TODO: reduce the dimension to 100 to be compatible to DialougeRNN
+        # TODO: reduce the dimension
         videoSentence = {}
         videoText = {}
         model = SentenceTransformer('sentence-transformers/bert-base-nli-mean-tokens')
@@ -1130,18 +1143,106 @@ class IEMOCAP():
 
         return videoSentence, videoText
 
-    def extract_video_clip(self):
+    def extract_frame(self):
+       for session_id, utterences in self.videoIDs.items():
+           path = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/avi/{session_id}/"
+           output_path = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/frame/{session_id}/"
+           for utterence in utterences:
+               p=output_path+utterence
+               Path(p).mkdir(parents=True, exist_ok=True)
+               cam = cv2.VideoCapture(f"{path}{utterence}.avi")
+               currentframe = 0
+               while (True):
+                   ret, frame = cam.read()
+                   if ret:
+                       name = f'{p}/frame{currentframe}.jpg'
+                       cv2.imwrite(name, frame)
+                       currentframe += 1
+                   else:
+                       break
+               cam.release()
+               cv2.destroyAllWindows()
+
+    def get__clip(self,clip_name, verbose=True):
+        """
+        Loads a clip to be fed to C3D for classification.
+
+        Parameters
+        ----------
+        clip_name: str
+            the name of the clip (subfolder in 'data').
+        verbose: bool
+            if True, shows the unrolled clip (default is True).
+        Returns
+        -------
+        Tensor
+            a pytorch batch (n, ch, fr, h, w).
+        """
+
+
+        path=f"{self.path}/IEMOCAP_full_release/Session{int(clip_name[3:5])}/sentences/frame/{clip_name.rsplit('_',1)[0]}/"
+        clip = sorted(glob.glob(join(path, clip_name, '*.jpg')))
+        clip = np.array([resize(io.imread(frame), output_shape=(112, 200), preserve_range=True) for frame in clip])
+        clip = clip[:, :, 44:44 + 112, :]  # crop centrally
+
+
+        clip = clip.transpose(3, 0, 1, 2)  # ch, fr, h, w
+        clip = np.expand_dims(clip, axis=0)  # batch axis
+        clip = np.float32(clip)
+
+        return torch.from_numpy(clip)
+
+    def pretrained_c3d(self) -> torch.nn.Module:
+        c3d = C3D(pretrained=True)
+        c3d.eval()
+        for param in c3d.parameters():
+            param.requires_grad = False
+        return c3d
+
+
+    def get_c3d_features(self,clipname) -> None:
+        X = self.get__clip(clipname)
+        X = Variable(X)
+        if torch.cuda.is_available():
+            X = X.cuda()
+
+        # get network pretrained model
+        net = C3D()
+        net.load_state_dict(torch.load(f"{self.path}/c3d.pickle"))
+        if  torch.cuda.is_available():
+            net.cuda()
+        net.eval()
+        features=torch.mean(net.extract_features(X),0)
+        return features
+
+
+    def extract_video_features(self):
         """ extract video features from raw audio file """
-        """ Using the subclip generated from this function and   Follow Instruction on  
-        https://github.com/soujanyaporia/MUStARD/tree/master/visual 
-        to extract video feature for each utterance """
+        # TODO: reduce the dimension
+        self.extract_video_subclip()
+        self.extract_frame()
+        videoVisual={}
+        for session_id, utterences in self.videoIDs.items():
+            path = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/frame/{session_id}/"
+            video_features=[]
+            for utterance in utterences:
+                video_features.append(self.get_c3d_features(utterance))
+
+            videoVisual[session_id] = video_features
+
+        return videoVisual
 
 
 
+
+
+
+
+    def extract_video_subclip(self):
         videoVisual = {}
         for session_id,utterences in self.videoIDs.items():
             rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/dialog/avi/DivX/{session_id}.avi"
-            path=f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/avi/Session{int(session_id[3:5])}/"
+            path=f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/avi/{session_id}/"
 
             Path(path).mkdir(parents=True, exist_ok=True)
             for i in range(0,len(utterences)):
@@ -1157,7 +1258,7 @@ class IEMOCAP():
 
     def extract_audio_features(self):
         """ extract audio features from raw audio file """
-        # TODO: reduce the dimension to 100 to be compatible to DialougeRNN
+        # TODO: reduce the dimension
         smile = opensmile.Smile(
             feature_set=opensmile.FeatureSet.ComParE_2016,
             feature_level=opensmile.FeatureLevel.Functionals,
