@@ -60,8 +60,7 @@ from os.path import join
 import skimage.io as io
 from skimage.transform import resize
 from torch.autograd import Variable
-
-
+from tqdm import tqdm
 
 
 import matplotlib.pyplot as plt
@@ -1045,7 +1044,8 @@ class IEMOCAP():
     Note:
         First, You need to get licence to access the dataset.
         Put the IEMOCAP_full_release in its original format in the desired path.
-        Download c3d.pickle and put in the main root of desired path to extract video features.
+        Download c3d.pickle, and put in the main root of desired path to extract video features.
+        Download trainVid,testVid and validVid and put in the  IEMOCAP_full_release folder.
     """
 
     def __init__(self, flags):
@@ -1053,9 +1053,9 @@ class IEMOCAP():
 
         self.videoIDs,self.videoSpeakers, self.videoLabels, self.startEnd =self.get_meta_data()
         self.trainVid,self.validVid,self.testVid=self.get_splits()
-        self.videoVisual = self.extract_video_features()
         self.videoSentence, self.videoText = self.extract_text_features()
         self.videoAudio = self.extract_audio_features()
+        self.videoVisual = self.extract_video_features()
 
         self.save_features()
 
@@ -1126,6 +1126,7 @@ class IEMOCAP():
     def extract_text_features(self):
         """ extract Bert text features from  transcriptions file """
         # TODO: reduce the dimension
+        print("************************ Start extracting text Features ************************")
         videoSentence = {}
         videoText = {}
         model = SentenceTransformer('sentence-transformers/bert-base-nli-mean-tokens')
@@ -1140,7 +1141,7 @@ class IEMOCAP():
                 videoSentence[session_id] = sentences
                 embeddings = model.encode(sentences)
                 videoText[session_id] = embeddings
-
+        print("************************ Finish extracting text Features ************************")
         return videoSentence, videoText
 
     def extract_frame(self):
@@ -1219,17 +1220,18 @@ class IEMOCAP():
     def extract_video_features(self):
         """ extract video features from raw audio file """
         # TODO: reduce the dimension
+        print("************************ Start extracting video Features ************************")
         self.extract_video_subclip()
         self.extract_frame()
         videoVisual={}
-        for session_id, utterences in self.videoIDs.items():
+        for session_id, utterences in tqdm(self.videoIDs.items()):
             path = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/frame/{session_id}/"
             video_features=[]
             for utterance in utterences:
                 video_features.append(self.get_c3d_features(utterance))
 
             videoVisual[session_id] = video_features
-
+        print("************************ Finish extracting video Features ************************")
         return videoVisual
 
 
@@ -1259,19 +1261,20 @@ class IEMOCAP():
     def extract_audio_features(self):
         """ extract audio features from raw audio file """
         # TODO: reduce the dimension
+        print("************************ Start extracting Audio Features ************************")
         smile = opensmile.Smile(
             feature_set=opensmile.FeatureSet.ComParE_2016,
             feature_level=opensmile.FeatureLevel.Functionals,
         )
         videoAudio = {}
 
-        for session_id in self.videoIDs.keys():
+        for session_id in tqdm(self.videoIDs.keys()):
             audio_features = []
             for utterance in self.videoIDs[session_id]:
                 rootdir = f"{self.path}/IEMOCAP_full_release/Session{int(session_id[3:5])}/sentences/wav/{session_id}/{utterance}.wav"
                 audio_features.append(list(smile.process_file(rootdir).values[0]))
             videoAudio[session_id] = audio_features
-
+        print("************************ Finish extracting Audio Features ************************")
         return videoAudio
 
     def save_features(self):
