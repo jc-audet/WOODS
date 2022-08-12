@@ -758,3 +758,76 @@ def IB_IRM_hyper(sample):
             'irm_weight': lambda r: 1e2,
             'irm_anneal': lambda r: 500
         }
+
+def CAD_hyper(sample):
+    """_summary_
+
+    Args:
+        sample (_type_): _description_
+    """
+    if sample:
+        return {
+            'lmbda': lambda r: r.choice([1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2]),
+            'temperature': lambda r: r.choice([0.05, 0.1]),
+            'is_project': lambda r: False,
+            'is_normalized': lambda r: False,
+            'is_flipped': lambda r: True,
+        }
+    else:
+        return {
+            'lmbda': lambda r: 0.01,
+            'temperature': lambda r: 0.1,
+            'is_project': lambda r: False,
+            'is_normalized': lambda r: False,
+            'is_flipped': lambda r: True,
+        }
+
+def CondCAD_hyper(sample):
+    """_summary_
+
+    Args:
+        sample (_type_): _description_
+    """
+    if sample:
+        return {
+            'lmbda': lambda r: r.choice([1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2]),
+            'temperature': lambda r: r.choice([0.05, 0.1]),
+            'is_project': lambda r: False,
+            'is_normalized': lambda r: False,
+            'is_flipped': lambda r: True,
+        }
+    else:
+        return {
+            'lmbda': lambda r: 0.01,
+            'temperature': lambda r: 0.1,
+            'is_project': lambda r: False,
+            'is_normalized': lambda r: False,
+            'is_flipped': lambda r: True,
+        }
+
+def Transfer_hyper(sample):
+    """_summary_
+
+    Args:
+        sample (_type_): _description_
+    """
+    if sample:
+        return {
+            't_lambda': lambda r: 10**r.uniform(-2, 1),
+            'delta': lambda r: r.uniform(0.1, 3.0),
+            'd_steps_per_g': lambda r: int(r.choice([1, 2, 5])),
+            'weight_decay_d': lambda r: 10**r.uniform(-6, -2),
+            'gda': lambda r: False,
+            'beta1': lambda r: r.choice([0., 0.5]),
+            'lr_d': lambda r: 10**r.uniform(-4.5, -2.5),
+        }
+    else:
+        return {
+            't_lambda': lambda r: 0.01,
+            'delta': lambda r: 2.0,
+            'd_steps_per_g': lambda r: 10,
+            'weight_decay_d': lambda r: 0.,
+            'gda': lambda r: False,
+            'beta1': lambda r: 0.5,
+            'lr_d': lambda r: 1e-3,
+        }

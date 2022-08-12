@@ -397,7 +397,8 @@ class Multi_Domain_Dataset:
 
         # Make the tensors of shape (batch, time, n_classes)
         X, Y = self.split_tensor_by_domains(X, Y, n_domains)
-
+        X, Y = X.contiguous().view(X.shape[0], -1, *X.shape[3:]), Y.view(Y.shape[0], -1)
+        
         # Compute all losses
         env_losses = torch.zeros(X.shape[0]).to(X.device)
         for i, (env_x, env_y) in enumerate(zip(X, Y)):
@@ -418,12 +419,14 @@ class Multi_Domain_Dataset:
         """
         new_shape_x = (
             n_domains,
-            (X.shape[0]//n_domains)*X.shape[1],
+            X.shape[0]//n_domains,
+            X.shape[1],
             *X.shape[2:]
         )
         new_shape_y = (
             n_domains,
-            (Y.shape[0]//n_domains)*Y.shape[1],
+            Y.shape[0]//n_domains,
+            Y.shape[1],
             *Y.shape[2:]
         )
         return torch.reshape(X, new_shape_x), torch.reshape(Y, new_shape_y)
@@ -1180,6 +1183,7 @@ class TCMNIST_Time(TCMNIST):
             images[sample,env_id+1,colors[sample].long(),:,:] *= 0 
 
         return images, labels
+        
 
     def split_tensor_by_domains(self, X, Y, n_domains):
         """ Group tensor by domain for source domains datasets
@@ -1191,7 +1195,7 @@ class TCMNIST_Time(TCMNIST):
         Returns:
             Tensor: The reshaped output (n_domains, batch, ...)
         """
-        return X.transpose(0,1), Y.transpose(0,1)
+        return X.transpose(0,1).unsqueeze(2), Y.transpose(0,1).unsqueeze(2)
               
     def get_pred_time(self, input_shape):
         """ Get the prediction times for the current batch

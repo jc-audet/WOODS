@@ -7,7 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd as autograd
 
+import copy
+
 import matplotlib.pyplot as plt
+
+from woods.models import LSTM, MNIST_LSTM
 
 OBJECTIVES = [
     'ERM',
@@ -20,6 +24,9 @@ OBJECTIVES = [
     # 'Fish', # Requires update
     'IB_ERM',
     # 'IB_IRM' # Requires update
+    'CAD',
+    'CondCAD',
+    'Transfer'
 ]
 
 def get_objective_class(objective_name):
@@ -742,3 +749,332 @@ class IB_ERM(ERM):
 
 #         # Update memory
 #         self.update_count += 1
+
+
+
+class AbstractCAD(ERM):
+    """Contrastive adversarial domain bottleneck (abstract class)
+    from Optimal Representations for Covariate Shift <https://arxiv.org/abs/2201.00057>
+    """
+
+    def __init__(self, model, dataset, optimizer, hparams, is_conditional):
+        super(AbstractCAD, self).__init__(model, dataset, optimizer, hparams)
+    # def __init__(self, input_shape, num_classes, num_domains,
+    #              hparams, is_conditional):
+    #     super(AbstractCAD, self).__init__(input_shape, num_classes, num_domains, hparams)
+
+        # input_shape = dataset.INPUT_SHAPE
+        # num_classes = dataset.OUTPUT_SIZE
+        self.num_domains = len(dataset.ENVS)
+        self.num_train_domains = self.num_domains - 1 if dataset.test_env is not None else self.num_domains
+
+        # self.featurizer = networks.Featurizer(input_shape, self.hparams)
+        # self.classifier = networks.Classifier(
+        #     self.featurizer.n_outputs,
+        #     num_classes,
+        #     self.hparams['nonlinear_classifier'])
+        # params = list(self.featurizer.parameters()) + list(self.classifier.parameters())
+        self.model = model
+        self.optimizer = optimizer
+
+        # parameters for domain bottleneck loss
+        self.is_conditional = is_conditional  # whether to use bottleneck conditioned on the label
+        self.base_temperature = 0.07
+        self.temperature = hparams['temperature']
+        self.is_project = hparams['is_project']  # whether apply projection head
+        self.is_normalized = hparams['is_normalized'] # whether apply normalization to representation when computing loss
+
+        # whether flip maximize log(p) (False) to minimize -log(1-p) (True) for the bottleneck loss
+        # the two versions have the same optima, but we find the latter is more stable
+        self.is_flipped = hparams["is_flipped"]
+
+        # if self.is_project:
+        #     self.project = nn.Sequential(
+        #         nn.Linear(feature_dim, feature_dim),
+        #         nn.ReLU(inplace=True),
+        #         nn.Linear(feature_dim, 128),
+        #     )
+        #     params += list(self.project.parameters())
+
+        # # Optimizers
+        # self.optimizer = torch.optim.Adam(
+        #     params,
+        #     lr=self.hparams["lr"],
+        #     weight_decay=self.hparams['weight_decay']
+        # )
+
+    def bn_loss(self, z, y, dom_labels):
+        """Contrastive based domain bottleneck loss
+         The implementation is based on the supervised contrastive loss (SupCon) introduced by
+         P. Khosla, et al., in “Supervised Contrastive Learning“.
+        Modified from  https://github.com/HobbitLong/SupContrast/blob/8d0963a7dbb1cd28accb067f5144d61f18a77588/losses.py#L11
+        """
+        device = z.device
+        batch_size = z.shape[0]
+
+        # Flatten tensor (batch, time, ...) -> (batch*time, ...)
+        z, y = z.view(-1, *z.shape[2:]), y.view(-1)
+
+        y = y.contiguous().view(-1, 1)
+        dom_labels = dom_labels.contiguous().view(-1, 1)
+        mask_y = torch.eq(y, y.T).to(device)
+        mask_d = (torch.eq(dom_labels, dom_labels.T)).to(device)
+        mask_drop = ~torch.eye(batch_size).bool().to(device)  # drop the "current"/"self" example
+        mask_y &= mask_drop
+        mask_y_n_d = mask_y & (~mask_d)  # contain the same label but from different domains
+        mask_y_d = mask_y & mask_d  # contain the same label and the same domain
+        mask_y, mask_drop, mask_y_n_d, mask_y_d = mask_y.float(), mask_drop.float(), mask_y_n_d.float(), mask_y_d.float()
+
+        # compute logits
+        if self.is_project:
+            z = self.project(z)
+        if self.is_normalized:
+            z = F.normalize(z, dim=1)
+
+        # For all prediction in the time series compute the CAD objective
+        outer = z @ z.T
+        logits = outer / self.temperature
+        logits = logits * mask_drop
+        # for numerical stability
+        logits_max, _ = torch.max(logits, dim=1, keepdim=True)
+        logits = logits - logits_max.detach()
+
+        if not self.is_conditional:
+            # unconditional CAD loss
+            denominator = torch.logsumexp(logits + mask_drop.log(), dim=1, keepdim=True)
+            log_prob = logits - denominator
+
+            mask_valid = (mask_y.sum(1) > 0)
+            log_prob = log_prob[mask_valid]
+            mask_d = mask_d[mask_valid]
+
+            if self.is_flipped:  # maximize log prob of samples from different domains
+                bn_loss = - (self.temperature / self.base_temperature) * torch.logsumexp(
+                    log_prob + (~mask_d).float().log(), dim=1)
+            else:  # minimize log prob of samples from same domain
+                bn_loss = (self.temperature / self.base_temperature) * torch.logsumexp(
+                    log_prob + (mask_d).float().log(), dim=1)
+        else:
+            # conditional CAD loss
+            if self.is_flipped:
+                mask_valid = (mask_y_n_d.sum(1) > 0)
+            else:
+                mask_valid = (mask_y_d.sum(1) > 0)
+
+            mask_y = mask_y[mask_valid]
+            mask_y_d = mask_y_d[mask_valid]
+            mask_y_n_d = mask_y_n_d[mask_valid]
+            logits = logits[mask_valid]
+
+            # compute log_prob_y with the same label
+            denominator = torch.logsumexp(logits + mask_y.log(), dim=1, keepdim=True)
+            log_prob_y = logits - denominator
+
+            if self.is_flipped:  # maximize log prob of samples from different domains and with same label
+                bn_loss = - (self.temperature / self.base_temperature) * torch.logsumexp(
+                    log_prob_y + mask_y_n_d.log(), dim=1)
+            else:  # minimize log prob of samples from same domains and with same label
+                bn_loss = (self.temperature / self.base_temperature) * torch.logsumexp(
+                    log_prob_y + mask_y_d.log(), dim=1)
+
+        def finite_mean(x):
+            # only 1D for now
+            num_finite = (torch.isfinite(x).float()).sum()
+            mean = torch.where(torch.isfinite(x), x, torch.tensor(0.0).to(x)).sum()
+            if num_finite != 0:
+                mean = mean / num_finite
+            else:
+                return torch.tensor(0.0).to(x)
+            return mean
+
+        return finite_mean(bn_loss)
+
+    def update(self):
+
+        # Put model into training mode
+        self.model.train()
+
+        # Get next batch
+        X, Y = self.dataset.get_next_batch()
+        device = X.device
+        X_split, _ = self.dataset.split_tensor_by_domains(X, Y, self.num_train_domains)
+
+        all_pred, all_z = self.model(X)
+        all_d = torch.cat([
+            torch.full((x.shape[0],), i, dtype=torch.int64, device=device)
+            for i, x in enumerate(X_split)
+        ])
+
+        bn_loss = self.bn_loss(all_z, Y, all_d)
+        clf_loss = self.dataset.loss(all_pred, Y)
+        total_loss = clf_loss + self.hparams['lmbda'] * bn_loss
+
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        self.optimizer.step()
+
+class CAD(AbstractCAD):
+    """Contrastive Adversarial Domain (CAD) bottleneck
+       Properties:
+       - Minimize I(D;Z)
+       - Require access to domain labels but not task labels
+       """
+
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(CAD, self).__init__(model, dataset, optimizer, hparams, is_conditional=False)
+    # def __init__(self, input_shape, num_classes, num_domains, hparams):
+    #     super(CAD, self).__init__(input_shape, num_classes, num_domains, hparams, is_conditional=False)
+
+
+class CondCAD(AbstractCAD):
+    """Conditional Contrastive Adversarial Domain (CAD) bottleneck
+    Properties:
+    - Minimize I(D;Z|Y)
+    - Require access to both domain labels and task labels
+    """
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(CondCAD, self).__init__(model, dataset, optimizer, hparams, is_conditional=True)
+    # def __init__(self, input_shape, num_classes, num_domains, hparams):
+    #     super(CondCAD, self).__init__(input_shape, num_classes, num_domains, hparams, is_conditional=True)
+
+
+class Transfer(ERM):
+    '''Algorithm 1 in Quantifying and Improving Transferability in Domain Generalization (https://arxiv.org/abs/2106.03632)'''
+    ''' tries to ensure transferability among source domains, and thus transferabiilty between source and target'''
+    def __init__(self, model, dataset, optimizer, hparams):
+        super(Transfer, self).__init__(model, dataset, optimizer, hparams)
+    # def __init__(self, input_shape, num_classes, num_domains, hparams):
+    #     super(Transfer, self).__init__(input_shape, num_classes, num_domains, hparams)
+        self.register_buffer('update_count', torch.tensor([0]))
+        self.d_steps_per_g = hparams['d_steps_per_g']
+
+        # Number of domain definition
+        self.num_domains = len(dataset.ENVS)
+        self.num_train_domains = self.num_domains - 1 if dataset.test_env is not None else self.num_domains
+
+        # Architecture 
+        self.model = model
+
+        # Quick Fix of the deep copy problem for stored datasets
+        if isinstance(model, LSTM):
+            self.model.dataset = None
+            self.adv_classifier = copy.deepcopy(model).to(self.model.device)
+            self.model.dataset = dataset
+        elif isinstance(model, MNIST_LSTM):
+            self.model.home_lstm.dataset = None
+            self.adv_classifier = copy.deepcopy(model).to(self.model.device)
+            self.model.home_lstm.dataset = dataset
+        else:
+            self.adv_classifier = copy.deepcopy(model).to(self.model.device)
+        self.model.dataset = dataset
+        self.adv_classifier.dataset = dataset
+        # No need to load state dict because it is deepcopied
+        self.adv_classifier.load_state_dict(self.model.state_dict())
+
+        # Optimizers
+        def get_optimizer_params(optimizer):
+            for p_grp in optimizer.param_groups:
+                return p_grp
+        opt_params = get_optimizer_params(optimizer)
+        if self.hparams['gda']:
+            self.optimizer = torch.optim.SGD(self.adv_classifier.parameters(), lr=opt_params['lr']) 
+        # else:
+        #     self.optimizer = torch.optim.Adam(
+        #     (list(self.featurizer.parameters()) + list(self.classifier.parameters())),
+        #         lr=opt_params['lr'],
+        #         weight_decay=opt_params['weight_decay'])
+
+        self.adv_opt = torch.optim.SGD(self.adv_classifier.parameters(), lr=self.hparams['lr_d']) 
+
+    def update(self):
+
+        # Put model into training mode
+        self.model.train()
+
+        # Get next batch
+        X, Y = self.dataset.get_next_batch()
+
+        preds, _ = self.model(X)
+        loss = self.dataset.loss(preds, Y)
+        # self.optimizer.zero_grad()
+        # loss.backward()
+        # self.optimizer.step()
+
+        gap = self.hparams['t_lambda'] * self.loss_gap(X,Y)
+
+        objective = loss + gap
+        self.optimizer.zero_grad()
+        objective.backward()
+        self.optimizer.step()
+
+        self.adv_classifier.load_state_dict(self.model.state_dict())
+        for _ in range(self.d_steps_per_g):
+            self.adv_opt.zero_grad()
+            gap = -self.hparams['t_lambda'] * self.loss_gap(X,Y)
+            gap.backward()
+            self.adv_opt.step()
+            updated_adv_classifier = self.proj(self.hparams['delta'], self.adv_classifier.get_classifier_network(), self.model.get_classifier_network())
+            self.adv_classifier.get_classifier_network().load_state_dict(updated_adv_classifier.state_dict())
+
+    def loss_gap(self, X, Y):
+        ''' compute gap = max_i loss_i(h) - min_j loss_j(h), return i, j, and the gap for a single batch'''
+        device = X.device
+        max_env_loss, min_env_loss =  torch.tensor([-float('inf')], device=device), torch.tensor([float('inf')], device=device)
+
+        # Get adv prediction
+        _, feats = self.model(X)
+        pred = self.adv_classifier.classify(feats)
+        losses = self.dataset.loss_by_domain(pred, Y, self.num_train_domains)
+
+        min_env_loss = min(losses)
+        max_env_loss = max(losses)
+
+        return max_env_loss - min_env_loss
+        
+    def distance(self, h1, h2):
+        ''' distance of two networks (h1, h2 are classifiers)'''
+        dist = 0.
+        for param in h1.state_dict():
+            h1_param, h2_param = h1.state_dict()[param], h2.state_dict()[param]
+            dist += torch.norm(h1_param - h2_param) ** 2  # use Frobenius norms for matrices
+        return torch.sqrt(dist)
+
+
+    def proj(self, delta, adv_h, h):
+        ''' return proj_{B(h, \delta)}(adv_h), Euclidean projection to Euclidean ball'''
+        ''' adv_h and h are two classifiers'''
+        dist = self.distance(adv_h, h)
+        if dist <= delta:
+            return adv_h
+        else:
+            ratio = delta / dist
+            for param_h, param_adv_h in zip(h.parameters(), adv_h.parameters()):
+                param_adv_h.data = param_h + ratio * (param_adv_h - param_h)
+            # print("distance: ", distance(adv_h, h))
+            return adv_h
+
+    def update_second(self, minibatches, unlabeled=None):
+        device = "cuda" if minibatches[0][0].is_cuda else "cpu"
+        self.update_count = (self.update_count + 1) % (1 + self.d_steps_per_g)
+        if self.update_count.item() == 1:
+            all_x = torch.cat([x for x,y in minibatches])
+            all_y = torch.cat([y for x,y in minibatches])
+            loss = F.cross_entropy(self.predict(all_x), all_y)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            del all_x, all_y
+            gap = self.hparams['t_lambda'] * loss_gap(minibatches, self, device)
+            self.optimizer.zero_grad()
+            gap.backward()
+            self.optimizer.step()
+            self.adv_classifier.load_state_dict(self.classifier.state_dict())
+            return {'loss': loss.item(), 'gap': gap.item()}
+        else:
+            self.adv_opt.zero_grad()
+            gap = -self.hparams['t_lambda'] * loss_gap(minibatches, self, device)
+            gap.backward()
+            self.adv_opt.step()
+            self.adv_classifier = proj(self.hparams['delta'], self.adv_classifier, self.classifier)
+            return {'gap': -gap.item()}
