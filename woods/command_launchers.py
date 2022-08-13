@@ -128,8 +128,6 @@ def multi_node_slurm_launcher(commands):
     Args:
         commands (List): List of list of string that consists of a python script call
     """
-    mem_per_run = int(float(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS_PER_NODE"]) // 1000)
-    mem_per_run = 10*math.floor(mem_per_run/10)
     print(os.environ["SLURM_NODES"])
     with Pool(processes=int(os.environ["SLURM_NTASKS_PER_NODE"])*int(os.environ["SLURM_NODES"])) as pool:
 
@@ -137,7 +135,7 @@ def multi_node_slurm_launcher(commands):
         for command in commands:
             process = pool.apply_async(
                 subprocess.run, 
-                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem={mem_per_run}G --gres=gpu:1 --exclusive {command}'], 
+                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --gres=gpu:1 --exclusive {command}'], 
                 {"shell": True}
                 )
             processes.append(process)
