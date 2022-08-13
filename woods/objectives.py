@@ -810,10 +810,10 @@ class AbstractCAD(ERM):
         Modified from  https://github.com/HobbitLong/SupContrast/blob/8d0963a7dbb1cd28accb067f5144d61f18a77588/losses.py#L11
         """
         device = z.device
-        batch_size = z.shape[0]
 
         # Flatten tensor (batch, time, ...) -> (batch*time, ...)
-        z, y = z.view(-1, *z.shape[2:]), y.view(-1)
+        z, y, dom_labels = z.view(-1, *z.shape[2:]), y.view(-1), dom_labels.view(-1)
+        batch_size = z.shape[0]
 
         y = y.contiguous().view(-1, 1)
         dom_labels = dom_labels.contiguous().view(-1, 1)
@@ -897,12 +897,13 @@ class AbstractCAD(ERM):
         # Get next batch
         X, Y = self.dataset.get_next_batch()
         device = X.device
-        X_split, _ = self.dataset.split_tensor_by_domains(X, Y, self.num_train_domains)
+        X_split, Y_split = self.dataset.split_tensor_by_domains(X, Y, self.num_train_domains)
 
         all_pred, all_z = self.model(X)
+
         all_d = torch.cat([
-            torch.full((x.shape[0],), i, dtype=torch.int64, device=device)
-            for i, x in enumerate(X_split)
+            torch.full(y.shape, i, dtype=torch.int64, device=device)
+            for i, y in enumerate(Y_split)
         ])
 
         bn_loss = self.bn_loss(all_z, Y, all_d)
