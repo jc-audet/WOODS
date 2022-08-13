@@ -135,7 +135,7 @@ def multi_node_slurm_launcher(commands):
         for command in commands:
             process = pool.apply_async(
                 subprocess.run, 
-                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --gres=gpu:1 --exclusive {command}'], 
+                [f'srun --nodes=1 --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --gpus-per-task=1 {command}'], 
                 {"shell": True}
                 )
             processes.append(process)
