@@ -45,9 +45,9 @@ To launch a hyper parameter sweep, use the following script. Define a collection
 
 ```sh
 python3 -m woods.scripts.hparams_sweep \
-        --dataset Spurious_Fourier TCMNIST_Source TCMNIST_Time\
-        --objective CAD Transfer CondCAD \
-        --save_path /fsx/jcaudet/results/WOODS/ \
+        --dataset Spurious_Fourier CAP\
+        --objective ERM IRM \
+        --save_path ./results \
         --launcher local \
         --data_path /path/to/data/directory
 ```
