@@ -30,10 +30,10 @@ def make_args_list(flags):
     """
 
     train_args_list = []
-    for obj in flags['objective']:
-        assert obj in objectives.OBJECTIVES, "Objective {} not found".format(obj)
-        for dataset in flags['dataset']:
-            assert dataset in datasets.DATASETS, "Dataset {} not found".format(dataset)
+    for dataset in flags['dataset']:
+        assert dataset in datasets.DATASETS, "Dataset {} not found".format(dataset)
+        for obj in flags['objective']:
+            assert obj in objectives.OBJECTIVES, "Objective {} not found".format(obj)
             for i_hparam in range(flags['n_hparams']):
                 for j_trial in range(flags['n_trials']):
                     if flags['unique_test_env'] is not None:
