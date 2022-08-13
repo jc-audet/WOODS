@@ -128,8 +128,8 @@ def multi_node_slurm_launcher(commands):
     Args:
         commands (List): List of list of string that consists of a python script call
     """
-    print(os.environ["SLURM_NODES"])
-    with Pool(processes=int(os.environ["SLURM_NTASKS_PER_NODE"])*int(os.environ["SLURM_NODES"])) as pool:
+    print(os.environ["SLURM_NNODES"])
+    with Pool(processes=int(os.environ["SLURM_NTASKS_PER_NODE"])*int(os.environ["SLURM_NNODES"])) as pool:
 
         processes = []
         for command in commands:
