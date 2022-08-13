@@ -95,7 +95,7 @@ def slurm_launcher(commands):
                 {"shell": True}
                 )
             processes.append(process)
-            time.sleep(10)
+            time.sleep(1)
 
         for i, process in enumerate(processes):
             process.wait()
@@ -128,7 +128,7 @@ def multi_node_slurm_launcher(commands):
     Args:
         commands (List): List of list of string that consists of a python script call
     """
-    mem_per_run = int(float(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS"]) // 1000)
+    mem_per_run = int(float(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS_PER_NODE"]) // 1000)
     mem_per_run = 10*math.floor(mem_per_run/10)
     print(os.environ["SLURM_NODES"])
     with Pool(processes=int(os.environ["SLURM_NTASKS_PER_NODE"])*int(os.environ["SLURM_NODES"])) as pool:
