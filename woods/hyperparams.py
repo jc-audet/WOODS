@@ -301,6 +301,27 @@ def AusElectricity_train(sample):
             'lr': lambda r: 10**-4,
             'batch_size': lambda r: 2
         }
+
+def PedestrianCount_train(sample):
+    """ AusElectricity model hparam definition 
+    
+    Args:
+        sample (bool): If ''True'', hyper parameters are gonna be sampled randomly according to their given distributions. Defaults to ''False'' where the default value is chosen.
+    """
+    if sample:
+        return {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0.,
+            'lr': lambda r: 10**r.uniform(-5, -3),
+            'batch_size': lambda r: int(2**r.uniform(3, 5))
+        }
+    else:
+        return {
+            'class_balance': lambda r: True,
+            'weight_decay': lambda r: 0,
+            'lr': lambda r: 10**-4,
+            'batch_size': lambda r: 2
+        }
     
 def IEMOCAPOriginal_train(sample):
     if sample:
@@ -495,6 +516,20 @@ def AusElectricityUnbalanced_model():
     }
 
 def AusElectricity_model():
+    """ AusElectricity model hparam definition """
+    return {
+        'model': 'ForecastingTransformer',
+        'num_parallel_samples': 100,
+        'nhead': 2,
+        'num_encoder_layers': 2,
+        'num_decoder_layers': 2,
+        'dim_feedforward': 32,
+        'dropout': 0.1,
+        'activation': 'gelu',
+        'scaling': True
+    }
+
+def PedestrianCount_model():
     """ AusElectricity model hparam definition """
     return {
         'model': 'ForecastingTransformer',
