@@ -3753,7 +3753,7 @@ class PedestrianCountEvalSampler(InstanceSampler):
     total_length: int = 0
     n: int = 0
 
-    eval_idx: list = list(range(0,168,24))
+    eval_idx: list = list(range(-168, 0, 24))
 
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
         """ Get the bounds of the time series taking into consideration the context length and the future length.
@@ -3779,9 +3779,9 @@ class PedestrianCountEvalSampler(InstanceSampler):
             int: the start index of the time windows.
         """
         a, b = self._get_bounds(ts)
-        eval_idx = self.eval_idx
-        eval_idx = eval_idx[eval_idx > a]
-        eval_idx = eval_idx[eval_idx <= b]
+        eval_idx = np.array(self.eval_idx)
+        #eval_idx = eval_idx[eval_idx > a]
+        #eval_idx = eval_idx[eval_idx <= b]
         print("Check if there is 7 indx", eval_idx)
         window_size = len(eval_idx)
 
@@ -3809,7 +3809,7 @@ class PedestrianCount(Multi_Domain_Dataset):
     PRED_LENGTH = 24
 
     ## Domain parameters
-    ENVS = ['T'+str(i) for i in range(1,67)]
+    ENVS = ['T'+str(i) for i in range(1,10)]
     SWEEP_ENVS = [0] # This is a subpopulation shift problem
 
     ## Data field identifiers
@@ -3878,8 +3878,8 @@ class PedestrianCount(Multi_Domain_Dataset):
             in_dataset = ListDataset(
                 [
                     {  
-                        FieldName.TARGET: self.raw_data['test']['target'][j][:-self.eval_length],
-                        FieldName.START: self.raw_data['test']['start'][j]
+                        FieldName.TARGET: self.raw_data['test']['target'][j:j][:-self.eval_length],
+                        FieldName.START: self.raw_data['test']['start'][j:j]
                     } 
                 ],
                 freq=self.FREQUENCY
@@ -3887,8 +3887,8 @@ class PedestrianCount(Multi_Domain_Dataset):
             out_dataset = ListDataset(
                 [
                     {
-                        FieldName.TARGET: self.raw_data['test']['target'][j],
-                        FieldName.START: self.raw_data['test']['start'][j]
+                        FieldName.TARGET: self.raw_data['test']['target'][j:j],
+                        FieldName.START: self.raw_data['test']['start'][j:j]
                     }
                 ], freq=self.FREQUENCY
             )
