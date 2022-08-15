@@ -3813,9 +3813,9 @@ class PedestrianCount(Multi_Domain_Dataset):
     PRED_LENGTH = 24
 
     ## Domain parameters
-    ENVS = ['T'+str(i) for i in range(1,10)]
-    #SWEEP_ENVS = [15]
-    SWEEP_ENVS = list(range(66))
+    ENVS = ['T'+str(i) for i in range(1,67)]
+    SWEEP_ENVS = [15]
+    # SWEEP_ENVS = list(range(66))
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [
@@ -4131,7 +4131,7 @@ class something(Multi_Domain_Dataset):
     PRED_LENGTH = 1440 # One day
 
     ## Domain parameters
-    ENVS = ['0:49', '50:99', '100:149', '150:199', '200:249', '250:299', '300:339']
+    ENVS = ['0-49', '50-99', '100-149', '150-199', '200-249', '250-299', '300-339']
     #SWEEP_ENVS = [15]
     SWEEP_ENVS = list(range(66))
 
@@ -4193,7 +4193,9 @@ class something(Multi_Domain_Dataset):
         self.train_names, self.train_loaders = [], []
         self.val_names, self.val_loaders = [], []
         for j, e in enumerate(self.ENVS):
-
+            sta, end = e.split("-")
+            sta, end = int(sta), int(end)
+            print(sta, end)
             # Create ListDatasets
             in_dataset = ListDataset(
                 [
@@ -4201,8 +4203,8 @@ class something(Multi_Domain_Dataset):
                         FieldName.TARGET: tgt[:-self.eval_length],
                         FieldName.START: strt
                     } for (tgt, strt) in zip(
-                        self.raw_data['test']['target'][eval(e)], 
-                        self.raw_data['test']['start'][eval(e)])
+                        self.raw_data['test']['target'][sta:end], 
+                        self.raw_data['test']['start'][sta:end])
                 ],
                 freq=self.FREQUENCY
             )
@@ -4212,8 +4214,8 @@ class something(Multi_Domain_Dataset):
                         FieldName.TARGET: tgt,
                         FieldName.START: strt
                     } for (tgt, strt) in zip(
-                        self.raw_data['test']['target'][eval(e)], 
-                        self.raw_data['test']['start'][eval(e)])
+                        self.raw_data['test']['target'][sta:end], 
+                        self.raw_data['test']['start'][sta:end])
                 ], freq=self.FREQUENCY
             )
 
