@@ -76,7 +76,7 @@ class ERM(Objective):
 
         # Get some other useful info
         self.nb_training_domains = dataset.get_nb_training_domains()
-
+        print("*******", self.nb_training_domains) 
     def predict(self, all_x):
         return self.model(all_x)
 

@@ -503,7 +503,7 @@ class Multi_Domain_Dataset:
         Returns:
             int: Number of domains in the training set
         """
-
+        print(self.test_env, len(self.ENVS))
         if self.test_env is None:
             return len(self.ENVS)
         return len(self.ENVS) - 1
@@ -3780,9 +3780,9 @@ class PedestrianCountEvalSampler(InstanceSampler):
         """
         a, b = self._get_bounds(ts)
         eval_idx = np.array(self.eval_idx)
+        eval_idx += ts.shape[self.axis]
         #eval_idx = eval_idx[eval_idx > a]
         #eval_idx = eval_idx[eval_idx <= b]
-        print("Check if there is 7 indx", eval_idx)
         window_size = len(eval_idx)
 
         if window_size <= 0:
@@ -3809,8 +3809,9 @@ class PedestrianCount(Multi_Domain_Dataset):
     PRED_LENGTH = 24
 
     ## Domain parameters
-    ENVS = ['T'+str(i) for i in range(1,10)]
-    SWEEP_ENVS = [0] # This is a subpopulation shift problem
+    ENVS = ['T'+str(i) for i in range(1,67)]
+    #SWEEP_ENVS = [15]
+    SWEEP_ENVS = list(range(66))
 
     ## Data field identifiers
     PREDICTION_INPUT_NAMES = [
@@ -3833,12 +3834,6 @@ class PedestrianCount(Multi_Domain_Dataset):
         # Get dataset
         self.raw_data = load_dataset('monash_tsf','pedestrian_counts')
 
-        print(self.raw_data)
-        print(len(self.raw_data['test']['target'][-1]))
-        print(len(self.raw_data['test']['target'][-1][:-168]))
-        print(len(self.raw_data['test']['target'][-1][-168:]))
-        print(len(self.raw_data['test']['target'][-1]))
-
         # Data property
         self.num_feat_static_cat = 0
         self.num_feat_dynamic_real = 0
@@ -3846,6 +3841,10 @@ class PedestrianCount(Multi_Domain_Dataset):
         self.eval_length=168 # One week
         self.max_ts_length = 85000  #Rounded up to the tens of thousand, just cause idk
 
+        
+        # Define domain
+        self.test_env = flags.test_env
+        
         ## Task information
         # Forcasting models output parameters of a distribution
         self.distr_output = StudentTOutput()
@@ -3878,8 +3877,8 @@ class PedestrianCount(Multi_Domain_Dataset):
             in_dataset = ListDataset(
                 [
                     {  
-                        FieldName.TARGET: self.raw_data['test']['target'][j:j][:-self.eval_length],
-                        FieldName.START: self.raw_data['test']['start'][j:j]
+                        FieldName.TARGET: self.raw_data['test']['target'][j][:-self.eval_length],
+                        FieldName.START: self.raw_data['test']['start'][j]
                     } 
                 ],
                 freq=self.FREQUENCY
@@ -3887,23 +3886,24 @@ class PedestrianCount(Multi_Domain_Dataset):
             out_dataset = ListDataset(
                 [
                     {
-                        FieldName.TARGET: self.raw_data['test']['target'][j:j],
-                        FieldName.START: self.raw_data['test']['start'][j:j]
+                        FieldName.TARGET: self.raw_data['test']['target'][j],
+                        FieldName.START: self.raw_data['test']['start'][j]
                     }
                 ], freq=self.FREQUENCY
             )
 
             in_transformed = self.transform.apply(in_dataset, is_train=True)
             out_transformed = self.transform.apply(out_dataset, is_train=False)
-
-            in_train_dataloader = self.create_training_data_loader(
-                in_transformed,
-                training_hparams=training_hparams,
-                shuffle_buffer_length=0,
-                num_workers=self.N_WORKERS
-            )
-            self.train_names.append(e+"_in")
-            self.train_loaders.append(in_train_dataloader)
+            
+            if j != self.test_env:
+                in_train_dataloader = self.create_training_data_loader(
+                    in_transformed,
+                    training_hparams=training_hparams,
+                    shuffle_buffer_length=0,
+                    num_workers=self.N_WORKERS
+                )
+                self.train_names.append(e+"_in")
+                self.train_loaders.append(in_train_dataloader)
 
             in_eval_dataloader = self.create_evaluation_data_loader(
                 in_transformed,
@@ -3923,15 +3923,7 @@ class PedestrianCount(Multi_Domain_Dataset):
 
         self.train_loaders_iter = zip(*self.train_loaders)
         self.loss_fn = NegativeLogLikelihood()
-
-    def get_nb_training_domains(self):
-        """ Get the number of domains in the training set
-        
-        Returns:
-            int: Number of domains in the training set
-        """
-
-        return len(self.ENVS)
+        print(self.test_env)
 
     def create_transformation(self) -> Transformation:
             remove_field_names = []
@@ -4074,15 +4066,6 @@ class PedestrianCount(Multi_Domain_Dataset):
             **kwargs,
         )
 
-    def get_nb_training_domains(self):
-        """ Get the number of domains in the training set
-        
-        Returns:
-            int: Number of domains in the training set
-        """
-
-        return len(self.ENVS)
-
     def get_number_of_batches(self):
         """ Returns the number of batches per epoch. """
         return self.num_batches_per_epoch
@@ -4104,8 +4087,8 @@ class PedestrianCount(Multi_Domain_Dataset):
 
     def loss_by_domain(self, X, Y, n_domains):
         """ Returns the loss by domain. Because this is an Unbalanced dataset, there is only one during training domain"""
+        
         losses = self.loss_fn(X,Y)
-
         new_shape = (
             n_domains,
             losses.shape[0] // n_domains,

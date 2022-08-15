@@ -109,9 +109,9 @@ if __name__ == "__main__":
                                 acc_arr.append(test_acc*100)
 
                                 if flags.latex:
-                                    obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=test_acc*100, var=test_var*100))
+                                    obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=test_acc, var=test_var))
                                 else:
-                                    obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=test_acc*100, var=test_var*100))
+                                    obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=test_acc, var=test_var))
                                 
                         avg_test = np.mean(acc_arr)
                         obj_results.append(" {acc:.2f} ".format(acc=avg_test))
@@ -308,14 +308,14 @@ if __name__ == "__main__":
             acc_arr = []
             obj_results = ['IID ERM']
 
-            val_acc, val_var, test_acc, test_var = model_selection.get_chosen_test_acc(dataset_dict['ERM'][None], 'IID_validation')
+            val_acc, val_var, test_acc, test_var, _ = model_selection.choose_model_domain_generalization(dataset_dict['ERM'][None], 'IID_validation')
             acc_arr.append(test_acc*100)
 
-            for acc, var in zip(val_acc, val_var):
+            for acc, var in zip(test_acc, test_var):
                 if flags.latex:
-                    obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=acc*100, var=var*100))
+                    obj_results.append(" ${acc:.2f} \pm {var:.2f}$ ".format(acc=acc, var=var))
                 else:
-                    obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=acc*100, var=var*100))
+                    obj_results.append(" {acc:.2f} +/- {var:.2f} ".format(acc=acc, var=var))
                 
             avg_test = np.mean(acc_arr)
             obj_results.append(" {acc:.2f} ".format(acc=avg_test))

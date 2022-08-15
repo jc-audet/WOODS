@@ -85,13 +85,15 @@ def slurm_launcher(commands):
     """
     mem_per_run = int(float(os.environ['SLURM_MEM_PER_NODE']) // int(os.environ["SLURM_NTASKS"]) // 1000)
     mem_per_run = 10*math.floor(mem_per_run/10)
+    print(mem_per_run)
+    mem_per_run = 50
     with Pool(processes=int(os.environ["SLURM_NTASKS"])) as pool:
 
         processes = []
         for command in commands:
             process = pool.apply_async(
                 subprocess.run, 
-                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem={mem_per_run}G --gres=gpu:1 --exclusive {command}'], 
+                [f'srun --ntasks=1 --cpus-per-task={os.environ["SLURM_CPUS_PER_TASK"]} --mem={mem_per_run}G --gres=gpu:1 --comment MILA --exclusive {command}'], 
                 {"shell": True}
                 )
             processes.append(process)

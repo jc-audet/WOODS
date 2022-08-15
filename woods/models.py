@@ -778,7 +778,6 @@ class ForecastingTransformer(nn.Module):
         _, scale = self.scaler(context, observed_context)
 
         
-        print(past_target.shape, future_target.shape)
         inputs = (
             torch.cat((past_target, future_target), dim=1) / scale
             if future_target is not None
@@ -790,7 +789,6 @@ class ForecastingTransformer(nn.Module):
             if future_target is not None
             else self._past_length
         )
-        print(inputs.shape, inputs_length)
         assert inputs.shape[1] == inputs_length
         
         subsequences_length = (

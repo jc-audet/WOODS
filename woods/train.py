@@ -113,7 +113,6 @@ def get_accuracies(objective, dataset, device):
         elif dataset.TASK == 'forecasting':
 
             error, loss = get_split_errors(objective, name, dataset, loader, device)
-
             record.update({ name+'_rmse': error,
                             name+'_loss': loss})
 

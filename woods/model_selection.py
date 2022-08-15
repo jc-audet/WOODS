@@ -26,7 +26,7 @@ def get_model_selection(dataset_name):
 
     if dataset_name in [ 'Spurious_Fourier', "TCMNIST_Source", "TCMNIST_Time"]:
         return ['train_domain_validation', 'test_domain_validation']
-    if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR']:
+    if dataset_name in [ 'CAP', 'SEDFx', 'PCL', 'LSA64', 'HHAR', 'PedestrianCount']:
         return ['train_domain_validation', 'oracle_train_domain_validation']
     if dataset_name in ['AusElectricity', 'AusElectricityUnbalanced', 'IEMOCAPUnbalanced', 'IEMOCAP']:
         return ['average_validation', 'weighted_average_validation', 'worse_domain_validation']
@@ -144,14 +144,14 @@ def choose_model_domain_generalization(records, selection_method):
 
             val_acc_dict[h_seed] = val_acc
             test_acc_dict[h_seed] = test_acc
-
+        
         best_seed = [k for k,v in val_acc_dict.items() if v==min_or_max(val_acc_dict.values())][0]
         # best_seed = [k for k,v in val_acc_dict.items() if v==min(val_acc_dict.values())][0]
 
         val_acc_arr.append(val_acc_dict[best_seed])
         test_acc_arr.append(test_acc_dict[best_seed])
         best_seeds.append((t_seed, best_seed))
-
+    
     return (
         np.mean(val_acc_arr, axis=0),
         np.std(val_acc_arr, axis=0) / np.sqrt(len(val_acc_arr)),
@@ -185,6 +185,12 @@ def IID_validation(records):
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
     meas = datasets.get_performance_measure(flags['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
 
     val_keys = [str(e)+'_out_'+meas for e in env_name]
 
@@ -198,7 +204,7 @@ def IID_validation(records):
 
     ## Picking the max value from a dict
     # Fastest:
-    best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
+    best_step = [k for k,v in val_dict.items() if v==min_or_max(val_dict.values())][0]
     # Cleanest:
     # best_step = max(val_dict, key=val_dict.get)
     
@@ -224,10 +230,20 @@ def train_domain_validation(records):
     flags = records.pop('flags')
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
+    
+    # Determine if we need to min or maximize
     meas = datasets.get_performance_measure(flags['dataset'])
+    print(meas)
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
+
 
     val_keys = [str(e)+'_out_'+meas for i,e in enumerate(env_name) if i != flags['test_env']]
-    test_key = str(env_name[flags['test_env']]) + '_in_acc'
+    test_key = [str(env_name[flags['test_env']]) + '_out_'+meas, str(env_name[flags['test_env']]) + '_in_'+meas]
 
     val_dict = {}
     test_dict = {}
@@ -236,13 +252,13 @@ def train_domain_validation(records):
         val_array = [step_dict[k] for k in val_keys]
         val_dict[step] = np.mean(val_array)
 
-        test_dict[step] = step_dict[test_key]
+        test_dict[step] = (step_dict[test_key[0]] + step_dict[test_key[1]])/2.
 
     ## Picking the max value from a dict
     # Fastest:
     # best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
     # Cleanest:
-    best_step = max(val_dict, key=val_dict.get)
+    best_step = min_or_max(val_dict, key=val_dict.get)
     
     return val_dict[best_step], test_dict[best_step]
 
@@ -267,13 +283,20 @@ def test_domain_validation(records):
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
     meas = datasets.get_performance_measure(flags['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
+
 
     val_keys = str(env_name[flags['test_env']])+'_out_'+meas
-    test_keys = str(env_name[flags['test_env']])+'_in_'+meas
+    test_keys = [str(env_name[flags['test_env']])+'_out_'+meas, str(env_name[flags['test_env']]) + '_out_'+meas]
 
-    last_step = max([int(step) for step in records.keys()])
+    last_step = min_or_max([int(step) for step in records.keys()])
 
-    return records[str(last_step)][val_keys], records[str(last_step)][test_keys]
+    return records[str(last_step)][val_keys], (records[str(last_step)][test_keys[0]]+records[str(last_step)][test_keys[1]])/2.
 
 def oracle_train_domain_validation(records):
     """ Perform the train domain validation 'oracle' model section on a single training run and returns the results
@@ -296,10 +319,17 @@ def oracle_train_domain_validation(records):
     hparams = records.pop('hparams')
     env_name = datasets.get_environments(flags['dataset'])
     meas = datasets.get_performance_measure(flags['dataset'])
+    if meas == 'acc':
+        min_or_max = max
+    elif meas == 'rmse':
+        min_or_max = min
+    else:
+        raise Exception("Something is wrong here, the dataset doesn't have a performance measure")
+
 
     val_keys = [str(e)+'_out_'+meas for i,e in enumerate(env_name) if i != flags['test_env']]
-    test_key = str(env_name[flags['test_env']]) + '_in_'+meas
-    validation_test_key = str(env_name[flags['test_env']]) + '_out_'+meas
+    test_key = [str(env_name[flags['test_env']]) + '_out_'+meas, str(env_name[flags['test_env']]) + '_out_'+meas]
+    validation_test_key = str(env_name[flags['test_env']]) + '_in_'+meas
 
     val_dict = {}
     test_dict = {}
@@ -309,14 +339,14 @@ def oracle_train_domain_validation(records):
         val_array = [step_dict[k] for k in val_keys]
         val_dict[step] = np.mean(val_array)
 
-        test_dict[step] = step_dict[test_key]
+        test_dict[step] = (step_dict[test_key[0]] + step_dict[test_key[1]])/2.
         validation_test_dict[step] = step_dict[validation_test_key]
 
     ## Picking the max value from a dict
     # Fastest:
     # best_step = [k for k,v in val_dict.items() if v==max(val_dict.values())][0]
     # Cleanest:
-    best_step = max(val_dict, key=val_dict.get)
+    best_step = min_or_max(val_dict, key=val_dict.get)
     
     return validation_test_dict[best_step], test_dict[best_step]
 

@@ -245,22 +245,40 @@ def update_pretty_table(t, step, dataset, record):
     paradigm = dataset.PARADIGM
     measure = dataset.PERFORMANCE_MEASURE
 
-    if paradigm == 'subpopulation_shift':
-        t.add_row([step] 
-                + [" :: ".join(["{:.2f}".format(record[str(e)+'_train_'+measure]) for e in envs])] 
-                + [" :: ".join(["{:.2f}".format(record[str(e)+'_val_'+measure]) for e in envs])] 
-                + [" :: ".join(["{:.2f}".format(record[str(e)+'_test_'+measure]) for e in envs])] 
-                + ["{:.1e}".format(np.average([record[str(e)+'_train_loss'] for e in envs]))] 
-                + ["N\A"]
-                + ["{:.2f}".format(record['step_time'])] 
-                + ["{:.2f}".format(record['val_time'])])
-    if paradigm == 'domain_generalization':
-        t.add_row([step] 
-                + ["{:.2f} :: {:.2f}".format(record[str(e)+'_in_acc'], record[str(e)+'_out_acc']) for e in envs] 
-                + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))] 
-                + ["{:.2f}".format(record['epoch'])]
-                + ["{:.2f}".format(record['step_time'])] 
-                + ["{:.2f}".format(record['val_time'])])
+    if measure == 'rmse':
+        if paradigm == 'subpopulation_shift':
+            t.add_row([step] 
+                    + [" :: ".join(["{:.0f}".format(record[str(e)+'_train_'+measure]) for e in envs])] 
+                    + [" :: ".join(["{:.0f}".format(record[str(e)+'_val_'+measure]) for e in envs])] 
+                    + [" :: ".join(["{:.0f}".format(record[str(e)+'_test_'+measure]) for e in envs])] 
+                    + ["{:.1e}".format(np.average([record[str(e)+'_train_loss'] for e in envs]))] 
+                    + ["N\A"]
+                    + ["{:.2f}".format(record['step_time'])] 
+                    + ["{:.2f}".format(record['val_time'])])
+        if paradigm == 'domain_generalization':
+            t.add_row([step] 
+                    + ["{:.0f} :: {:.0f}".format(record[str(e)+'_in_'+measure], record[str(e)+'_out_'+measure]) for e in envs] 
+                    + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))] 
+                    + ["{:.2f}".format(record['epoch'])]
+                    + ["{:.2f}".format(record['step_time'])] 
+                    + ["{:.2f}".format(record['val_time'])])
+    else:
+        if paradigm == 'subpopulation_shift':
+            t.add_row([step] 
+                    + [" :: ".join(["{:.2f}".format(record[str(e)+'_train_'+measure]) for e in envs])] 
+                    + [" :: ".join(["{:.2f}".format(record[str(e)+'_val_'+measure]) for e in envs])] 
+                    + [" :: ".join(["{:.2f}".format(record[str(e)+'_test_'+measure]) for e in envs])] 
+                    + ["{:.1e}".format(np.average([record[str(e)+'_train_loss'] for e in envs]))] 
+                    + ["N\A"]
+                    + ["{:.2f}".format(record['step_time'])] 
+                    + ["{:.2f}".format(record['val_time'])])
+        if paradigm == 'domain_generalization':
+            t.add_row([step] 
+                    + ["{:.2f} :: {:.2f}".format(record[str(e)+'_in_'+measure], record[str(e)+'_out_'+measure]) for e in envs] 
+                    + ["{:.2f}".format(np.average([record[str(e)+'_loss'] for e in train_names]))] 
+                    + ["{:.2f}".format(record['epoch'])]
+                    + ["{:.2f}".format(record['step_time'])] 
+                    + ["{:.2f}".format(record['val_time'])])
 
 def get_latex_table(table, caption=None, label=None):
     """Construct and export a LaTeX table from a PrettyTable.
