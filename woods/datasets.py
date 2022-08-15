@@ -52,7 +52,8 @@ DATASETS = [
     "IEMOCAPUnbalanced",
     "IEMOCAP",
     ## Pedestrian Count
-    "PedestrianCount"
+    "PedestrianCount",
+    "something"
 ]
 
 def get_dataset_class(dataset_name):
@@ -3755,6 +3756,9 @@ class PedestrianCountEvalSampler(InstanceSampler):
 
     eval_idx: list = list(range(-168, 0, 24))
 
+    def _set_attribute(self, eval_idx):
+        self.eval_idx = eval_idx
+
     def _get_bounds(self, ts: np.ndarray) -> Tuple[int, int]:
         """ Get the bounds of the time series taking into consideration the context length and the future length.
 
@@ -3809,7 +3813,7 @@ class PedestrianCount(Multi_Domain_Dataset):
     PRED_LENGTH = 24
 
     ## Domain parameters
-    ENVS = ['T'+str(i) for i in range(1,67)]
+    ENVS = ['T'+str(i) for i in range(1,10)]
     #SWEEP_ENVS = [15]
     SWEEP_ENVS = list(range(66))
 
@@ -3877,7 +3881,7 @@ class PedestrianCount(Multi_Domain_Dataset):
             in_dataset = ListDataset(
                 [
                     {  
-                        FieldName.TARGET: self.raw_data['test']['target'][j][:-self.eval_length],
+                        FieldName.TARGET: self.raw_data['test']['target'][j][:-3*self.eval_length],
                         FieldName.START: self.raw_data['test']['start'][j]
                     } 
                 ],
@@ -4055,6 +4059,331 @@ class PedestrianCount(Multi_Domain_Dataset):
             min_future=self.PRED_LENGTH, 
             num_instances=1.0
         )
+
+        eval_index = list(range(-self.eval_length, 0, self.PRED_LENGTH))
+        instance_sampler._set_attribute(eval_index)
+
+        transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
+
+        validation_instances = transformation.apply(data)
+
+        return DataLoader(
+            IterableDataset(validation_instances),
+            batch_size=training_hparams['batch_size'],
+            **kwargs,
+        )
+
+    def get_number_of_batches(self):
+        """ Returns the number of batches per epoch. """
+        return self.num_batches_per_epoch
+
+    def get_next_batch(self):
+        """ Returns the next batch. """
+        batch = next(self.train_loaders_iter)
+        batch = {k: torch.cat([batch[b][k] for b in range(len(batch))], dim=0) for k in batch[0]}
+
+        return self.split_input(batch)
+
+    def split_input(self, batch):
+        """ Splits the input batch into the input and target. """
+        return {k: batch[k].to(self.device) for k in batch}, batch['future_target'].to(self.device)
+
+    def loss(self, X, Y):
+        """ Returns the loss for the given input and target. """
+        return self.loss_fn(X,Y).mean()
+
+    def loss_by_domain(self, X, Y, n_domains):
+        """ Returns the loss by domain. Because this is an Unbalanced dataset, there is only one during training domain"""
+        
+        losses = self.loss_fn(X,Y)
+        new_shape = (
+            n_domains,
+            losses.shape[0] // n_domains,
+            *losses.shape[1:]
+        )
+        domain_losses = torch.reshape(losses, new_shape)
+        
+        return domain_losses.mean(dim=(1,2))
+
+    def split_tensor_by_domains(self, features, Y, n_domains):
+        """ This can only be applied to features tensors fo IB-ERM, because we don't currently know how to split gluonts transformed distributions outputs
+        """
+        assert isinstance(features, torch.Tensor), "Input not tensor"
+        return super().split_tensor_by_domains(features, Y, n_domains)
+
+
+class something(Multi_Domain_Dataset):
+
+    # Training parameters
+    N_STEPS = 3001
+    CHECKPOINT_FREQ = 250
+
+    ## Dataset parameters
+    PERFORMANCE_MEASURE = 'rmse'
+    PARADIGM = 'domain_generalization'
+    SETUP = 'source'
+    TASK = 'forecasting'
+
+    ## Data parameters
+    INPUT_SIZE = 1
+    OUTPUT_SIZE = 1
+    FREQUENCY = '1T'
+    PRED_LENGTH = 1440 # One day
+
+    ## Domain parameters
+    ENVS = ['0:49', '50:99', '100:149', '150:199', '200:249', '250:299', '300:339']
+    #SWEEP_ENVS = [15]
+    SWEEP_ENVS = list(range(66))
+
+    ## Data field identifiers
+    PREDICTION_INPUT_NAMES = [
+        "feat_static_cat",
+        "feat_static_real",
+        "past_time_feat",
+        "past_target",
+        "past_observed_values",
+        "future_time_feat",
+    ]
+
+    TRAINING_INPUT_NAMES = PREDICTION_INPUT_NAMES + [
+        "future_target",
+        "future_observed_values",
+    ]
+
+    def __init__(self, flags, training_hparams):
+        super().__init__()
+
+        # Get dataset
+        self.raw_data = load_dataset('monash_tsf','wind_farms_minutely')
+
+        # Data property
+        self.num_feat_static_cat = 0
+        self.num_feat_dynamic_real = 0
+        self.num_feat_static_real = 0
+        self.eval_length=7*1440 # One week
+        self.max_ts_length = 550000  #Rounded up to the tens of thousand, just cause idk
+
+        # Define domain
+        self.test_env = flags.test_env
+        
+        ## Task information
+        # Forcasting models output parameters of a distribution
+        self.distr_output = StudentTOutput()
+        # Covariate information given to the model alongside the target time series
+        self.time_features = time_features_from_frequency_str(self.FREQUENCY)   # Transformed time information in the shape of a vector [f(minute), f(hour), f(day), ...]
+        self.lags_seq = get_lags_for_frequency(self.FREQUENCY)  # Past targets from the target time series fed alongside the current time e.g., input_target=[target[0], target[-10], target[-100], ...]
+        # Context info
+        self.context_length = 7*self.PRED_LENGTH
+        self._past_length = self.context_length + max(self.lags_seq)
+
+        # Training parameters
+        self.device = training_hparams['device']
+        self.batch_size = training_hparams['batch_size']
+        self.num_batches_per_epoch = 100
+
+        # Define embedding (this is kind of useless because this dataset doesn't have categorical covariate features, 
+        # but it might be useful as template for other forecasting datasets)
+        self.cardinality = [5]
+        self.embedding_dimension = [5]
+
+        # Create transformation
+        self.transform = self.create_transformation()
+
+        ## Create tensor dataset and dataloader
+        self.train_names, self.train_loaders = [], []
+        self.val_names, self.val_loaders = [], []
+        for j, e in enumerate(self.ENVS):
+
+            # Create ListDatasets
+            in_dataset = ListDataset(
+                [
+                    {  
+                        FieldName.TARGET: tgt[:-self.eval_length],
+                        FieldName.START: strt
+                    } for (tgt, strt) in zip(
+                        self.raw_data['test']['target'][eval(e)], 
+                        self.raw_data['test']['start'][eval(e)])
+                ],
+                freq=self.FREQUENCY
+            )
+            out_dataset = ListDataset(
+                [
+                    {
+                        FieldName.TARGET: tgt,
+                        FieldName.START: strt
+                    } for (tgt, strt) in zip(
+                        self.raw_data['test']['target'][eval(e)], 
+                        self.raw_data['test']['start'][eval(e)])
+                ], freq=self.FREQUENCY
+            )
+
+            in_transformed = self.transform.apply(in_dataset, is_train=True)
+            out_transformed = self.transform.apply(out_dataset, is_train=False)
+            
+            if j != self.test_env:
+                in_train_dataloader = self.create_training_data_loader(
+                    in_transformed,
+                    training_hparams=training_hparams,
+                    shuffle_buffer_length=0,
+                    num_workers=self.N_WORKERS
+                )
+                self.train_names.append(e+"_in")
+                self.train_loaders.append(in_train_dataloader)
+
+            in_eval_dataloader = self.create_evaluation_data_loader(
+                in_transformed,
+                training_hparams=training_hparams,
+                num_workers=0
+            )
+            self.val_names.append(e+"_in")
+            self.val_loaders.append(in_eval_dataloader)
+
+            out_dataloader = self.create_evaluation_data_loader(
+                out_transformed,
+                training_hparams=training_hparams,
+                num_workers=0
+            )
+            self.val_names.append(e+"_out")
+            self.val_loaders.append(out_dataloader)
+
+        self.train_loaders_iter = zip(*self.train_loaders)
+        self.loss_fn = NegativeLogLikelihood()
+        print(self.test_env)
+
+    def create_transformation(self) -> Transformation:
+            remove_field_names = []
+            if self.num_feat_static_real == 0:
+                remove_field_names.append(FieldName.FEAT_STATIC_REAL)
+            if self.num_feat_dynamic_real == 0:
+                remove_field_names.append(FieldName.FEAT_DYNAMIC_REAL)
+
+            return Chain(
+                [RemoveFields(field_names=remove_field_names)]
+                + (
+                    [SetField(output_field=FieldName.FEAT_STATIC_CAT, value=[0])]
+                    if not self.num_feat_static_cat > 0
+                    else []
+                )
+                + (
+                    [
+                        SetField(
+                            output_field=FieldName.FEAT_STATIC_REAL, value=[0.0]
+                        )
+                    ]
+                    if not self.num_feat_static_real > 0
+                    else []
+                )
+                + [
+                    AsNumpyArray(
+                        field=FieldName.FEAT_STATIC_CAT,
+                        expected_ndim=1,
+                        dtype=int,
+                    ),
+                    AsNumpyArray(
+                        field=FieldName.FEAT_STATIC_REAL,
+                        expected_ndim=1,
+                    ),
+                    AsNumpyArray(
+                        field=FieldName.TARGET,
+                        # in the following line, we add 1 for the time dimension
+                        expected_ndim=1 + len(self.distr_output.event_shape),
+                    ),
+                    AddObservedValuesIndicator(
+                        target_field=FieldName.TARGET,
+                        output_field=FieldName.OBSERVED_VALUES,
+                    ),
+                    AddTimeFeatures(
+                        start_field=FieldName.START,
+                        target_field=FieldName.TARGET,
+                        output_field=FieldName.FEAT_TIME,
+                        time_features=self.time_features,
+                        pred_length=self.PRED_LENGTH,
+                    ),
+                    AddAgeFeature(
+                        target_field=FieldName.TARGET,
+                        output_field=FieldName.FEAT_AGE,
+                        pred_length=self.PRED_LENGTH,
+                        log_scale=True,
+                    ),
+                    VstackFeatures(
+                        output_field=FieldName.FEAT_TIME,
+                        input_fields=[FieldName.FEAT_TIME, FieldName.FEAT_AGE]
+                        + (
+                            [FieldName.FEAT_DYNAMIC_REAL]
+                            if self.num_feat_dynamic_real > 0
+                            else []
+                        ),
+                    ),
+                ]
+            )
+
+    def _create_instance_splitter(
+            self, instance_sampler: InstanceSampler
+        ):
+            return InstanceSplitter(
+                target_field=FieldName.TARGET,
+                is_pad_field=FieldName.IS_PAD,
+                start_field=FieldName.START,
+                forecast_start_field=FieldName.FORECAST_START,
+                instance_sampler=instance_sampler,
+                past_length=self._past_length,
+                future_length=self.PRED_LENGTH,
+                time_series_fields=[
+                    FieldName.FEAT_TIME,
+                    FieldName.OBSERVED_VALUES,
+                ],
+                dummy_value=self.distr_output.value_in_support,
+            )
+
+    def create_training_data_loader(
+        self,
+        data: Dataset,
+        training_hparams,
+        shuffle_buffer_length: Optional[int] = None,
+        **kwargs,
+    ) -> Iterable:
+
+        instance_sampler = PedestrianCountTrainSampler(
+            min_future=self.PRED_LENGTH, 
+            num_instances=1.0
+        )
+        
+
+        transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
+
+        training_instances = transformation.apply(
+            Cyclic(data)
+            if shuffle_buffer_length is None
+            else PseudoShuffled(
+                Cyclic(data), shuffle_buffer_length=shuffle_buffer_length
+            )
+        )
+
+        return IterableSlice(
+            iter(
+                DataLoader(
+                    IterableDataset(training_instances),
+                    batch_size=training_hparams['batch_size'],
+                    **kwargs,
+                )
+            ),
+            self.N_STEPS,
+        )
+
+    def create_evaluation_data_loader(
+        self,
+        data: Dataset,
+        training_hparams,
+        **kwargs,
+    ) -> Iterable:
+
+        instance_sampler = PedestrianCountEvalSampler(
+            min_future=self.PRED_LENGTH, 
+            num_instances=1.0
+        )
+
+        eval_index = list(range(-self.eval_length, 0, self.PRED_LENGTH))
+        instance_sampler._set_attribute(eval_index)
 
         transformation = self._create_instance_splitter(instance_sampler) + SelectFields(self.TRAINING_INPUT_NAMES)
 
